@@ -1,0 +1,43 @@
+name: Deploy to VPS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DWNLDR_DEPLOY_KEY }}
+
+      - name: Deploy to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no root@45.159.248.213 '
+          # Navigate to the application directory or clone repository if not present
+          if [ ! -d "/usr/apps/dwnldr/.git" ]; then
+            sudo git clone https://github.com/EliteUser/dwnldr.git /usr/apps/dwnldr
+          fi
+          cd /usr/apps/dwnldr
+          sudo git pull origin master
+          
+          # Build the Docker image
+          sudo docker build -t dwnldr .
+          
+          # Stop and remove the existing container if it exists
+          if sudo docker ps -q -f name=dwnldr; then
+            sudo docker stop dwnldr
+            sudo docker rm dwnldr
+          fi
+          
+          # Run the new container
+          sudo docker run -d -p 3000:3000 --name dwnldr dwnldr
+          '

@@ -1,0 +1,44 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+:root {
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+    min-width: 320px;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    width: 100%;
+}
+
+*::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: #888888;
+    background-clip: content-box;
+    border: 4px solid transparent;
+    border-radius: 10px;
+}
+
+*::-webkit-scrollbar-corner {
+    background-color: transparent;
+}

@@ -1,0 +1,34 @@
+@use 'sass:math';
+
+.app {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    flex-grow: 1;
+    height: 100%;
+    max-height: inherit;
+    min-height: 0;
+}
+
+.tabPanels {
+    display: flex;
+    min-height: 0;
+    flex-grow: 1;
+}
+
+.tabPanel {
+    padding: 24px;
+    min-height: 0;
+    flex-grow: 1;
+}
+
+.tabList {
+    flex-shrink: 0;
+}
+
+.tab {
+    margin: 0 !important;
+    width: math.div(100%, 3);
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
