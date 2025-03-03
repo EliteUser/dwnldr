@@ -22,6 +22,7 @@ export const Likes = memo<LikesProps>((props) => {
         data: favorites,
         isLoading,
         refetch,
+        isFetching,
     } = useGetFavoritesQuery(userId || '', {
         skip: !userId,
     });
@@ -36,7 +37,11 @@ export const Likes = memo<LikesProps>((props) => {
                 </Button>
             </div>
 
-            {isLoading && <Loader size='l' />}
+            {(isLoading || isFetching) && (
+                <div className={styles.wrapper}>
+                    <Loader size='l' />
+                </div>
+            )}
 
             {favorites && favorites.length > 0 ? (
                 <div className={styles.likesList}>
@@ -57,7 +62,7 @@ export const Likes = memo<LikesProps>((props) => {
                     ))}
                 </div>
             ) : (
-                userId && !isLoading && <Text>No liked tracks found.</Text>
+                userId && !isLoading && <Text variant='body-2'>No liked tracks found.</Text>
             )}
         </div>
     );

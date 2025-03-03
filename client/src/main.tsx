@@ -8,6 +8,7 @@ import { App } from './app';
 
 import '@gravity-ui/uikit/styles/fonts.css';
 import '@gravity-ui/uikit/styles/styles.css';
+import './theme.scss';
 
 import './index.scss';
 
