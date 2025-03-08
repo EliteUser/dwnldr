@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "main": "dist/src/main.js",
   "scripts": {
+    "dev:server": "NODE_ENV=development nodemon --exec ts-node src/main.ts",
     "build:server": "tsc",
-    "start": "NODE_ENV=production node dist/main.js",
-    "dev:server": "NODE_ENV=development nodemon --exec ts-node src/main.ts"
+    "start": "NODE_ENV=production node dist/main.js"
   },
   "dependencies": {
     "@types/express": "4.17.21",
