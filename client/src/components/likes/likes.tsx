@@ -32,6 +32,8 @@ export const Likes = memo<LikesProps>((props) => {
         skip: !userId,
     });
 
+    const hasFavorites = !!favorites?.length;
+
     const filteredFavorites = useMemo(() => {
         if (!favorites?.length) {
             return [];
@@ -56,31 +58,35 @@ export const Likes = memo<LikesProps>((props) => {
                 </div>
             )}
 
-            <div className={styles.list}>
-                <TextInput
-                    size='m'
-                    placeholder='Search'
-                    value={filter}
-                    onChange={(evt) => setFilter(evt.target.value)}
-                    hasClear
-                />
+            {!isLoading && userId && !hasFavorites && <Text variant='body-2'>No liked tracks found.</Text>}
 
-                {filteredFavorites.length > 0 ? (
-                    <div className={styles.likesList}>
-                        {filteredFavorites.map(({ id, user, title, artwork_url, permalink_url, duration }) => (
-                            <Track
-                                key={id}
-                                title={`${user.username} - ${title}`}
-                                duration={duration}
-                                coverUrl={artwork_url}
-                                onDownloadClick={() => onDownloadClick(permalink_url)}
-                            />
-                        ))}
-                    </div>
-                ) : (
-                    userId && !isLoading && <Text variant='body-2'>No liked tracks found.</Text>
-                )}
-            </div>
+            {!isLoading && userId && hasFavorites && (
+                <div className={styles.list}>
+                    <TextInput
+                        size='m'
+                        placeholder='Search'
+                        value={filter}
+                        onChange={(evt) => setFilter(evt.target.value)}
+                        hasClear
+                    />
+
+                    {filteredFavorites.length > 0 ? (
+                        <div className={styles.likesList}>
+                            {filteredFavorites.map(({ id, user, title, artwork_url, permalink_url, duration }) => (
+                                <Track
+                                    key={id}
+                                    title={`${user.username} - ${title}`}
+                                    duration={duration}
+                                    coverUrl={artwork_url}
+                                    onDownloadClick={() => onDownloadClick(permalink_url)}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <Text variant='body-2'>Nothing found</Text>
+                    )}
+                </div>
+            )}
         </div>
     );
 });

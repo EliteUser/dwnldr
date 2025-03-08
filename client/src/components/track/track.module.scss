@@ -24,6 +24,7 @@ $coverSize: 42px;
 }
 
 .cover {
+    align-self: flex-start;
     border-radius: 8px;
     width: $coverSize;
     height: $coverSize;
