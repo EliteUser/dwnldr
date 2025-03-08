@@ -9,6 +9,7 @@ type TracksResult = {
     id: number;
     artwork_url: string;
     permalink_url: string;
+    duration: number;
     title: string;
     user: {
         username: string;

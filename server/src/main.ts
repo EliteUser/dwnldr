@@ -16,7 +16,6 @@ const staticPath = isProduction
     ? path.join(__dirname, '../../../client/dist')
     : path.join(__dirname, '../../client/dist');
 
-console.log(isProduction, staticPath);
 app.use(express.static(staticPath));
 app.use(express.json());
 app.use(cors({ origin: 'http://localhost:5173/' }));

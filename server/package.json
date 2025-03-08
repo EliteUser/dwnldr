@@ -3,14 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "main": "dist/src/main.js",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "scripts": {
-    "build": "tsc",
+    "build:server": "tsc",
     "start": "NODE_ENV=production node dist/main.js",
-    "dev": "NODE_ENV=development nodemon --exec ts-node src/main.ts"
+    "dev:server": "NODE_ENV=development nodemon --exec ts-node src/main.ts"
   },
   "dependencies": {
     "@types/express": "4.17.21",

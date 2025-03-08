@@ -1,20 +1,25 @@
-import { memo } from 'react';
-import { Button, Avatar, Text, Icon, Loader } from '@gravity-ui/uikit';
+import { memo, useMemo, useState } from 'react';
+import { Button, Text, Icon, Loader, TextInput } from '@gravity-ui/uikit';
 import { useGetFavoritesQuery } from '../../api/api.slice';
 import { UserInput } from '../user-input/user-input.tsx';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 
-import { ArrowRotateRight, ArrowShapeDownToLine } from '@gravity-ui/icons';
+import { ArrowRotateRight } from '@gravity-ui/icons';
 
 import styles from './likes.module.scss';
+import { Track } from '../track/track.tsx';
 
 type LikesProps = {
     onDownloadClick: (url: string) => void;
 };
 
+const filterFn = (arg: string, filterValue: string) => arg.toLowerCase().includes(filterValue.toLowerCase());
+
 export const Likes = memo<LikesProps>((props) => {
     const { onDownloadClick } = props;
+
+    const [filter, setFilter] = useState('');
 
     const userId = useSelector((state: RootState) => state.user.userId);
 
@@ -27,6 +32,14 @@ export const Likes = memo<LikesProps>((props) => {
         skip: !userId,
     });
 
+    const filteredFavorites = useMemo(() => {
+        if (!favorites?.length) {
+            return [];
+        }
+
+        return favorites?.filter(({ title, user }) => filterFn(user.username, filter) || filterFn(title, filter));
+    }, [favorites, filter]);
+
     return (
         <div className={styles.likes}>
             <div className={styles.header}>
@@ -38,32 +51,36 @@ export const Likes = memo<LikesProps>((props) => {
             </div>
 
             {(isLoading || isFetching) && (
-                <div className={styles.wrapper}>
+                <div className={styles.loader}>
                     <Loader size='l' />
                 </div>
             )}
 
-            {favorites && favorites.length > 0 ? (
-                <div className={styles.likesList}>
-                    {favorites.map(({ id, user, title, artwork_url, permalink_url }) => (
-                        <div key={id} className={styles.track}>
-                            <Avatar className={styles.cover} size='l' imgUrl={artwork_url} />
+            <div className={styles.list}>
+                <TextInput
+                    size='m'
+                    placeholder='Search'
+                    value={filter}
+                    onChange={(evt) => setFilter(evt.target.value)}
+                    hasClear
+                />
 
-                            <Text>{`${user.username} - ${title}`}</Text>
-
-                            <Button
-                                className={styles.button}
-                                view='outlined-action'
-                                onClick={() => onDownloadClick(permalink_url)}
-                            >
-                                <Icon size={16} data={ArrowShapeDownToLine} />
-                            </Button>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                userId && !isLoading && <Text variant='body-2'>No liked tracks found.</Text>
-            )}
+                {filteredFavorites.length > 0 ? (
+                    <div className={styles.likesList}>
+                        {filteredFavorites.map(({ id, user, title, artwork_url, permalink_url, duration }) => (
+                            <Track
+                                key={id}
+                                title={`${user.username} - ${title}`}
+                                duration={duration}
+                                coverUrl={artwork_url}
+                                onDownloadClick={() => onDownloadClick(permalink_url)}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    userId && !isLoading && <Text variant='body-2'>No liked tracks found.</Text>
+                )}
+            </div>
         </div>
     );
 });
