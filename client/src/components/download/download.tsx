@@ -138,12 +138,13 @@ export const Download = memo<DownloadProps>((props) => {
             />
 
             <TextArea
+                className={styles.textarea}
                 size='xl'
                 hasClear
                 value={lyrics}
                 onChange={(evt) => setLyrics(evt.target.value)}
                 placeholder='Lyrics (optional)'
-                minRows={4}
+                minRows={8}
                 controlProps={{ style: { resize: 'vertical' } }}
             />
 

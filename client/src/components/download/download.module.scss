@@ -10,3 +10,13 @@
     margin-inline-end: 4px;
     height: 36px;
 }
+
+.textarea {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+    :global(.g-text-area__content) {
+        flex-direction: column;
+    }
+}
