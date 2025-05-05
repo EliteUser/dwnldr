@@ -39,5 +39,5 @@ jobs:
           fi
           
           # Run the new container
-          sudo docker run -d -p 3000:3000 --name dwnldr dwnldr
+          sudo docker run -d -p 3000:3000 --restart always --name dwnldr dwnldr
           '
