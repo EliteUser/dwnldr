@@ -21,7 +21,7 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no root@45.159.248.213 '
+          ssh -o StrictHostKeyChecking=no root@213.165.55.245 '
           # Navigate to the application directory or clone repository if not present
           if [ ! -d "/usr/apps/dwnldr/.git" ]; then
             sudo git clone https://github.com/EliteUser/dwnldr.git /usr/apps/dwnldr

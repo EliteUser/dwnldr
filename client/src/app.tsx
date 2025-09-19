@@ -1,15 +1,15 @@
 import { memo, useCallback, useState } from 'react';
+import { useSelector } from 'react-redux';
 
 import { TabList, Tab, Icon, TabPanel, TabProvider } from '@gravity-ui/uikit';
 import { Heart, ArrowShapeDownToLine, MusicNote } from '@gravity-ui/icons';
 
 import { Likes } from './components';
-
-import styles from './app.module.scss';
 import { Download } from './components/download/download.tsx';
 import { useGetFavoritesQuery } from './api/api.slice.ts';
-import { useSelector } from 'react-redux';
 import { RootState } from './store';
+
+import styles from './app.module.scss';
 
 export const App = memo(() => {
     const [activeTab, setActiveTab] = useState('likes');
@@ -49,9 +49,11 @@ export const App = memo(() => {
                     >
                         Likes
                     </Tab>
+
                     <Tab className={styles.tab} value='download' icon={<Icon size={16} data={ArrowShapeDownToLine} />}>
                         Download
                     </Tab>
+
                     <Tab className={styles.tab} value='metadata' icon={<Icon size={16} data={MusicNote} />} disabled>
                         Meta
                     </Tab>

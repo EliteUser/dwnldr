@@ -12,8 +12,8 @@
     "@types/express": "4.17.21",
     "cors": "2.8.5",
     "express": "4.21.2",
-    "node-id3": "0.2.8",
-    "soundcloud.ts": "0.6.3"
+    "node-id3": "0.2.9",
+    "soundcloud.ts": "0.6.5"
   },
   "devDependencies": {
     "@types/cors": "2.8.17",
