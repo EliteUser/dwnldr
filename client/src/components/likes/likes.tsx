@@ -83,13 +83,6 @@ export const Likes = memo<LikesProps>((props) => {
                             action: handleFolderSelect,
                             text: 'Pick Music Folder',
                         },
-                        {
-                            iconStart: <Icon size={16} data={FolderOpen} />,
-                            action: () => {
-                                window.showDirectoryPicker();
-                            },
-                            text: '1111',
-                        },
                     ]}
                 />
             </div>
