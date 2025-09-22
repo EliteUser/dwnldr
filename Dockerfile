@@ -17,6 +17,9 @@ RUN npm run build:client
 # Stage 2: Set up the server and copy built client files
 FROM node:22-bullseye-slim
 
+# Install Nginx and OpenSSL (for self-signed cert)
+RUN apt-get update && apt-get install -y nginx openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app/server
 
 # Copy server package files
@@ -34,11 +37,18 @@ COPY --from=builder /app/client/dist ../client/dist
 # Build server app
 RUN npm run build:server
 
+# Copy Nginx config and startup script
+COPY nginx.conf /etc/nginx/sites-available/default
+COPY start.sh /app/start.sh
+
+# Make startup script executable
+RUN chmod +x /app/start.sh
+
 # Set NODE_ENV to production
 ENV NODE_ENV=production
 
-# Expose the port your server runs on
-EXPOSE 3000
+# Expose ports for HTTP (redirect) and HTTPS
+EXPOSE 80 443
 
-# Start the server
-CMD ["node", "dist/src/main.js"]
+# Use the startup script to run both Node.js and Nginx
+CMD ["/app/start.sh"]

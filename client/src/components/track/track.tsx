@@ -2,38 +2,34 @@ import { memo } from 'react';
 import { Avatar, Button, Icon, Text } from '@gravity-ui/uikit';
 import { ArrowShapeDownToLine } from '@gravity-ui/icons';
 
+import { getDuration } from '../../utils';
+
+import clsx from 'clsx';
 import styles from './track.module.scss';
 
 type TrackProps = {
     title: string;
     coverUrl: string;
     duration: number;
+    downloaded: boolean;
     onDownloadClick: () => void;
 };
 
-const getDuration = (milliseconds: number): string => {
-    /* Convert milliseconds to total seconds */
-    const totalSeconds = Math.floor(milliseconds / 1000);
-
-    /* Calculate minutes and remaining seconds */
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-
-    /* Add leading zero to seconds if less than 10 */
-    const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
-
-    return `${minutes}:${formattedSeconds}`;
-};
-
 export const Track = memo((props: TrackProps) => {
-    const { title, coverUrl, duration, onDownloadClick } = props;
+    const { title, coverUrl, duration, downloaded, onDownloadClick } = props;
+
+    const trackClassNames = clsx(styles.track, { [styles.downloaded]: downloaded });
 
     return (
-        <div className={styles.track}>
+        <div className={trackClassNames}>
             <Avatar className={styles.cover} size='l' imgUrl={coverUrl} />
 
             <div className={styles.wrapper}>
-                <Text>{title}</Text>
+                <div className={styles.titleWrapper}>
+                    <Text>{title}</Text>
+
+                    <div className={styles.status} />
+                </div>
 
                 <Text variant='caption-2' color='secondary'>
                     {getDuration(duration)}

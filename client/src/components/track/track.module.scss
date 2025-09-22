@@ -15,12 +15,22 @@ $coverSize: 42px;
     &:hover {
         background-color: rgba(255, 255, 255, 0.1);
     }
+
+    &.downloaded .status {
+        background-color: lawngreen;
+    }
 }
 
 .wrapper {
     display: flex;
     flex-direction: column;
     row-gap: 2px;
+}
+
+.titleWrapper {
+    display: flex;
+    align-items: center;
+    column-gap: 8px;
 }
 
 .cover {
@@ -32,6 +42,13 @@ $coverSize: 42px;
     min-height: $coverSize;
     max-width: $coverSize;
     max-height: $coverSize;
+}
+
+.status {
+    min-width: 6px;
+    min-height: 6px;
+    border-radius: 50%;
+    background-color: crimson;
 }
 
 .button {
