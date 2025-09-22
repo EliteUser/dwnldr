@@ -112,6 +112,13 @@ export const Likes = memo<LikesProps>((props) => {
 
                                 const isDownloaded = isTrackDownloaded(musicFiles, trackTitle);
 
+                                console.log({
+                                    trackTitle,
+                                    musicFiles,
+                                    api: 'showDirectoryPicker' in window,
+                                    isDownloaded,
+                                });
+
                                 return (
                                     <Track
                                         key={id}
