@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Text, Icon, Loader, TextInput, DropdownMenu } from '@gravity-ui/uikit';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { Button, DropdownMenu, Icon, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { useGetFavoritesQuery } from '../../api/api.slice';
 import { UserInput } from '../user-input/user-input.tsx';
 import { useSelector } from 'react-redux';
@@ -46,16 +46,15 @@ export const Likes = memo<LikesProps>((props) => {
         return favorites?.filter(({ title, user }) => filterFn(user.username, filter) || filterFn(title, filter));
     }, [favorites, filter]);
 
-    const handleFolderSelect = useCallback(async () => {
-        await pickMusicFolder();
+    const refreshFiles = useCallback(async () => {
+        const musicFiles = await getMusicFiles();
+        setMusicFiles(musicFiles);
     }, []);
 
-    useEffect(() => {
-        (async () => {
-            const musicFiles = await getMusicFiles();
-            setMusicFiles(musicFiles);
-        })();
-    }, []);
+    const handleFolderSelect = useCallback(async () => {
+        await pickMusicFolder();
+        await refreshFiles();
+    }, [refreshFiles]);
 
     return (
         <div className={styles.likes}>
@@ -75,7 +74,10 @@ export const Likes = memo<LikesProps>((props) => {
                     items={[
                         {
                             iconStart: <Icon size={16} data={ArrowRotateRight} />,
-                            action: () => refetch(),
+                            action: () => {
+                                refetch();
+                                refreshFiles();
+                            },
                             text: 'Refresh',
                         },
                         {
@@ -111,13 +113,6 @@ export const Likes = memo<LikesProps>((props) => {
                                 const trackTitle = `${user.username} - ${title}`;
 
                                 const isDownloaded = isTrackDownloaded(musicFiles, trackTitle);
-
-                                console.log({
-                                    trackTitle,
-                                    musicFiles,
-                                    api: 'showDirectoryPicker' in window,
-                                    isDownloaded,
-                                });
 
                                 return (
                                     <Track
