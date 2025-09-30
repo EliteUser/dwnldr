@@ -1,17 +1,17 @@
 import { rankItem } from '@tanstack/match-sorter-utils';
 
 export type FileData = {
-    fileName: string;
-    extension: string;
+    name: string;
+    ext: string;
     size: number;
 };
 
 export const getFileData = (file: File): FileData => {
-    const [fileName, extension] = file.name.split('.');
+    const [name, ext] = file.name.split('.');
 
     return {
-        fileName,
-        extension,
+        name,
+        ext,
         size: file.size,
     };
 };
@@ -31,8 +31,8 @@ export const getDuration = (milliseconds: number): string => {
 };
 
 export const isTrackDownloaded = (files: FileData[], title: string) => {
-    const ranks = files.map(({ fileName }) => {
-        const rank = rankItem(fileName, title);
+    const ranks = files.map(({ name }) => {
+        const rank = rankItem(name, title);
 
         return rank.passed;
     });

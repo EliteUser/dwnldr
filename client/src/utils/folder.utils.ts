@@ -7,7 +7,7 @@ const KEY = 'music';
 /**
  * Save directory handle to IndexedDB
  */
-const saveHandle = async (handle: FileSystemDirectoryHandle): Promise<void> => {
+const setFolderHandle = async (handle: FileSystemDirectoryHandle): Promise<void> => {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, 1);
 
@@ -30,7 +30,7 @@ const saveHandle = async (handle: FileSystemDirectoryHandle): Promise<void> => {
 /**
  * Load directory handle from IndexedDB
  */
-const loadHandle = async (): Promise<FileSystemDirectoryHandle | null> => {
+export const getFolderHandle = async (): Promise<FileSystemDirectoryHandle | null> => {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, 1);
 
@@ -46,10 +46,11 @@ const loadHandle = async (): Promise<FileSystemDirectoryHandle | null> => {
             getReq.onsuccess = () => {
                 resolve((getReq.result as FileSystemDirectoryHandle) || null);
             };
-            getReq.onerror = (e) => reject(e);
+
+            getReq.onerror = (evt) => reject(evt);
         };
 
-        request.onerror = (e) => reject(e);
+        request.onerror = (evt) => reject(evt);
     });
 };
 
@@ -58,7 +59,7 @@ const loadHandle = async (): Promise<FileSystemDirectoryHandle | null> => {
  */
 export const pickMusicFolder = async (): Promise<FileSystemDirectoryHandle> => {
     const dirHandle = await window.showDirectoryPicker();
-    await saveHandle(dirHandle);
+    await setFolderHandle(dirHandle);
 
     return dirHandle;
 };
@@ -68,7 +69,7 @@ export const pickMusicFolder = async (): Promise<FileSystemDirectoryHandle> => {
  */
 export const getMusicFiles = async (): Promise<FileData[]> => {
     try {
-        const dirHandle = await loadHandle();
+        const dirHandle = await getFolderHandle();
 
         if (!dirHandle) {
             return [];
@@ -84,17 +85,17 @@ export const getMusicFiles = async (): Promise<FileData[]> => {
             }
         }
 
-        const files: FileData[] = [];
+        const promises = [];
 
-        for await (const handle of dirHandle.values()) {
-            if (handle.kind === 'file') {
-                const file = await handle.getFile();
-
-                files.push(getFileData(file));
+        for await (const entry of dirHandle.values()) {
+            if (entry.kind !== 'file') {
+                continue;
             }
+
+            promises.push(entry.getFile().then((file) => getFileData(file)));
         }
 
-        return files;
+        return Promise.all(promises);
     } catch (err) {
         console.error(err);
         return [];

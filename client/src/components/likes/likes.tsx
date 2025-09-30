@@ -1,16 +1,17 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, DropdownMenu, Icon, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { useGetFavoritesQuery } from '../../api/api.slice';
 import { UserInput } from '../user-input/user-input.tsx';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../store';
 
-import { ArrowRotateRight, FolderOpen, Gear } from '@gravity-ui/icons';
+import { ArrowRotateRight, FolderOpen, Gear, FolderArrowUpIn } from '@gravity-ui/icons';
 
 import styles from './likes.module.scss';
 import { Track } from '../track/track.tsx';
-import { FileData, isTrackDownloaded } from '../../utils';
-import { getMusicFiles, pickMusicFolder } from '../../utils/folder.utils.ts';
+import { isTrackDownloaded } from '../../utils';
+import { getFolderHandle, getMusicFiles, pickMusicFolder } from '../../utils/folder.utils.ts';
+import { setFiles, setFolder } from '../../store/files.slice.ts';
 
 type LikesProps = {
     onDownloadClick: (url: string) => void;
@@ -21,11 +22,13 @@ const filterFn = (arg: string, filterValue: string) => arg.toLowerCase().include
 export const Likes = memo<LikesProps>((props) => {
     const { onDownloadClick } = props;
 
+    const dispatch = useDispatch();
+
     const [filter, setFilter] = useState('');
 
     const userId = useSelector((state: RootState) => state.user.userId);
-
-    const [musicFiles, setMusicFiles] = useState<FileData[]>([]);
+    const folder = useSelector((state: RootState) => state.files.folder);
+    const musicFiles = useSelector((state: RootState) => state.files.files);
 
     const {
         data: favorites,
@@ -36,6 +39,7 @@ export const Likes = memo<LikesProps>((props) => {
         skip: !userId,
     });
 
+    const hasFolder = !!folder;
     const hasFavorites = !!favorites?.length;
 
     const filteredFavorites = useMemo(() => {
@@ -48,13 +52,33 @@ export const Likes = memo<LikesProps>((props) => {
 
     const refreshFiles = useCallback(async () => {
         const musicFiles = await getMusicFiles();
-        setMusicFiles(musicFiles);
-    }, []);
+        dispatch(setFiles(musicFiles));
+    }, [dispatch]);
 
     const handleFolderSelect = useCallback(async () => {
         await pickMusicFolder();
         await refreshFiles();
     }, [refreshFiles]);
+
+    useEffect(() => {
+        refreshFiles();
+    }, [refreshFiles, folder]);
+
+    useEffect(() => {
+        const sync = async () => {
+            try {
+                const dirHandle = await getFolderHandle();
+
+                if (dirHandle) {
+                    dispatch(setFolder(dirHandle.name));
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        sync();
+    }, [dispatch]);
 
     return (
         <div className={styles.likes}>
@@ -76,9 +100,16 @@ export const Likes = memo<LikesProps>((props) => {
                             iconStart: <Icon size={16} data={ArrowRotateRight} />,
                             action: () => {
                                 refetch();
+                            },
+                            text: 'Sync Data',
+                        },
+                        {
+                            iconStart: <Icon size={16} data={FolderArrowUpIn} />,
+                            action: () => {
                                 refreshFiles();
                             },
-                            text: 'Refresh',
+                            text: 'Sync File System',
+                            hidden: !hasFolder,
                         },
                         {
                             iconStart: <Icon size={16} data={FolderOpen} />,
@@ -112,7 +143,7 @@ export const Likes = memo<LikesProps>((props) => {
                             {filteredFavorites.map(({ id, user, title, artwork_url, permalink_url, duration }) => {
                                 const trackTitle = `${user.username} - ${title}`;
 
-                                const isDownloaded = isTrackDownloaded(musicFiles, trackTitle);
+                                const isDownloaded = !!musicFiles && isTrackDownloaded(musicFiles, trackTitle);
 
                                 return (
                                     <Track
