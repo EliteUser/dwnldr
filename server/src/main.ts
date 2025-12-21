@@ -6,7 +6,7 @@ import cors from 'cors';
 import { Soundcloud } from 'soundcloud.ts';
 
 import { APP_PORT } from './constants';
-import { downloadTrack, removeFolder } from './utils';
+import { downloadTrack, getTrackData, removeFolder } from './utils';
 
 const app = express();
 
@@ -57,7 +57,7 @@ app.get('/api/tracks', async (req, res) => {
 
         const track = await soundcloud.tracks.get(url as string);
 
-        res.send(track);
+        res.send(getTrackData(track));
     } catch (err) {
         console.error(err);
         res.status(500).send('Error fetching track info');
@@ -83,16 +83,7 @@ app.get('/api/favorites', async (req, res) => {
         const favorites = await soundcloud.users.likes(user?.id, limit);
 
         const processed = favorites?.map((original) => {
-            const { id, user, title, artwork_url, permalink_url, duration } = original;
-
-            return {
-                id,
-                user: user.username,
-                title,
-                artwork_url,
-                permalink_url,
-                duration,
-            };
+            return getTrackData(original);
         });
 
         res.send(processed);

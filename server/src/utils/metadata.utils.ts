@@ -4,6 +4,20 @@ import NodeID3 from 'node-id3';
 import type { TrackProcessOptions, TrackProps } from '../types';
 import { DEFAULT_ALBUM_NAME, IMAGE_EXTENSIONS } from '../constants';
 import { getId } from './common.utils';
+import { SoundcloudTrack } from 'soundcloud.ts';
+
+export const getTrackData = (track: SoundcloudTrack) => {
+    const { id, user, title, artwork_url, permalink_url, duration } = track;
+
+    return {
+        id,
+        user: user.username,
+        title,
+        artwork_url,
+        permalink_url,
+        duration,
+    };
+};
 
 const getTrackTags = (options: TrackProps) => {
     const { name, album = DEFAULT_ALBUM_NAME, lyrics = '' } = options;
