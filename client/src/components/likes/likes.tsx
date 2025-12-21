@@ -1,39 +1,32 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, DropdownMenu, Icon, Loader, Text, TextInput } from '@gravity-ui/uikit';
+import { memo, useEffect } from 'react';
+import { Button, DropdownMenu, Icon, Loader, Progress } from '@gravity-ui/uikit';
 import { useGetFavoritesQuery } from '../../api/api.slice';
-import { UserInput } from '../user-input/user-input.tsx';
-import { useDispatch, useSelector } from 'react-redux';
+import { UserInput } from '../user-input/user-input';
+import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 
-import { ArrowRotateRight, FolderOpen, Gear, FolderArrowUpIn } from '@gravity-ui/icons';
-
+import { ArrowRotateRight, FolderArrowUpIn, FolderOpen, Gear } from '@gravity-ui/icons';
 import styles from './likes.module.scss';
-import { Track } from '../track/track.tsx';
-import { isTrackDownloaded } from '../../utils';
-import { getFolderHandle, getMusicFiles, pickMusicFolder } from '../../utils/folder.utils.ts';
-import { setFiles, setFolder } from '../../store/files.slice.ts';
+import { handleSelectFolder, handleSyncFolder } from '../../utils/folder.utils';
+import { TrackList } from '../track-list/track-list';
 
 type LikesProps = {
     onDownloadClick: (url: string) => void;
 };
 
-const filterFn = (arg: string, filterValue: string) => arg.toLowerCase().includes(filterValue.toLowerCase());
-
 export const Likes = memo<LikesProps>((props) => {
     const { onDownloadClick } = props;
 
-    const dispatch = useDispatch();
-
-    const [filter, setFilter] = useState('');
-
     const userId = useSelector((state: RootState) => state.user.userId);
-    const folder = useSelector((state: RootState) => state.files.folder);
+
+    const isSyncInProgress = useSelector((state: RootState) => state.files.loading);
+    const folder = useSelector((state: RootState) => state.files.directoryName);
     const musicFiles = useSelector((state: RootState) => state.files.files);
 
     const {
+        refetch,
         data: favorites,
         isLoading,
-        refetch,
         isFetching,
     } = useGetFavoritesQuery(userId || '', {
         skip: !userId,
@@ -42,46 +35,24 @@ export const Likes = memo<LikesProps>((props) => {
     const hasFolder = !!folder;
     const hasFavorites = !!favorites?.length;
 
-    const filteredFavorites = useMemo(() => {
-        if (!favorites?.length) {
-            return [];
-        }
-
-        return favorites?.filter(({ title, user }) => filterFn(user.username, filter) || filterFn(title, filter));
-    }, [favorites, filter]);
-
-    const refreshFiles = useCallback(async () => {
-        const musicFiles = await getMusicFiles();
-        dispatch(setFiles(musicFiles));
-    }, [dispatch]);
-
-    const handleFolderSelect = useCallback(async () => {
-        await pickMusicFolder();
-        await refreshFiles();
-    }, [refreshFiles]);
-
     useEffect(() => {
-        refreshFiles();
-    }, [refreshFiles, folder]);
-
-    useEffect(() => {
-        const sync = async () => {
-            try {
-                const dirHandle = await getFolderHandle();
-
-                if (dirHandle) {
-                    dispatch(setFolder(dirHandle.name));
+        const rafId = window.requestAnimationFrame(() => {
+            (async () => {
+                if (!isLoading) {
+                    await handleSyncFolder();
                 }
-            } catch (err) {
-                console.error(err);
-            }
-        };
+            })();
+        });
 
-        sync();
-    }, [dispatch]);
+        return () => {
+            cancelAnimationFrame(rafId);
+        };
+    }, [isLoading]);
 
     return (
         <div className={styles.likes}>
+            {isSyncInProgress && <Progress className={styles.progress} value={100} loading theme='info' size='xs' />}
+
             <div className={styles.header}>
                 <UserInput />
 
@@ -98,22 +69,18 @@ export const Likes = memo<LikesProps>((props) => {
                     items={[
                         {
                             iconStart: <Icon size={16} data={ArrowRotateRight} />,
-                            action: () => {
-                                refetch();
-                            },
+                            action: () => refetch(),
                             text: 'Sync Data',
                         },
                         {
                             iconStart: <Icon size={16} data={FolderArrowUpIn} />,
-                            action: () => {
-                                refreshFiles();
-                            },
+                            action: () => handleSyncFolder(),
                             text: 'Sync File System',
                             hidden: !hasFolder,
                         },
                         {
                             iconStart: <Icon size={16} data={FolderOpen} />,
-                            action: handleFolderSelect,
+                            action: () => handleSelectFolder(),
                             text: 'Pick Music Folder',
                         },
                     ]}
@@ -126,41 +93,8 @@ export const Likes = memo<LikesProps>((props) => {
                 </div>
             )}
 
-            {!isLoading && userId && !hasFavorites && <Text variant='body-2'>No liked tracks found.</Text>}
-
             {!isLoading && userId && hasFavorites && (
-                <div className={styles.list}>
-                    <TextInput
-                        size='m'
-                        placeholder='Search'
-                        value={filter}
-                        onChange={(evt) => setFilter(evt.target.value)}
-                        hasClear
-                    />
-
-                    {filteredFavorites.length > 0 ? (
-                        <div className={styles.likesList}>
-                            {filteredFavorites.map(({ id, user, title, artwork_url, permalink_url, duration }) => {
-                                const trackTitle = `${user.username} - ${title}`;
-
-                                const isDownloaded = !!musicFiles && isTrackDownloaded(musicFiles, trackTitle);
-
-                                return (
-                                    <Track
-                                        key={id}
-                                        title={trackTitle}
-                                        duration={duration}
-                                        coverUrl={artwork_url}
-                                        downloaded={isDownloaded}
-                                        onDownloadClick={() => onDownloadClick(permalink_url)}
-                                    />
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <Text variant='body-2'>Nothing found</Text>
-                    )}
-                </div>
+                <TrackList tracks={favorites} files={musicFiles} onDownloadClick={onDownloadClick} />
             )}
         </div>
     );

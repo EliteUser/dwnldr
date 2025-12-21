@@ -1,103 +1,62 @@
-import { FileData, getFileData } from './common.utils.ts';
+import { store } from '../store';
 
-const DB_NAME = 'file-handles';
-const STORE_NAME = 'handles';
-const KEY = 'music';
+import { loadDirectoryHandle, saveDirectoryHandle } from './directory-handle.utils';
+import { clearFiles, setDirectoryName, setFiles, setLoading } from '../store/files.slice';
+import { FileData } from '../types';
+import { getFileData } from './common.utils.ts';
 
-/**
- * Save directory handle to IndexedDB
- */
-const setFolderHandle = async (handle: FileSystemDirectoryHandle): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
+const verifyPermission = async (handle: FileSystemDirectoryHandle): Promise<boolean> => {
+    if ((await handle.queryPermission({ mode: 'read' })) === 'granted') {
+        return true;
+    } else if ((await handle.requestPermission({ mode: 'read' })) === 'granted') {
+        return true;
+    }
 
-        request.onupgradeneeded = () => {
-            request.result.createObjectStore(STORE_NAME);
-        };
-
-        request.onsuccess = () => {
-            const db = request.result;
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).put(handle, KEY);
-            tx.oncomplete = () => resolve();
-            tx.onerror = (e) => reject(e);
-        };
-
-        request.onerror = (e) => reject(e);
-    });
+    return false;
 };
 
-/**
- * Load directory handle from IndexedDB
- */
-export const getFolderHandle = async (): Promise<FileSystemDirectoryHandle | null> => {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
-
-        request.onupgradeneeded = () => {
-            request.result.createObjectStore(STORE_NAME);
-        };
-
-        request.onsuccess = () => {
-            const db = request.result;
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            const getReq = tx.objectStore(STORE_NAME).get(KEY);
-
-            getReq.onsuccess = () => {
-                resolve((getReq.result as FileSystemDirectoryHandle) || null);
-            };
-
-            getReq.onerror = (evt) => reject(evt);
-        };
-
-        request.onerror = (evt) => reject(evt);
-    });
-};
-
-/**
- * Ask user to pick a folder and save it
- */
-export const pickMusicFolder = async (): Promise<FileSystemDirectoryHandle> => {
-    const dirHandle = await window.showDirectoryPicker();
-    await setFolderHandle(dirHandle);
-
-    return dirHandle;
-};
-
-/**
- * Scan flat folder and return list of file names
- */
-export const getMusicFiles = async (): Promise<FileData[]> => {
+export const handleSyncFolder = async () => {
     try {
-        const dirHandle = await getFolderHandle();
+        store.dispatch(setLoading(true));
+        store.dispatch(clearFiles());
 
-        if (!dirHandle) {
-            return [];
+        let dirHandle: FileSystemDirectoryHandle | null;
+
+        /* Try to restore from IndexedDB first */
+        const savedHandle = await loadDirectoryHandle();
+
+        if (savedHandle && (await verifyPermission(savedHandle))) {
+            /* Permission still granted → reuse */
+            dirHandle = savedHandle;
+        } else {
+            return;
         }
 
-        let perm = await dirHandle.queryPermission({ mode: 'read' });
-
-        if (perm !== 'granted') {
-            perm = await dirHandle.requestPermission({ mode: 'read' });
-
-            if (perm !== 'granted') {
-                console.error('Permission denied.');
-            }
+        const fileList: FileData[] = [];
+        for await (const fileName of dirHandle.keys()) {
+            fileList.push(getFileData(fileName));
         }
 
-        const promises = [];
-
-        for await (const entry of dirHandle.values()) {
-            if (entry.kind !== 'file') {
-                continue;
-            }
-
-            promises.push(entry.getFile().then((file) => getFileData(file)));
+        store.dispatch(setFiles(fileList));
+    } catch (err: any) {
+        if (err.name !== 'AbortError') {
+            console.error('Error selecting folder:', err);
         }
+    } finally {
+        store.dispatch(setLoading(false));
+    }
+};
 
-        return Promise.all(promises);
-    } catch (err) {
-        console.error(err);
-        return [];
+export const handleSelectFolder = async () => {
+    try {
+        const dirHandle = await window.showDirectoryPicker();
+
+        await saveDirectoryHandle(dirHandle);
+
+        store.dispatch(setDirectoryName(dirHandle.name));
+
+        await handleSyncFolder();
+    } catch (err: any) {
+        console.error('Error picking folder', err);
     }
 };

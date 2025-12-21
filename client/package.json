@@ -4,16 +4,17 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev:client": "vite --host ",
+    "dev:client": "vite --host",
     "build:client": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@gravity-ui/uikit": "7.5.0",
+    "@gravity-ui/uikit": "7.28.0",
     "@reduxjs/toolkit": "2.6.0",
-    "@tanstack/match-sorter-utils": "8.19.4",
-    "clsx": "^2.1.1",
+    "@tanstack/react-virtual": "^3.13.13",
+    "clsx": "2.1.1",
+    "cmpstr": "3.0.4",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-redux": "9.2.0"
@@ -22,7 +23,7 @@
     "@eslint/js": "9.21.0",
     "@types/react": "19.0.10",
     "@types/react-dom": "19.0.4",
-    "@types/wicg-file-system-access": "2023.10.6",
+    "@types/wicg-file-system-access": "2023.10.7",
     "@vitejs/plugin-react": "4.3.4",
     "eslint": "9.21.0",
     "eslint-plugin-react-hooks": "5.1.0",

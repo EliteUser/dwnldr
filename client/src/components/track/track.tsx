@@ -1,44 +1,61 @@
-import { memo } from 'react';
+import { forwardRef, memo, useEffect, useState } from 'react';
 import { Avatar, Button, Icon, Text } from '@gravity-ui/uikit';
-import { ArrowShapeDownToLine } from '@gravity-ui/icons';
+import { ArrowDownToLine } from '@gravity-ui/icons';
 
-import { getDuration } from '../../utils';
+import { getDuration, isTrackDownloaded } from '../../utils';
 
 import clsx from 'clsx';
 import styles from './track.module.scss';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
 
 type TrackProps = {
     title: string;
     coverUrl: string;
     duration: number;
-    downloaded: boolean;
     onDownloadClick: () => void;
 };
 
-export const Track = memo((props: TrackProps) => {
-    const { title, coverUrl, duration, downloaded, onDownloadClick } = props;
+export const Track = memo(
+    forwardRef<HTMLDivElement, TrackProps>((props, ref) => {
+        const { title, coverUrl, duration, onDownloadClick, ...rest } = props;
 
-    const trackClassNames = clsx(styles.track, { [styles.downloaded]: downloaded });
+        const files = useSelector((state: RootState) => state.files.files);
 
-    return (
-        <div className={trackClassNames}>
-            <Avatar className={styles.cover} size='l' imgUrl={coverUrl} />
+        const [isDownloaded, setIsDownloaded] = useState(false);
 
-            <div className={styles.wrapper}>
-                <div className={styles.titleWrapper}>
-                    <Text>{title}</Text>
+        useEffect(() => {
+            const rafId = window.requestAnimationFrame(() => {
+                if (files.length) {
+                    setIsDownloaded(isTrackDownloaded(files, title));
+                }
+            });
 
-                    <div className={styles.status} />
+            return () => {
+                cancelAnimationFrame(rafId);
+            };
+        }, [files, title]);
+
+        const trackClassNames = clsx(styles.track, { [styles.downloaded]: isDownloaded });
+
+        return (
+            <div ref={ref} className={trackClassNames} {...rest}>
+                <div className={styles.cover}>
+                    <Avatar className={styles.image} size='xl' imgUrl={coverUrl} />
                 </div>
 
-                <Text variant='caption-2' color='secondary'>
-                    {getDuration(duration)}
-                </Text>
-            </div>
+                <div className={styles.wrapper}>
+                    <Text variant='body-1'>{title}</Text>
 
-            <Button className={styles.button} view='outlined-action' onClick={onDownloadClick}>
-                <Icon size={16} data={ArrowShapeDownToLine} />
-            </Button>
-        </div>
-    );
-});
+                    <Text variant='caption-2' color='secondary'>
+                        {getDuration(duration)}
+                    </Text>
+                </div>
+
+                <Button className={styles.button} view='outlined-action' onClick={onDownloadClick}>
+                    <Icon size={16} data={ArrowDownToLine} />
+                </Button>
+            </div>
+        );
+    }),
+);

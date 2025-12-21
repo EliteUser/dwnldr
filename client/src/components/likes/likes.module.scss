@@ -3,6 +3,10 @@
     align-items: center;
     column-gap: 16px;
     justify-content: space-between;
+    padding: 16px;
+    background-color: #101010;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
 }
 
 .likes {
@@ -20,21 +24,11 @@
     flex-grow: 1;
     align-items: center;
     justify-content: center;
+    max-height: 64px;
 }
 
-.list {
-    display: flex;
-    flex-direction: column;
-    row-gap: 8px;
-    border-top: 1px solid #aaaaaa;
-    padding-top: 16px;
-    padding-inline-end: 8px;
-    min-height: 0;
-}
-
-.likesList {
-    display: flex;
-    flex-direction: column;
-    row-gap: 8px;
-    overflow-y: auto;
+.progress {
+    position: fixed;
+    inset-inline: 0;
+    inset-block: 0;
 }

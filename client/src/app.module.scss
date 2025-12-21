@@ -17,13 +17,17 @@
 }
 
 .tabPanel {
-    padding: 24px;
     min-height: 0;
     flex-grow: 1;
 }
 
 .tabList {
     flex-shrink: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border: none;
+    box-shadow: none;
+    background-color: var(--g-color-private-blue-50-solid);
 }
 
 .tab {
@@ -31,4 +35,5 @@
     width: math.div(100%, 3);
     justify-content: center;
     -webkit-tap-highlight-color: transparent;
+    height: 48px;
 }

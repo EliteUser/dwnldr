@@ -5,15 +5,13 @@ type UserResult = {
     full_name: string;
 };
 
-type TracksResult = {
+export type TracksResult = {
     id: number;
     artwork_url: string;
     permalink_url: string;
     duration: number;
     title: string;
-    user: {
-        username: string;
-    };
+    user: string;
 };
 
 export const apiSlice = createApi({

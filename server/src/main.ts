@@ -82,7 +82,20 @@ app.get('/api/favorites', async (req, res) => {
 
         const favorites = await soundcloud.users.likes(user?.id, limit);
 
-        res.send(favorites);
+        const processed = favorites?.map((original) => {
+            const { id, user, title, artwork_url, permalink_url, duration } = original;
+
+            return {
+                id,
+                user: user.username,
+                title,
+                artwork_url,
+                permalink_url,
+                duration,
+            };
+        });
+
+        res.send(processed);
     } catch (err) {
         console.error(err);
         res.status(500).send('Error fetching favorites');

@@ -1,0 +1,35 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    row-gap: 8px;
+    padding-inline: 16px;
+    padding-block-end: 8px;
+    min-height: 0;
+    flex-grow: 1;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    row-gap: 8px;
+    overflow-y: auto;
+    contain: strict;
+    flex-grow: 1;
+}
+
+.virtualizer {
+    width: 100%;
+    position: relative;
+}
+
+.virtualizerContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+.searchIcon {
+    display: flex;
+    padding-inline-end: 8px;
+}

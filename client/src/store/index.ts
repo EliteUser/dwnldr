@@ -2,12 +2,12 @@ import { configureStore } from '@reduxjs/toolkit';
 
 import { apiSlice } from '../api/api.slice';
 import userReducer from './user.slice';
-import filesSlice from './files.slice';
+import filesReducer from './files.slice';
 
 export const store = configureStore({
     reducer: {
         user: userReducer,
-        files: filesSlice,
+        files: filesReducer,
         [apiSlice.reducerPath]: apiSlice.reducer,
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(apiSlice.middleware),
