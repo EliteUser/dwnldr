@@ -28,7 +28,7 @@ export const Download = memo<DownloadProps>((props) => {
 
     useEffect(() => {
         if (track && !isFetching) {
-            setName(`${track.user.username} - ${track.title}`);
+            setName(`${track.user} - ${track.title}`);
         }
     }, [track, isFetching]);
 
