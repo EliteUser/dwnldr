@@ -99,3 +99,5 @@ export const Likes = memo<LikesProps>((props) => {
         </div>
     );
 });
+
+Likes.displayName = 'Likes';
