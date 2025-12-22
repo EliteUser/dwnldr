@@ -28,6 +28,27 @@ const runFfmpeg = async (args: string[]): Promise<void> => {
     });
 };
 
+const normalizeMp4 = async (input: string): Promise<string> => {
+    const fixed = input + '.fixed.m4a';
+
+    await runFfmpeg([
+        '-y',
+        '-fflags',
+        '+genpts',
+        '-i',
+        input,
+        '-map_metadata',
+        '0',
+        '-c',
+        'copy',
+        '-movflags',
+        '+faststart',
+        fixed,
+    ]);
+
+    return fixed;
+};
+
 export const convertToMp3 = async (inputPath: string): Promise<string> => {
     try {
         const parsed = path.parse(inputPath);
@@ -40,21 +61,46 @@ export const convertToMp3 = async (inputPath: string): Promise<string> => {
         const outputPath = path.join(parsed.dir, `${parsed.name}.mp3`);
         const tempPath = path.join(parsed.dir, `${parsed.name}.tmp.mp3`);
 
-        await runFfmpeg([
-            '-y',
-            '-i',
-            inputPath,
-            '-vn',
-            '-map_metadata',
-            '0',
-            '-c:a',
-            'libmp3lame',
-            '-q:a',
-            '0',
-            '-ar',
-            '48000',
-            tempPath,
-        ]);
+        let source = inputPath;
+
+        try {
+            await runFfmpeg([
+                '-y',
+                '-i',
+                source,
+                '-vn',
+                '-map_metadata',
+                '0',
+                '-c:a',
+                'libmp3lame',
+                '-q:a',
+                '0',
+                '-ar',
+                '48000',
+                tempPath,
+            ]);
+        } catch {
+            // Normalize container, then retry
+            source = await normalizeMp4(inputPath);
+
+            await runFfmpeg([
+                '-y',
+                '-i',
+                source,
+                '-vn',
+                '-map_metadata',
+                '0',
+                '-c:a',
+                'libmp3lame',
+                '-q:a',
+                '0',
+                '-ar',
+                '48000',
+                tempPath,
+            ]);
+
+            await fs.unlink(source);
+        }
 
         await fs.unlink(inputPath);
         await renameFile(tempPath, outputPath);

@@ -17,7 +17,7 @@ export const downloadTrack = async (api: Soundcloud, track: TrackOptions) => {
         const downloadFolder = `./track_${getId()}`;
 
         let [trackPath, coverPath] = await Promise.all([
-            api.util.downloadTrack(url, downloadFolder),
+            api.util.downloadTrack(url, downloadFolder, false),
             api.util.downloadSongCover(url, downloadFolder),
         ]);
 
