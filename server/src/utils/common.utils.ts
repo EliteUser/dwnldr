@@ -5,7 +5,13 @@ export const getId = () => {
     return crypto.randomBytes(16).toString('hex').slice(0, 8);
 };
 
-export const getExtension = (name: string) => name.split('.').pop();
+export const getExtension = (name: string) => {
+    const regex = /^(.+)\.([a-z0-9]{2,5})$/i;
+
+    const match = name.match(regex);
+
+    return match ? match[2] : null;
+};
 
 export const removeFolder = (folder: string) => {
     if (fs.existsSync(folder)) {

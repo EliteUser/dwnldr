@@ -78,14 +78,4 @@ export const isTrackDownloaded = (files: FileData[], title: string) => {
     const result = stringCompare.batchSorted(normalizedFiles, normalizeTrackName(title)) as Array<{ match: number }>;
 
     return result[0].match >= COMPARE_THRESHOLD;
-
-    // return ranks.some((rank) => rank);
-    //
-    // const ranks = files.map(({ name }) => {
-    //     const result = stringCompare.test(normalizeTrackName(name), normalizeTrackName(title)) as { match: number };
-    //
-    //     return result.match >= COMPARE_THRESHOLD;
-    // });
-    //
-    // return ranks.some((rank) => rank);
 };
