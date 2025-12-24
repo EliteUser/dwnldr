@@ -30,9 +30,15 @@ export const apiSlice = createApi({
                 params: { userId },
             }),
         }),
-        getTracks: builder.query<TracksResult, string>({
+        getSoundCloudTracks: builder.query<TracksResult, string>({
             query: (url) => ({
-                url: 'tracks',
+                url: 'soundcloud/tracks',
+                params: { url },
+            }),
+        }),
+        getYoutubeTracks: builder.query<TracksResult, string>({
+            query: (url) => ({
+                url: 'youtube/tracks',
                 params: { url },
             }),
         }),
@@ -45,4 +51,5 @@ export const apiSlice = createApi({
     }),
 });
 
-export const { useGetUserQuery, useGetTracksQuery, useGetFavoritesQuery } = apiSlice;
+export const { useGetUserQuery, useGetSoundCloudTracksQuery, useGetYoutubeTracksQuery, useGetFavoritesQuery } =
+    apiSlice;

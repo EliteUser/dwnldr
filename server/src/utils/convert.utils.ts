@@ -49,6 +49,10 @@ const normalizeMp4 = async (input: string): Promise<string> => {
     return fixed;
 };
 
+const getFfmpegParams = (source: string, path: string) => {
+    return ['-y', '-i', source, '-vn', '-map_metadata', '0', '-c:a', 'libmp3lame', '-q:a', '0', '-ar', '48000', path];
+};
+
 export const convertToMp3 = async (inputPath: string): Promise<string> => {
     try {
         const parsed = path.parse(inputPath);
@@ -64,40 +68,12 @@ export const convertToMp3 = async (inputPath: string): Promise<string> => {
         let source = inputPath;
 
         try {
-            await runFfmpeg([
-                '-y',
-                '-i',
-                source,
-                '-vn',
-                '-map_metadata',
-                '0',
-                '-c:a',
-                'libmp3lame',
-                '-q:a',
-                '0',
-                '-ar',
-                '48000',
-                tempPath,
-            ]);
+            await runFfmpeg(getFfmpegParams(source, tempPath));
         } catch {
-            // Normalize container, then retry
+            /* Normalize container, then retry */
             source = await normalizeMp4(inputPath);
 
-            await runFfmpeg([
-                '-y',
-                '-i',
-                source,
-                '-vn',
-                '-map_metadata',
-                '0',
-                '-c:a',
-                'libmp3lame',
-                '-q:a',
-                '0',
-                '-ar',
-                '48000',
-                tempPath,
-            ]);
+            await runFfmpeg(getFfmpegParams(source, tempPath));
 
             await fs.unlink(source);
         }

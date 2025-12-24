@@ -6,19 +6,21 @@ import { TrackOptions } from '../types';
 import { updateTrackMeta } from './metadata.utils';
 import { convertToMp3 } from './convert.utils';
 
-export const downloadTrack = async (api: Soundcloud, track: TrackOptions) => {
+type SoundCloudDownloadOptions = {
+    api: Soundcloud;
+    track: TrackOptions;
+    folder: string;
+};
+
+export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions) => {
+    const { api, track, folder } = options;
+
     const { url, name, album, lyrics } = track;
 
     try {
-        const trackInfo = await api.tracks.get(url);
-
-        const trackName = (name ?? `${trackInfo.user.username} - ${trackInfo.title}`).trim();
-
-        const downloadFolder = `./track_${getId()}`;
-
         let [trackPath, coverPath] = await Promise.all([
-            api.util.downloadTrack(url, downloadFolder, false),
-            api.util.downloadSongCover(url, downloadFolder),
+            api.util.downloadTrack(url, folder, false),
+            api.util.downloadSongCover(url, folder),
         ]);
 
         const trackExtension = getExtension(trackPath);
@@ -27,21 +29,24 @@ export const downloadTrack = async (api: Soundcloud, track: TrackOptions) => {
             trackPath = await convertToMp3(trackPath);
         }
 
-        const newTrackPath = path.join(downloadFolder, `${trackName}.${getExtension(trackPath)}`);
-        const newCoverPath = path.join(downloadFolder, `${trackName}.${getExtension(coverPath)}`);
+        const trackInfo = await api.tracks.get(url);
+        const trackName = (name ?? `${trackInfo.user.username} - ${trackInfo.title}`).trim();
+
+        const newTrackPath = path.join(folder, `${trackName}.${getExtension(trackPath)}`);
+        const newCoverPath = path.join(folder, `${trackName}.${getExtension(coverPath)}`);
 
         await Promise.all([renameFile(trackPath, newTrackPath), renameFile(coverPath, newCoverPath)]);
 
         await updateTrackMeta({
-            folder: downloadFolder,
+            folder,
             name: trackName,
             album: album?.trim(),
             lyrics: lyrics?.trim(),
         });
 
-        return { path: newTrackPath, folder: downloadFolder };
+        return newTrackPath;
     } catch (err) {
-        console.error('Error downloading track:', err);
-        return {};
+        console.error('Error downloading track from soundcloud:', err);
+        return '';
     }
 };

@@ -26,3 +26,7 @@ export const renameFile = async (path: string, newPath: string) => {
         console.error(`Error renaming file: ${path}`, err);
     }
 };
+
+export const isYoutubeLink = (url: string) => {
+    return url.includes('youtube') || url.includes('youtu.be');
+};

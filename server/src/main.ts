@@ -6,7 +6,16 @@ import cors from 'cors';
 import { Soundcloud } from 'soundcloud.ts';
 
 import { APP_PORT } from './constants';
-import { downloadTrack, getTrackData, removeFolder } from './utils';
+import {
+    downloadSoundCloudTrack,
+    getId,
+    getSoundCloudTrackData,
+    removeFolder,
+    isYoutubeLink,
+    getYouTubeTrackData,
+    downloadYoutubeTrack,
+} from './utils';
+import { YtDlp } from 'ytdlp-nodejs';
 
 const app = express();
 
@@ -45,8 +54,8 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
-app.get('/api/tracks', async (req, res) => {
-    console.info('GET /tracks', req.query);
+app.get('/api/soundcloud/tracks', async (req, res) => {
+    console.info('GET soundcloud/tracks', req.query);
 
     try {
         const { url } = req.query;
@@ -57,7 +66,32 @@ app.get('/api/tracks', async (req, res) => {
 
         const track = await soundcloud.tracks.get(url as string);
 
-        res.send(getTrackData(track));
+        res.send(getSoundCloudTrackData(track));
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error fetching track info');
+    }
+});
+
+app.get('/api/youtube/tracks', async (req, res) => {
+    console.info('GET youtube/tracks', req.query);
+
+    try {
+        const { url } = req.query;
+
+        if (!url) {
+            return res.status(400).send('Track URL is required');
+        }
+
+        const ytdlp = new YtDlp();
+
+        const info = await ytdlp.getInfoAsync(url as string);
+
+        if (info._type === 'playlist') {
+            res.send('Playlists are not supported');
+        } else {
+            res.send(getYouTubeTrackData(info));
+        }
     } catch (err) {
         console.error(err);
         res.status(500).send('Error fetching track info');
@@ -83,7 +117,7 @@ app.get('/api/favorites', async (req, res) => {
         const favorites = await soundcloud.users.likes(user?.id, limit);
 
         const processed = favorites?.map((original) => {
-            return getTrackData(original);
+            return getSoundCloudTrackData(original);
         });
 
         res.send(processed);
@@ -103,7 +137,27 @@ app.post('/api/download', async (req, res) => {
             return res.status(400).send('URL is required');
         }
 
-        const { path: trackPath, folder } = await downloadTrack(soundcloud, { url, name, album, lyrics });
+        const downloadFolder = `./track_${getId()}`;
+        const track = { url, name, album, lyrics };
+
+        let trackPath;
+
+        if (isYoutubeLink(url)) {
+            console.log(`[Download] Youtube track ${url}`);
+
+            trackPath = await downloadYoutubeTrack({
+                track,
+                folder: downloadFolder,
+            });
+        } else {
+            console.log(`[Download] SoundCloud track ${url}`);
+
+            trackPath = await downloadSoundCloudTrack({
+                api: soundcloud,
+                track,
+                folder: downloadFolder,
+            });
+        }
 
         if (!trackPath || !fs.existsSync(trackPath)) {
             return res.status(404).send('File not found');
@@ -125,9 +179,9 @@ app.post('/api/download', async (req, res) => {
         });
 
         readStream.on('end', () => {
-            if (folder) {
+            if (downloadFolder) {
                 setTimeout(() => {
-                    removeFolder(folder);
+                    removeFolder(downloadFolder);
                 }, 30000);
             }
         });

@@ -1,9 +1,10 @@
 import { useState, useEffect, memo, useCallback } from 'react';
-import { TextInput, Button, Icon, TextArea, Label, Progress } from '@gravity-ui/uikit';
-import { useGetTracksQuery } from '../../api/api.slice';
+import { TextInput, Button, Icon, TextArea, Label, Progress, Loader } from '@gravity-ui/uikit';
+import { useGetSoundCloudTracksQuery, useGetYoutubeTracksQuery } from '../../api/api.slice';
 import { ArrowShapeDownToLine } from '@gravity-ui/icons';
 
 import styles from './download.module.scss';
+import { isYoutubeLink } from '../../utils';
 
 type DownloadProps = {
     selectedUrl?: string;
@@ -20,7 +21,18 @@ export const Download = memo<DownloadProps>((props) => {
     const [progress, setProgress] = useState(0);
     const [inProgress, setInProgress] = useState(false);
 
-    const { data: track, isFetching } = useGetTracksQuery(url, { skip: !url });
+    const isYoutube = !!url && isYoutubeLink(url);
+
+    const { data: soundCloudTrack, isFetching: isSoundCloudTrackFetching } = useGetSoundCloudTracksQuery(url, {
+        skip: !url || isYoutube,
+    });
+
+    const { data: youTubeTrack, isFetching: isYouTubeTrackFetching } = useGetYoutubeTracksQuery(url, {
+        skip: !url || !isYoutube,
+    });
+
+    const track = soundCloudTrack || youTubeTrack;
+    const isFetching = isSoundCloudTrackFetching || isYouTubeTrackFetching;
 
     useEffect(() => {
         setUrl(selectedUrl || '');
@@ -127,6 +139,13 @@ export const Download = memo<DownloadProps>((props) => {
                 value={name}
                 onChange={(evt) => setName(evt.target.value)}
                 placeholder='Track name'
+                endContent={
+                    isFetching ? (
+                        <div className={styles.loader}>
+                            <Loader size='s' />
+                        </div>
+                    ) : null
+                }
             />
 
             <TextInput

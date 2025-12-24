@@ -79,3 +79,7 @@ export const isTrackDownloaded = (files: FileData[], title: string) => {
 
     return result[0].match >= COMPARE_THRESHOLD;
 };
+
+export const isYoutubeLink = (url: string) => {
+    return url.includes('youtube') || url.includes('youtu.be');
+};

@@ -5,8 +5,9 @@ import type { TrackProcessOptions, TrackProps } from '../types';
 import { DEFAULT_ALBUM_NAME, IMAGE_EXTENSIONS } from '../constants';
 import { getId } from './common.utils';
 import { SoundcloudTrack } from 'soundcloud.ts';
+import { VideoInfo } from 'ytdlp-nodejs';
 
-export const getTrackData = (track: SoundcloudTrack) => {
+export const getSoundCloudTrackData = (track: SoundcloudTrack) => {
     const { id, user, title, artwork_url, permalink_url, duration } = track;
 
     return {
@@ -15,6 +16,19 @@ export const getTrackData = (track: SoundcloudTrack) => {
         title,
         artwork_url,
         permalink_url,
+        duration,
+    };
+};
+
+export const getYouTubeTrackData = (info: VideoInfo) => {
+    const { id, channel, title, thumbnail, original_url, duration } = info;
+
+    return {
+        id,
+        user: channel,
+        title,
+        artwork_url: thumbnail,
+        permalink_url: original_url,
         duration,
     };
 };
