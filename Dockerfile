@@ -18,7 +18,7 @@ RUN npm run build:client
 FROM node:22-bullseye-slim
 
 # Install Nginx and OpenSSL (for self-signed cert)
-RUN apt-get update && apt-get install -y nginx openssl python3 ffmpeg curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y nginx openssl python3.11 ffmpeg curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/server
 
