@@ -167,7 +167,13 @@ export const Download = memo<DownloadProps>((props) => {
                 controlProps={{ style: { resize: 'vertical' } }}
             />
 
-            <Button size='xl' view='action' onClick={handleDownload} disabled={inProgress || !url || !name}>
+            <Button
+                size='xl'
+                view='action'
+                loading={inProgress}
+                disabled={inProgress || !url || !name}
+                onClick={handleDownload}
+            >
                 <Icon size={16} data={ArrowShapeDownToLine} /> Download
             </Button>
 

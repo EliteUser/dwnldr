@@ -21,6 +21,7 @@ export const Track = memo(
         const { title, coverUrl, duration, onDownloadClick, ...rest } = props;
 
         const files = useSelector((state: RootState) => state.files.files);
+        const directory = useSelector((state: RootState) => state.files.directoryName);
 
         const [isDownloaded, setIsDownloaded] = useState(false);
 
@@ -36,7 +37,10 @@ export const Track = memo(
             };
         }, [files, title]);
 
-        const trackClassNames = clsx(styles.track, { [styles.downloaded]: isDownloaded });
+        const trackClassNames = clsx(styles.track, {
+            [styles.downloaded]: isDownloaded,
+            [styles.directorySelected]: !!directory,
+        });
 
         return (
             <div ref={ref} className={trackClassNames} {...rest}>

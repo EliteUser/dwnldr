@@ -19,6 +19,12 @@ $coverSize: 48px;
     &.downloaded .cover::before {
         background-color: yellowgreen;
     }
+
+    &:not(.directorySelected) {
+        .cover::before {
+            display: none;
+        }
+    }
 }
 
 .wrapper {
