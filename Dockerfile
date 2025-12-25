@@ -15,10 +15,10 @@ COPY client/ .
 RUN npm run build:client
 
 # Stage 2: Set up the server and copy built client files
-FROM node:22-bullseye-slim
+FROM node:22-bookworm-slim
 
 # Install Nginx and OpenSSL (for self-signed cert)
-RUN apt-get update && apt-get install -y nginx openssl python3.11 ffmpeg curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y nginx openssl python3 python-is-python3 ffmpeg  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/server
 

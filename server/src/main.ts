@@ -84,6 +84,13 @@ app.get('/api/youtube/tracks', async (req, res) => {
         }
 
         const ytdlp = new YtDlp();
+        const installed = await ytdlp.checkInstallationAsync();
+
+        if (!installed) {
+            throw new Error(
+                'yt-dlp or ffmpeg not available. Ensure ffmpeg-static is installed and the environment allows downloading binaries.',
+            );
+        }
 
         const info = await ytdlp.getInfoAsync(url as string);
 
