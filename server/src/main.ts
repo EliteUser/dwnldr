@@ -66,7 +66,9 @@ app.get('/api/soundcloud/tracks', async (req, res) => {
 
         const track = await soundcloud.tracks.get(url as string);
 
-        res.send(getSoundCloudTrackData(track));
+        if (track) {
+            res.send(getSoundCloudTrackData(track));
+        }
     } catch (err) {
         console.error(err);
         res.status(500).send('Error fetching track info');
@@ -123,9 +125,11 @@ app.get('/api/favorites', async (req, res) => {
 
         const favorites = await soundcloud.users.likes(user?.id, limit);
 
-        const processed = favorites?.map((original) => {
-            return getSoundCloudTrackData(original);
-        });
+        const processed = favorites
+            ?.filter((el) => !!el)
+            .map((original) => {
+                return getSoundCloudTrackData(original);
+            });
 
         res.send(processed);
     } catch (err) {
