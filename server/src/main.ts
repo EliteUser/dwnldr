@@ -41,7 +41,7 @@ app.get('/api/users', async (req, res) => {
             return res.status(400).send('userId is required');
         }
 
-        const user = await soundcloud.users.getAlt(userId as string);
+        const user = await soundcloud.users.get(userId as string);
 
         if (!user) {
             return res.status(400).send(`User with id ${userId} not found`);
@@ -117,7 +117,7 @@ app.get('/api/favorites', async (req, res) => {
             return res.status(400).send('userId is required');
         }
 
-        const user = await soundcloud.users.getAlt(userId);
+        const user = await soundcloud.users.get(userId);
 
         if (!user) {
             return res.status(400).send(`User with id ${userId} not found`);
