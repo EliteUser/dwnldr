@@ -1,0 +1,39 @@
+{
+  "name": "dwnldr",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "dev": "concurrently -n server,client -c blue,green \"pnpm --filter ./packages/server dev\" \"pnpm --filter ./packages/client dev\"",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "oxlint . --deny-warnings",
+    "lint:fix": "oxlint . --fix",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "test": "pnpm -r test",
+    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.1",
+    "husky": "9.1.7",
+    "lint-staged": "16.2.6",
+    "oxfmt": "0.46.0",
+    "oxlint": "1.61.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs,json,jsonc}": [
+      "oxfmt --check",
+      "oxlint ."
+    ]
+  },
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "esbuild",
+      "ffmpeg-static",
+      "sharp",
+      "ytdlp-nodejs"
+    ]
+  }
+}

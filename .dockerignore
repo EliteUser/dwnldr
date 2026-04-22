@@ -1,0 +1,11 @@
+/.git
+/.github
+/.idea
+/node_modules
+/packages/client/node_modules
+/packages/server/node_modules
+/packages/client/dist
+/packages/server/dist
+/coverage
+*.log
+track_*
