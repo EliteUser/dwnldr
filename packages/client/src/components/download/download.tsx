@@ -3,7 +3,7 @@ import { TextInput, Button, Icon, TextArea, Label, Progress, Loader } from '@gra
 import { useState, useEffect, memo, useCallback } from 'react';
 
 import { useGetSoundCloudTracksQuery, useGetYoutubeTracksQuery } from '../../api/api.slice';
-import { isYoutubeLink } from '../../utils';
+import { classifySource } from '../../utils';
 
 import styles from './download.module.scss';
 
@@ -22,14 +22,14 @@ export const Download = memo<DownloadProps>((props) => {
   const [progress, setProgress] = useState(0);
   const [inProgress, setInProgress] = useState(false);
 
-  const isYoutube = !!url && isYoutubeLink(url);
+  const source = url ? classifySource(url) : null;
 
   const { data: soundCloudTrack, isFetching: isSoundCloudTrackFetching } = useGetSoundCloudTracksQuery(url, {
-    skip: !url || isYoutube,
+    skip: !url || source !== 'soundcloud',
   });
 
   const { data: youTubeTrack, isFetching: isYouTubeTrackFetching } = useGetYoutubeTracksQuery(url, {
-    skip: !url || !isYoutube,
+    skip: !url || source !== 'youtube',
   });
 
   const track = soundCloudTrack || youTubeTrack;

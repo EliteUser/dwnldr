@@ -1,10 +1,10 @@
 import { Router } from 'express';
 
+import { soundcloudRouter } from '../soundcloud/index.js';
+import { youtubeRouter } from '../youtube/index.js';
 import { downloadRouter } from './download.routes.js';
 import { favoritesRouter } from './favorites.routes.js';
-import { soundcloudRouter } from './soundcloud.routes.js';
 import { usersRouter } from './users.routes.js';
-import { youtubeRouter } from './youtube.routes.js';
 
 export const apiRouter = Router();
 

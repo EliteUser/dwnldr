@@ -4,14 +4,12 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useMemo, useRef, useState } from 'react';
 
 import { TracksResult } from '../../api/api.slice';
-import { FileData } from '../../types';
 import { Track } from '../track/track';
 
 import styles from './track-list.module.scss';
 
 export type TrackListProps = {
   tracks?: TracksResult[];
-  files?: FileData[];
   onDownloadClick: (url: string) => void;
 };
 

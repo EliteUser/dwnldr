@@ -1,12 +1,11 @@
 import type { TrackOptions } from '../types.js';
 import type { VideoInfo } from 'ytdlp-nodejs';
 
-import ffmpegPath from 'ffmpeg-static';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
-import { YtDlp } from 'ytdlp-nodejs';
 
+import { createYtDlp } from '../lib/ytdlp.js';
 import { getExtension, renameFile } from './common.utils.js';
 import { updateTrackMeta } from './metadata.utils.js';
 
@@ -54,10 +53,7 @@ const resizeImage = async (buffer: Buffer, size: number = 512): Promise<Buffer> 
     .toBuffer();
 };
 
-const getYoutubeThumbnail = async (url: string, folder: string): Promise<string> => {
-  const ytdlp = new YtDlp();
-  const info = await ytdlp.getInfoAsync(url);
-
+const getYoutubeThumbnail = async (info: VideoInfo, folder: string): Promise<string> => {
   if (info._type !== 'video') {
     return '';
   }
@@ -87,9 +83,7 @@ export const downloadYoutubeTrack = async (options: YoutubeDownloadOptions) => {
   const { url, name, album, lyrics } = track;
 
   try {
-    const ytdlp = new YtDlp({
-      ffmpegPath: (ffmpegPath as unknown as string | null) ?? undefined,
-    });
+    const ytdlp = createYtDlp();
     const installed = await ytdlp.checkInstallationAsync({ ffmpeg: true });
 
     if (!installed) {
@@ -116,7 +110,7 @@ export const downloadYoutubeTrack = async (options: YoutubeDownloadOptions) => {
         noPlaylist: true,
         output: trackPath,
       }),
-      getYoutubeThumbnail(url, path.resolve(folder)),
+      getYoutubeThumbnail(info, path.resolve(folder)),
     ]);
 
     const newCoverPath = path.join(folder, `${trackName}.${getExtension(coverPath)}`);

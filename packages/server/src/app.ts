@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/error-handler.js';
-import { apiRouter } from './routes/api.routes.js';
+import { apiRouter } from './routes/common/api.routes.js';
 
 const serverDirPath = path.dirname(fileURLToPath(import.meta.url));
 const clientDistPath = path.resolve(serverDirPath, '../../client/dist');

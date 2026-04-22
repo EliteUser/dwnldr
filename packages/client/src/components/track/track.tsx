@@ -26,15 +26,7 @@ export const Track = memo(
     const [isDownloaded, setIsDownloaded] = useState(false);
 
     useEffect(() => {
-      const rafId = window.requestAnimationFrame(() => {
-        if (files.length) {
-          setIsDownloaded(isTrackDownloaded(files, title));
-        }
-      });
-
-      return () => {
-        cancelAnimationFrame(rafId);
-      };
+      setIsDownloaded(files.length > 0 && isTrackDownloaded(files, title));
     }, [files, title]);
 
     const trackClassNames = clsx(styles.track, {

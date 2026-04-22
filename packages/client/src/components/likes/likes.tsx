@@ -26,7 +26,6 @@ export const Likes = memo<LikesProps>((props) => {
   const userId = useSelector((state: RootState) => state.user.userId);
   const isSyncInProgress = useSelector((state: RootState) => state.files.loading);
   const folder = useSelector((state: RootState) => state.files.directoryName);
-  const musicFiles = useSelector((state: RootState) => state.files.files);
 
   const {
     refetch,
@@ -42,17 +41,11 @@ export const Likes = memo<LikesProps>((props) => {
   const supportsFileSystemAccess = canUseFileSystemAccess();
 
   useEffect(() => {
-    const rafId = window.requestAnimationFrame(() => {
-      void (async () => {
-        if (!isLoading) {
-          await handleSyncFolder();
-        }
-      })();
-    });
-
-    return () => {
-      cancelAnimationFrame(rafId);
-    };
+    void (async () => {
+      if (!isLoading) {
+        await handleSyncFolder();
+      }
+    })();
   }, [isLoading]);
 
   return (
@@ -112,9 +105,7 @@ export const Likes = memo<LikesProps>((props) => {
         </div>
       )}
 
-      {!isLoading && userId && hasFavorites && (
-        <TrackList tracks={favorites} files={musicFiles} onDownloadClick={onDownloadClick} />
-      )}
+      {!isLoading && userId && hasFavorites && <TrackList tracks={favorites} onDownloadClick={onDownloadClick} />}
     </div>
   );
 });

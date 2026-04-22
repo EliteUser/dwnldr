@@ -2,7 +2,9 @@ import { Router } from 'express';
 import fs from 'node:fs';
 import { z } from 'zod';
 
-import { downloadTrack, scheduleDownloadCleanup } from '../services/download.service.js';
+import { HttpError } from '../../errors/http-error.js';
+import { downloadTrack, scheduleDownloadCleanup } from '../../services/download.service.js';
+import { classifySource } from '../../utils/index.js';
 
 const downloadBodySchema = z.object({
   url: z.string().trim().url(),
@@ -15,6 +17,13 @@ export const downloadRouter = Router();
 
 downloadRouter.post('/download', async (req, res) => {
   const track = downloadBodySchema.parse(req.body);
+
+  if (!classifySource(track.url)) {
+    throw new HttpError(400, 'Unsupported URL source. Use a SoundCloud or YouTube link.', {
+      code: 'UNSUPPORTED_SOURCE',
+    });
+  }
+
   const { downloadFolder, fileName, filePath, fileSize } = await downloadTrack(track);
 
   res.setHeader('Content-Length', fileSize);
@@ -23,7 +32,14 @@ downloadRouter.post('/download', async (req, res) => {
 
   const readStream = fs.createReadStream(filePath);
 
+  let cleaned = false;
+
   const cleanup = () => {
+    if (cleaned) {
+      return;
+    }
+
+    cleaned = true;
     scheduleDownloadCleanup(downloadFolder);
   };
 
@@ -39,8 +55,8 @@ downloadRouter.post('/download', async (req, res) => {
     }
   });
 
-  res.on('finish', cleanup);
-  res.on('close', cleanup);
+  res.once('finish', cleanup);
+  res.once('close', cleanup);
 
   readStream.pipe(res);
 });

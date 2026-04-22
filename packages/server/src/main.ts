@@ -1,8 +1,18 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
+import { assertYtDlpAvailable } from './lib/ytdlp.js';
 
-const app = createApp();
+const start = async () => {
+  await assertYtDlpAvailable();
 
-app.listen(env.PORT, () => {
-  console.info(`Server running at http://localhost:${env.PORT}`);
+  const app = createApp();
+
+  app.listen(env.PORT, () => {
+    console.info(`Server running at http://localhost:${env.PORT}`);
+  });
+};
+
+void start().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 });

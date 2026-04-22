@@ -24,6 +24,6 @@ export const getYouTubeTrackData = (info: VideoInfo): TrackMetadata => {
     title,
     artwork_url: thumbnail ?? null,
     permalink_url: original_url,
-    duration,
+    duration: (duration ?? 0) * 1000,
   };
 };

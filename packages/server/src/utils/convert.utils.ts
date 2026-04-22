@@ -74,32 +74,31 @@ const getFfmpegParams = (sourcePath: string, outputPath: string) => [
 ];
 
 export const convertToMp3 = async (inputPath: string): Promise<string> => {
-  try {
-    const parsedPath = path.parse(inputPath);
+  const parsedPath = path.parse(inputPath);
 
-    if (parsedPath.ext.toLowerCase() === '.mp3') {
-      return inputPath;
-    }
-
-    const outputPath = path.join(parsedPath.dir, `${parsedPath.name}.mp3`);
-    const tempPath = path.join(parsedPath.dir, `${parsedPath.name}.tmp.mp3`);
-
-    let sourcePath = inputPath;
-
-    try {
-      await runFfmpeg(getFfmpegParams(sourcePath, tempPath));
-    } catch {
-      sourcePath = await normalizeMp4(inputPath);
-      await runFfmpeg(getFfmpegParams(sourcePath, tempPath));
-      await fs.unlink(sourcePath);
-    }
-
-    await fs.unlink(inputPath);
-    await renameFile(tempPath, outputPath);
-
-    return outputPath;
-  } catch (error) {
-    console.error('Failed to convert to mp3:', error);
+  if (parsedPath.ext.toLowerCase() === '.mp3') {
     return inputPath;
   }
+
+  const outputPath = path.join(parsedPath.dir, `${parsedPath.name}.mp3`);
+  const tempPath = path.join(parsedPath.dir, `${parsedPath.name}.tmp.mp3`);
+
+  let sourcePath = inputPath;
+
+  try {
+    await runFfmpeg(getFfmpegParams(sourcePath, tempPath));
+  } catch {
+    sourcePath = await normalizeMp4(inputPath);
+    await runFfmpeg(getFfmpegParams(sourcePath, tempPath));
+    await fs.unlink(sourcePath);
+  }
+
+  try {
+    await fs.unlink(inputPath);
+    await renameFile(tempPath, outputPath);
+  } catch (error) {
+    throw new Error('Failed to convert to mp3', { cause: error });
+  }
+
+  return outputPath;
 };

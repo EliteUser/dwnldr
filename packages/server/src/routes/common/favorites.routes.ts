@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { getFavoritesByUserId } from '../services/soundcloud.service.js';
+import { getFavoritesByUserId } from '../../services/soundcloud.service.js';
 
 const favoritesQuerySchema = z.object({
   userId: z.string().trim().min(1),

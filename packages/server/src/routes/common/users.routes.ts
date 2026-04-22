@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { getUserById } from '../services/soundcloud.service.js';
+import { getUserById } from '../../services/soundcloud.service.js';
 
 const userQuerySchema = z.object({
   userId: z.string().trim().min(1),

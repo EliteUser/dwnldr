@@ -21,4 +21,36 @@ describe('API validation', () => {
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('Invalid request');
   });
+
+  it('rejects unsupported source URLs early', async () => {
+    const [soundCloudResponse, youTubeResponse, downloadResponse] = await Promise.all([
+      request(app).get('/api/soundcloud/tracks').query({
+        url: 'https://example.com/track',
+      }),
+      request(app).get('/api/youtube/tracks').query({
+        url: 'https://example.com/video',
+      }),
+      request(app).post('/api/download').send({
+        url: 'https://example.com/audio',
+      }),
+    ]);
+
+    expect(soundCloudResponse.status).toBe(400);
+    expect(soundCloudResponse.body.error).toBe('Unsupported URL source. Use a SoundCloud link.');
+    expect(soundCloudResponse.body.details).toEqual({
+      code: 'UNSUPPORTED_SOURCE',
+    });
+
+    expect(youTubeResponse.status).toBe(400);
+    expect(youTubeResponse.body.error).toBe('Unsupported URL source. Use a YouTube link.');
+    expect(youTubeResponse.body.details).toEqual({
+      code: 'UNSUPPORTED_SOURCE',
+    });
+
+    expect(downloadResponse.status).toBe(400);
+    expect(downloadResponse.body.error).toBe('Unsupported URL source. Use a SoundCloud or YouTube link.');
+    expect(downloadResponse.body.details).toEqual({
+      code: 'UNSUPPORTED_SOURCE',
+    });
+  });
 });

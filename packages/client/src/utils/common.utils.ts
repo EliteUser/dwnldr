@@ -2,6 +2,8 @@ import { CmpStr } from 'cmpstr';
 
 import { FileData } from '../types';
 
+export type Source = 'youtube' | 'soundcloud';
+
 const COMPARE_THRESHOLD = 0.8;
 
 const stringCompare = CmpStr.create({
@@ -82,6 +84,20 @@ export const isTrackDownloaded = (files: FileData[], title: string) => {
   return result[0].match >= COMPARE_THRESHOLD;
 };
 
-export const isYoutubeLink = (url: string) => {
-  return url.includes('youtube') || url.includes('youtu.be');
+export const classifySource = (url: string): Source | null => {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+
+    if (hostname === 'youtu.be' || hostname === 'youtube.com' || hostname.endsWith('.youtube.com')) {
+      return 'youtube';
+    }
+
+    if (hostname === 'soundcloud.com' || hostname.endsWith('.soundcloud.com')) {
+      return 'soundcloud';
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 };
