@@ -1,13 +1,11 @@
 import type { TrackOptions } from '../types.js';
 import type { Soundcloud } from 'soundcloud.ts';
 
-import path from 'node:path';
+import fs from 'node:fs/promises';
 
 import { getErrorStatus, SOUNDCLOUD_UNAUTHORIZED_MESSAGE, toSoundCloudHttpError } from '../errors/upstream-error.js';
 import { logTimedOperation } from '../lib/logger.js';
-import { getExtension, renameFile } from './common.utils.js';
-import { convertToMp3 } from './convert.utils.js';
-import { updateTrackMeta } from './metadata.utils.js';
+import { postProcessTrack } from './post-process.utils.js';
 
 type SoundCloudDownloadOptions = {
   api: Soundcloud;
@@ -19,7 +17,9 @@ export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions
   const { api, track, folder } = options;
   const { url, name, album, lyrics } = track;
 
-  let [trackPath, coverPath] = await logTimedOperation(
+  await fs.mkdir(folder, { recursive: true });
+
+  const [trackPath, coverPath] = await logTimedOperation(
     {
       startEvt: 'sc.download.started',
       successEvt: 'sc.download.completed',
@@ -43,10 +43,6 @@ export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions
       notFoundMessage: 'Track not found',
     });
   });
-
-  if (getExtension(trackPath) !== 'mp3') {
-    trackPath = await convertToMp3(trackPath);
-  }
 
   const trackInfo = await logTimedOperation(
     {
@@ -76,17 +72,14 @@ export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions
 
   const trackName = (name ?? `${trackInfo.user.username} - ${trackInfo.title}`).trim();
 
-  const newTrackPath = path.join(folder, `${trackName}.${getExtension(trackPath)}`);
-  const newCoverPath = path.join(folder, `${trackName}.${getExtension(coverPath)}`);
-
-  await Promise.all([renameFile(trackPath, newTrackPath), renameFile(coverPath, newCoverPath)]);
-
-  await updateTrackMeta({
-    folder,
-    name: trackName,
+  const processedTrack = await postProcessTrack({
     album: album?.trim(),
+    coverPath,
+    folder,
     lyrics: lyrics?.trim(),
+    name: trackName,
+    trackPath,
   });
 
-  return newTrackPath;
+  return processedTrack.filePath;
 };

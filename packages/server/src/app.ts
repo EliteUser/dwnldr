@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,8 +22,13 @@ export const createApp = () => {
       origin: env.CORS_ORIGIN,
     }),
   );
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+    }),
+  );
   app.use(requestLogger);
-  app.use(express.json());
+  app.use(express.json({ limit: '64kb' }));
   app.use(express.static(clientDistPath));
 
   app.use('/api', apiRouter);

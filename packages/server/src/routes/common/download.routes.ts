@@ -6,6 +6,7 @@ import { HttpError } from '../../errors/http-error.js';
 import { getLogger } from '../../lib/logger.js';
 import { downloadTrack, scheduleDownloadCleanup } from '../../services/download.service.js';
 import { classifySource } from '../../utils/index.js';
+import { getContentDispositionHeader } from '../../utils/sanitize.utils.js';
 
 const downloadBodySchema = z.object({
   url: z.string().trim().url(),
@@ -32,7 +33,7 @@ downloadRouter.post('/download', async (req, res) => {
 
   res.setHeader('Content-Length', fileSize);
   res.setHeader('Content-Type', 'application/octet-stream');
-  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+  res.setHeader('Content-Disposition', getContentDispositionHeader(fileName));
 
   const readStream = fs.createReadStream(filePath);
   const servedAt = Date.now();

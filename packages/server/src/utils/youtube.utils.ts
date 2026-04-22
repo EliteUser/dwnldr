@@ -15,8 +15,8 @@ import {
 } from '../errors/upstream-error.js';
 import { logTimedOperation } from '../lib/logger.js';
 import { createYtDlp } from '../lib/ytdlp.js';
-import { getExtension, renameFile } from './common.utils.js';
-import { updateTrackMeta } from './metadata.utils.js';
+import { postProcessTrack } from './post-process.utils.js';
+import { sanitizeFilename } from './sanitize.utils.js';
 
 type YoutubeDownloadOptions = {
   folder: string;
@@ -62,9 +62,9 @@ const resizeImage = async (buffer: Buffer, size: number = 512): Promise<Buffer> 
     .toBuffer();
 };
 
-const getYoutubeThumbnail = async (info: VideoInfo, folder: string): Promise<string> => {
+const getYoutubeThumbnail = async (info: VideoInfo, folder: string): Promise<string | undefined> => {
   if (info._type !== 'video') {
-    return '';
+    return undefined;
   }
 
   if (!info.thumbnail) {
@@ -124,9 +124,9 @@ export const downloadYoutubeTrack = async (options: YoutubeDownloadOptions) => {
       () => ytdlp.getInfoAsync(url),
     )) as VideoInfo;
     const trackName = (name ?? info.title).trim();
-    const trackPath = path.join(folder, `${trackName}.mp3`);
+    const downloadTargetPath = path.join(folder, `${sanitizeFilename(trackName)}.source.mp3`);
 
-    const [, coverPath] = await Promise.all([
+    const [trackPath, coverPath] = await Promise.all([
       logTimedOperation(
         {
           startEvt: 'download.conversion.started',
@@ -151,11 +151,11 @@ export const downloadYoutubeTrack = async (options: YoutubeDownloadOptions) => {
           bindings: {
             provider: 'youtube',
             url,
-            trackPath,
+            trackPath: downloadTargetPath,
           },
         },
-        () =>
-          ytdlp.execAsync(url, {
+        async () => {
+          await ytdlp.execAsync(url, {
             jsRuntime: 'node',
             format: 'bestaudio/best',
             audioFormat: 'mp3',
@@ -164,25 +164,25 @@ export const downloadYoutubeTrack = async (options: YoutubeDownloadOptions) => {
             embedMetadata: true,
             embedThumbnail: true,
             noPlaylist: true,
-            output: trackPath,
-          }),
+            output: downloadTargetPath,
+          });
+
+          return downloadTargetPath;
+        },
       ),
       getYoutubeThumbnail(info, path.resolve(folder)),
     ]);
 
-    if (coverPath) {
-      const newCoverPath = path.join(folder, `${trackName}.${getExtension(coverPath)}`);
-      await renameFile(coverPath, newCoverPath);
-    }
-
-    await updateTrackMeta({
-      folder,
-      name: trackName,
+    const processedTrack = await postProcessTrack({
       album: album?.trim(),
+      coverPath,
+      folder,
       lyrics: lyrics?.trim(),
+      name: trackName,
+      trackPath,
     });
 
-    return trackPath;
+    return processedTrack.filePath;
   } catch (error) {
     if (error instanceof HttpError) {
       throw error;

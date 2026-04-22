@@ -9,7 +9,8 @@ export type TrackOptions = TrackProps & {
 };
 
 export type TrackProcessOptions = TrackProps & {
-  folder: string;
+  filePath: string;
+  name: string;
 };
 
 export type TrackMetadata = {

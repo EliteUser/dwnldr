@@ -51,13 +51,13 @@ const getImageTags = (filePath: string) => {
 };
 
 export const updateTrackMeta = async (options: TrackProcessOptions) => {
-  const { folder, name, album, lyrics } = options;
+  const { filePath, name, album, lyrics } = options;
+  const folder = path.dirname(filePath);
   const logger = getLogger({
     folder,
     trackName: name,
   });
 
-  const filePath = path.join(folder, `${name}.mp3`);
   const tags = {
     ...getTrackTags({ name, album, lyrics }),
     ...getImageTags(filePath),

@@ -49,4 +49,22 @@ describe('download route cleanup', () => {
     expect(scheduleDownloadCleanupMock).toHaveBeenCalledTimes(1);
     expect(scheduleDownloadCleanupMock).toHaveBeenCalledWith(downloadFolder);
   });
+
+  it('sets an RFC 5987 content disposition header for downloads', async () => {
+    downloadTrackMock.mockResolvedValue({
+      downloadFolder,
+      fileName: 'Björk "Live".mp3',
+      filePath,
+      fileSize: 10,
+    });
+
+    const response = await request(createApp()).post('/api/download').send({
+      url: 'https://www.youtube.com/watch?v=test',
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-disposition']).toBe(
+      `attachment; filename="Bj_rk -Live-.mp3"; filename*=UTF-8''Bj%C3%B6rk%20%22Live%22.mp3`,
+    );
+  });
 });

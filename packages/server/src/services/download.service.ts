@@ -1,13 +1,14 @@
 import type { TrackOptions } from '../types.js';
 
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { HttpError } from '../errors/http-error.js';
 import { getLogger } from '../lib/logger.js';
 import { soundcloud } from '../lib/soundcloud.js';
-import { classifySource, getId, removeFolder } from '../utils/common.utils.js';
+import { classifySource } from '../utils/common.utils.js';
 import { downloadSoundCloudTrack } from '../utils/download.utils.js';
+import { createDownloadFolder, removeFolder } from '../utils/temp.utils.js';
 import { downloadYoutubeTrack } from '../utils/youtube.utils.js';
 
 export type DownloadResult = {
@@ -18,7 +19,7 @@ export type DownloadResult = {
 };
 
 export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult> => {
-  const downloadFolder = path.resolve(process.cwd(), `track_${getId()}`);
+  const downloadFolder = await createDownloadFolder();
   const source = classifySource(track.url);
   const logger = getLogger({
     downloadFolder,
@@ -51,13 +52,15 @@ export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult
           folder: downloadFolder,
         });
 
-  if (!filePath || !fs.existsSync(filePath)) {
+  let stat;
+
+  try {
+    stat = await fs.stat(filePath);
+  } catch {
     throw new HttpError(500, 'File not found after download', {
       code: 'INTERNAL_ERROR',
     });
   }
-
-  const stat = fs.statSync(filePath);
 
   return {
     downloadFolder,
@@ -81,12 +84,13 @@ export const scheduleDownloadCleanup = (downloadFolder: string) => {
   );
 
   setTimeout(() => {
-    removeFolder(downloadFolder);
-    logger.info(
-      {
-        evt: 'download.cleanup.executed',
-      },
-      'Executed download cleanup',
-    );
+    if (removeFolder(downloadFolder)) {
+      logger.info(
+        {
+          evt: 'download.cleanup.executed',
+        },
+        'Executed download cleanup',
+      );
+    }
   }, 5000);
 };
