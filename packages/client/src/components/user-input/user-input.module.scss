@@ -1,0 +1,16 @@
+$avatarSize: 44px;
+
+.input {
+  display: flex;
+  align-items: center;
+  column-gap: 8px;
+}
+
+.avatar {
+  width: $avatarSize;
+  height: $avatarSize;
+  min-width: $avatarSize;
+  min-height: $avatarSize;
+  max-width: $avatarSize;
+  max-height: $avatarSize;
+}

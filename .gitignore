@@ -1,5 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# AI Tools
+.cursor
+AGENTS.md
+
 # dependencies
 /.idea
 /node_modules
@@ -27,4 +31,5 @@ yarn-error.log*
 yarn.lock
 stats.html
 .vercel
+.husky/_
 track_*
