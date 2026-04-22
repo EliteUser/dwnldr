@@ -5,6 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { DEFAULT_ALBUM_NAME, IMAGE_EXTENSIONS } from '../constants.js';
+import { HttpError } from '../errors/http-error.js';
+import { getLogger } from '../lib/logger.js';
 import { getId } from './common.utils.js';
 
 const getTrackTags = (options: TrackProps) => {
@@ -50,29 +52,44 @@ const getImageTags = (filePath: string) => {
 
 export const updateTrackMeta = async (options: TrackProcessOptions) => {
   const { folder, name, album, lyrics } = options;
+  const logger = getLogger({
+    folder,
+    trackName: name,
+  });
 
-  try {
-    const filePath = path.join(folder, `${name}.mp3`);
-    const tags = {
-      ...getTrackTags({ name, album, lyrics }),
-      ...getImageTags(filePath),
-    };
-    const trackTitle = `${tags.artist} - ${tags.title}`;
+  const filePath = path.join(folder, `${name}.mp3`);
+  const tags = {
+    ...getTrackTags({ name, album, lyrics }),
+    ...getImageTags(filePath),
+  };
+  const trackTitle = `${tags.artist} - ${tags.title}`;
 
-    return await new Promise<string>((resolve, reject) => {
-      NodeID3.update(tags, filePath, (error: Error | null) => {
-        if (error) {
-          console.info(`Error processing ${trackTitle}`);
-          reject(error);
-          return;
-        }
+  return await new Promise<string>((resolve, reject) => {
+    NodeID3.update(tags, filePath, (error: Error | null) => {
+      if (error) {
+        logger.error(
+          {
+            evt: 'metadata.write.failed',
+            err: error,
+          },
+          `Failed to write metadata for ${trackTitle}`,
+        );
+        reject(
+          new HttpError(500, 'Failed to write track metadata', {
+            code: 'INTERNAL_ERROR',
+          }),
+        );
+        return;
+      }
 
-        console.info(`Processed: ${trackTitle}`);
-        resolve(filePath);
-      });
+      logger.info(
+        {
+          evt: 'metadata.write.completed',
+          filePath,
+        },
+        `Wrote metadata for ${trackTitle}`,
+      );
+      resolve(filePath);
     });
-  } catch (error) {
-    console.error('Error updating track meta:', error);
-    return undefined;
-  }
+  });
 };

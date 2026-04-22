@@ -3,6 +3,9 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+import { HttpError } from '../errors/http-error.js';
+import { getErrorMessage, isEnospcError } from '../errors/upstream-error.js';
+import { getLogger, logTimedOperation } from '../lib/logger.js';
 import { renameFile } from './common.utils.js';
 
 const resolvedFfmpegPath = (ffmpegPath as unknown as string | null) ?? undefined;
@@ -75,6 +78,9 @@ const getFfmpegParams = (sourcePath: string, outputPath: string) => [
 
 export const convertToMp3 = async (inputPath: string): Promise<string> => {
   const parsedPath = path.parse(inputPath);
+  const logger = getLogger({
+    inputPath,
+  });
 
   if (parsedPath.ext.toLowerCase() === '.mp3') {
     return inputPath;
@@ -86,18 +92,76 @@ export const convertToMp3 = async (inputPath: string): Promise<string> => {
   let sourcePath = inputPath;
 
   try {
-    await runFfmpeg(getFfmpegParams(sourcePath, tempPath));
-  } catch {
-    sourcePath = await normalizeMp4(inputPath);
-    await runFfmpeg(getFfmpegParams(sourcePath, tempPath));
-    await fs.unlink(sourcePath);
+    await logTimedOperation(
+      {
+        startEvt: 'download.conversion.started',
+        successEvt: 'download.conversion.completed',
+        failureEvt: 'ffmpeg.exit.nonzero',
+        startMessage: 'Starting ffmpeg conversion',
+        successMessage: 'Completed ffmpeg conversion',
+        failureMessage: (error) => `ffmpeg exited with a non-zero status: ${getErrorMessage(error)}`,
+        bindings: {
+          sourcePath,
+          outputPath,
+        },
+      },
+      () => runFfmpeg(getFfmpegParams(sourcePath, tempPath)),
+    );
+  } catch (error) {
+    try {
+      sourcePath = await normalizeMp4(inputPath);
+      await logTimedOperation(
+        {
+          startEvt: 'download.conversion.started',
+          successEvt: 'download.conversion.completed',
+          failureEvt: 'ffmpeg.exit.nonzero',
+          startMessage: 'Retrying ffmpeg conversion with normalized mp4 input',
+          successMessage: 'Completed ffmpeg conversion after mp4 normalization',
+          failureMessage: (nestedError) => `ffmpeg exited with a non-zero status: ${getErrorMessage(nestedError)}`,
+          bindings: {
+            sourcePath,
+            outputPath,
+          },
+        },
+        () => runFfmpeg(getFfmpegParams(sourcePath, tempPath)),
+      );
+      await fs.unlink(sourcePath);
+    } catch (nestedError) {
+      const enospcError = isEnospcError(nestedError) ? nestedError : isEnospcError(error) ? error : null;
+
+      if (enospcError) {
+        logger.error(
+          {
+            evt: 'disk.enospc',
+            ...(enospcError instanceof Error ? { err: enospcError } : { error: String(enospcError) }),
+          },
+          'Disk is full during conversion',
+        );
+      }
+
+      throw new HttpError(500, 'Conversion failed', {
+        code: 'CONVERSION_FAILURE',
+      });
+    }
   }
 
   try {
     await fs.unlink(inputPath);
     await renameFile(tempPath, outputPath);
   } catch (error) {
-    throw new Error('Failed to convert to mp3', { cause: error });
+    if (isEnospcError(error)) {
+      logger.error(
+        {
+          evt: 'disk.enospc',
+          ...(error instanceof Error ? { err: error } : { error: String(error) }),
+        },
+        'Disk is full while finalizing conversion',
+      );
+    }
+
+    throw new HttpError(500, 'Conversion failed', {
+      code: 'CONVERSION_FAILURE',
+    });
   }
 
   return outputPath;

@@ -43,7 +43,9 @@ export const Likes = memo<LikesProps>((props) => {
   useEffect(() => {
     void (async () => {
       if (!isLoading) {
-        await handleSyncFolder();
+        await handleSyncFolder({
+          notifyOnSuccess: false,
+        });
       }
     })();
   }, [isLoading]);

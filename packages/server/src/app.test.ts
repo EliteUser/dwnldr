@@ -11,6 +11,7 @@ describe('API validation', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('Invalid request');
+    expect(response.body.code).toBe('INVALID_INPUT');
   });
 
   it('rejects malformed download payloads', async () => {
@@ -20,6 +21,7 @@ describe('API validation', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('Invalid request');
+    expect(response.body.code).toBe('INVALID_INPUT');
   });
 
   it('rejects unsupported source URLs early', async () => {
@@ -37,20 +39,14 @@ describe('API validation', () => {
 
     expect(soundCloudResponse.status).toBe(400);
     expect(soundCloudResponse.body.error).toBe('Unsupported URL source. Use a SoundCloud link.');
-    expect(soundCloudResponse.body.details).toEqual({
-      code: 'UNSUPPORTED_SOURCE',
-    });
+    expect(soundCloudResponse.body.code).toBe('UNSUPPORTED_SOURCE');
 
     expect(youTubeResponse.status).toBe(400);
     expect(youTubeResponse.body.error).toBe('Unsupported URL source. Use a YouTube link.');
-    expect(youTubeResponse.body.details).toEqual({
-      code: 'UNSUPPORTED_SOURCE',
-    });
+    expect(youTubeResponse.body.code).toBe('UNSUPPORTED_SOURCE');
 
     expect(downloadResponse.status).toBe(400);
     expect(downloadResponse.body.error).toBe('Unsupported URL source. Use a SoundCloud or YouTube link.');
-    expect(downloadResponse.body.details).toEqual({
-      code: 'UNSUPPORTED_SOURCE',
-    });
+    expect(downloadResponse.body.code).toBe('UNSUPPORTED_SOURCE');
   });
 });

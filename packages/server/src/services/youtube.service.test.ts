@@ -34,4 +34,15 @@ describe('getYouTubeTrackByUrl', () => {
     expect(getInfoAsyncMock).toHaveBeenCalledWith('https://www.youtube.com/watch?v=video-1');
     expect(metadata.duration).toBe(210000);
   });
+
+  it('returns a typed playlist error', async () => {
+    getInfoAsyncMock.mockResolvedValue({
+      _type: 'playlist',
+    });
+
+    await expect(getYouTubeTrackByUrl('https://www.youtube.com/watch?v=playlist')).rejects.toMatchObject({
+      code: 'YOUTUBE_PLAYLIST',
+      statusCode: 400,
+    });
+  });
 });

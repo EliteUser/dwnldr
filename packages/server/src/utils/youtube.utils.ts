@@ -5,6 +5,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 
+import { HttpError } from '../errors/http-error.js';
+import {
+  getErrorMessage,
+  isYtDlpSignatureError,
+  isYtDlpSpawnError,
+  toYouTubeHttpError,
+  YOUTUBE_UPSTREAM_MESSAGE,
+} from '../errors/upstream-error.js';
+import { logTimedOperation } from '../lib/logger.js';
 import { createYtDlp } from '../lib/ytdlp.js';
 import { getExtension, renameFile } from './common.utils.js';
 import { updateTrackMeta } from './metadata.utils.js';
@@ -81,41 +90,91 @@ const getYoutubeThumbnail = async (info: VideoInfo, folder: string): Promise<str
 export const downloadYoutubeTrack = async (options: YoutubeDownloadOptions) => {
   const { folder, track } = options;
   const { url, name, album, lyrics } = track;
+  const ytdlp = createYtDlp();
 
   try {
-    const ytdlp = createYtDlp();
-    const installed = await ytdlp.checkInstallationAsync({ ffmpeg: true });
-
-    if (!installed) {
-      throw new Error(
-        'yt-dlp or ffmpeg not available. Ensure ffmpeg-static is installed and the environment allows downloading binaries.',
-      );
-    }
-
     await fs.mkdir(folder, { recursive: true });
 
-    const info = (await ytdlp.getInfoAsync(url)) as VideoInfo;
+    const info = (await logTimedOperation(
+      {
+        startEvt: 'ytdlp.info.started',
+        successEvt: 'ytdlp.info.completed',
+        failureEvt: (error) => {
+          if (isYtDlpSignatureError(error)) {
+            return 'ytdlp.signature.error';
+          }
+
+          if (isYtDlpSpawnError(error)) {
+            return 'ytdlp.spawn.failed';
+          }
+
+          return 'ytdlp.info.failed';
+        },
+        startMessage: 'Fetching YouTube metadata',
+        successMessage: 'Fetched YouTube metadata',
+        failureMessage: (error) =>
+          isYtDlpSignatureError(error)
+            ? 'yt-dlp failed to extract the current YouTube signature'
+            : `Failed to fetch YouTube metadata: ${getErrorMessage(error)}`,
+        bindings: {
+          provider: 'youtube',
+          url,
+        },
+      },
+      () => ytdlp.getInfoAsync(url),
+    )) as VideoInfo;
     const trackName = (name ?? info.title).trim();
     const trackPath = path.join(folder, `${trackName}.mp3`);
 
     const [, coverPath] = await Promise.all([
-      ytdlp.execAsync(url, {
-        jsRuntime: 'node',
-        format: 'bestaudio/best',
-        audioFormat: 'mp3',
-        audioQuality: '0',
-        extractAudio: true,
-        embedMetadata: true,
-        embedThumbnail: true,
-        noPlaylist: true,
-        output: trackPath,
-      }),
+      logTimedOperation(
+        {
+          startEvt: 'download.conversion.started',
+          successEvt: 'download.conversion.completed',
+          failureEvt: (error) => {
+            if (isYtDlpSignatureError(error)) {
+              return 'ytdlp.signature.error';
+            }
+
+            if (isYtDlpSpawnError(error)) {
+              return 'ytdlp.spawn.failed';
+            }
+
+            return 'download.conversion.failed';
+          },
+          startMessage: 'Starting YouTube download conversion',
+          successMessage: 'Completed YouTube download conversion',
+          failureMessage: (error) =>
+            isYtDlpSignatureError(error)
+              ? 'yt-dlp failed to extract the current YouTube signature'
+              : `Failed to download or convert YouTube audio: ${getErrorMessage(error)}`,
+          bindings: {
+            provider: 'youtube',
+            url,
+            trackPath,
+          },
+        },
+        () =>
+          ytdlp.execAsync(url, {
+            jsRuntime: 'node',
+            format: 'bestaudio/best',
+            audioFormat: 'mp3',
+            audioQuality: '0',
+            extractAudio: true,
+            embedMetadata: true,
+            embedThumbnail: true,
+            noPlaylist: true,
+            output: trackPath,
+          }),
+      ),
       getYoutubeThumbnail(info, path.resolve(folder)),
     ]);
 
-    const newCoverPath = path.join(folder, `${trackName}.${getExtension(coverPath)}`);
+    if (coverPath) {
+      const newCoverPath = path.join(folder, `${trackName}.${getExtension(coverPath)}`);
+      await renameFile(coverPath, newCoverPath);
+    }
 
-    await renameFile(coverPath, newCoverPath);
     await updateTrackMeta({
       folder,
       name: trackName,
@@ -125,6 +184,10 @@ export const downloadYoutubeTrack = async (options: YoutubeDownloadOptions) => {
 
     return trackPath;
   } catch (error) {
-    throw new Error(`Failed to download or convert to mp3: ${(error as Error).message}`);
+    if (error instanceof HttpError) {
+      throw error;
+    }
+
+    throw toYouTubeHttpError(error, YOUTUBE_UPSTREAM_MESSAGE);
   }
 };

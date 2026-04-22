@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { requestLogger } from './middleware/request-logger.js';
 import { apiRouter } from './routes/common/api.routes.js';
 
 const serverDirPath = path.dirname(fileURLToPath(import.meta.url));
@@ -20,6 +21,7 @@ export const createApp = () => {
       origin: env.CORS_ORIGIN,
     }),
   );
+  app.use(requestLogger);
   app.use(express.json());
   app.use(express.static(clientDistPath));
 

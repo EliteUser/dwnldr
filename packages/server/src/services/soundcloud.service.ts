@@ -1,24 +1,76 @@
 import type { SoundcloudTrack, SoundcloudUser } from 'soundcloud.ts';
 
 import { HttpError } from '../errors/http-error.js';
+import { getErrorStatus, SOUNDCLOUD_UNAUTHORIZED_MESSAGE, toSoundCloudHttpError } from '../errors/upstream-error.js';
+import { logTimedOperation } from '../lib/logger.js';
 import { soundcloud } from '../lib/soundcloud.js';
 import { getSoundCloudTrackData } from './track-metadata.service.js';
 
 export const getUserById = async (userId: string): Promise<SoundcloudUser> => {
-  const user = await soundcloud.users.get(userId);
+  const user = await logTimedOperation(
+    {
+      startEvt: 'sc.user.fetch.started',
+      successEvt: 'sc.user.fetch.completed',
+      failureEvt: (error) =>
+        getErrorStatus(error) === 401 || getErrorStatus(error) === 403 ? 'sc.api.unauthorized' : 'sc.user.fetch.failed',
+      startMessage: 'Fetching SoundCloud user',
+      successMessage: 'Fetched SoundCloud user',
+      failureMessage: (error) =>
+        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
+          ? SOUNDCLOUD_UNAUTHORIZED_MESSAGE
+          : 'Failed to fetch SoundCloud user',
+      bindings: {
+        provider: 'soundcloud',
+        userId,
+      },
+    },
+    () => soundcloud.users.get(userId),
+  ).catch((error: unknown) => {
+    throw toSoundCloudHttpError(error, {
+      notFoundMessage: `User with id ${userId} not found`,
+    });
+  });
 
   if (!user) {
-    throw new HttpError(404, `User with id ${userId} not found`);
+    throw new HttpError(404, `User with id ${userId} not found`, {
+      code: 'INVALID_INPUT',
+    });
   }
 
   return user;
 };
 
 export const getSoundCloudTrackByUrl = async (url: string) => {
-  const track = await soundcloud.tracks.get(url);
+  const track = await logTimedOperation(
+    {
+      startEvt: 'sc.track.fetch.started',
+      successEvt: 'sc.track.fetch.completed',
+      failureEvt: (error) =>
+        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
+          ? 'sc.api.unauthorized'
+          : 'sc.track.fetch.failed',
+      startMessage: 'Fetching SoundCloud track metadata',
+      successMessage: 'Fetched SoundCloud track metadata',
+      failureMessage: (error) =>
+        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
+          ? SOUNDCLOUD_UNAUTHORIZED_MESSAGE
+          : 'Failed to fetch SoundCloud track metadata',
+      bindings: {
+        provider: 'soundcloud',
+        url,
+      },
+    },
+    () => soundcloud.tracks.get(url),
+  ).catch((error: unknown) => {
+    throw toSoundCloudHttpError(error, {
+      notFoundMessage: 'Track not found',
+    });
+  });
 
   if (!track) {
-    throw new HttpError(404, 'Track not found');
+    throw new HttpError(404, 'Track not found', {
+      code: 'INVALID_INPUT',
+    });
   }
 
   return getSoundCloudTrackData(track);
@@ -26,7 +78,30 @@ export const getSoundCloudTrackByUrl = async (url: string) => {
 
 export const getFavoritesByUserId = async (userId: string, limit?: number) => {
   const user = await getUserById(userId);
-  const favorites = await soundcloud.users.likes(user.id, limit);
+  const favorites = await logTimedOperation(
+    {
+      startEvt: 'sc.likes.fetch.started',
+      successEvt: 'sc.likes.fetch.completed',
+      failureEvt: (error) =>
+        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
+          ? 'sc.api.unauthorized'
+          : 'sc.likes.fetch.failed',
+      startMessage: 'Fetching SoundCloud likes',
+      successMessage: 'Fetched SoundCloud likes',
+      failureMessage: (error) =>
+        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
+          ? SOUNDCLOUD_UNAUTHORIZED_MESSAGE
+          : 'Failed to fetch SoundCloud likes',
+      bindings: {
+        provider: 'soundcloud',
+        userId,
+        limit,
+      },
+    },
+    () => soundcloud.users.likes(user.id, limit),
+  ).catch((error: unknown) => {
+    throw toSoundCloudHttpError(error);
+  });
 
   return favorites
     .filter((track): track is SoundcloudTrack => Boolean(track))

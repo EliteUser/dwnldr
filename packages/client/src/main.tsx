@@ -1,4 +1,5 @@
-import { ThemeProvider } from '@gravity-ui/uikit';
+import { ThemeProvider, ToasterComponent, ToasterProvider } from '@gravity-ui/uikit';
+import { toaster } from '@gravity-ui/uikit/toaster-singleton';
 import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Provider } from 'react-redux';
@@ -15,7 +16,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
       <ThemeProvider theme='dark'>
-        <App />
+        <ToasterProvider toaster={toaster}>
+          <App />
+          <ToasterComponent />
+        </ToasterProvider>
       </ThemeProvider>
     </Provider>
   </StrictMode>,

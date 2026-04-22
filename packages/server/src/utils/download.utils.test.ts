@@ -23,6 +23,9 @@ describe('downloadSoundCloudTrack', () => {
           url: 'https://soundcloud.com/artist/track',
         },
       }),
-    ).rejects.toThrow(error);
+    ).rejects.toMatchObject({
+      code: 'UPSTREAM_FAILURE',
+      statusCode: 502,
+    });
   });
 });

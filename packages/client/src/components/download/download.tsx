@@ -3,7 +3,15 @@ import { TextInput, Button, Icon, TextArea, Label, Progress, Loader } from '@gra
 import { useState, useEffect, memo, useCallback } from 'react';
 
 import { useGetSoundCloudTracksQuery, useGetYoutubeTracksQuery } from '../../api/api.slice';
-import { classifySource } from '../../utils';
+import {
+  classifySource,
+  DOWNLOAD_NOTIFICATION_MESSAGE,
+  DOWNLOAD_NOTIFICATION_NAME,
+  FALLBACK_API_ERROR_MESSAGE,
+  getApiErrorFromRtkError,
+  parseApiErrorResponse,
+  useNotify,
+} from '../../utils';
 
 import styles from './download.module.scss';
 
@@ -21,19 +29,29 @@ export const Download = memo<DownloadProps>((props) => {
 
   const [progress, setProgress] = useState(0);
   const [inProgress, setInProgress] = useState(false);
+  const notify = useNotify();
 
   const source = url ? classifySource(url) : null;
 
-  const { data: soundCloudTrack, isFetching: isSoundCloudTrackFetching } = useGetSoundCloudTracksQuery(url, {
+  const {
+    data: soundCloudTrack,
+    error: soundCloudTrackError,
+    isFetching: isSoundCloudTrackFetching,
+  } = useGetSoundCloudTracksQuery(url, {
     skip: !url || source !== 'soundcloud',
   });
 
-  const { data: youTubeTrack, isFetching: isYouTubeTrackFetching } = useGetYoutubeTracksQuery(url, {
+  const {
+    data: youTubeTrack,
+    error: youTubeTrackError,
+    isFetching: isYouTubeTrackFetching,
+  } = useGetYoutubeTracksQuery(url, {
     skip: !url || source !== 'youtube',
   });
 
   const track = soundCloudTrack || youTubeTrack;
   const isFetching = isSoundCloudTrackFetching || isYouTubeTrackFetching;
+  const metadataError = soundCloudTrackError ?? youTubeTrackError;
 
   useEffect(() => {
     setUrl(selectedUrl || '');
@@ -44,6 +62,14 @@ export const Download = memo<DownloadProps>((props) => {
       setName(`${track.user} - ${track.title}`);
     }
   }, [track, isFetching]);
+
+  useEffect(() => {
+    if (metadataError) {
+      notify.apiError(getApiErrorFromRtkError(metadataError), {
+        name: DOWNLOAD_NOTIFICATION_NAME.metadataError,
+      });
+    }
+  }, [metadataError, notify]);
 
   const handleDownload = useCallback(async () => {
     if (!url || !name) {
@@ -70,7 +96,10 @@ export const Download = memo<DownloadProps>((props) => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to download track: ${response.statusText}`);
+        notify.apiError(await parseApiErrorResponse(response), {
+          name: DOWNLOAD_NOTIFICATION_NAME.submitError,
+        });
+        return;
       }
 
       const totalSize = parseInt(response.headers.get('content-length') ?? '0');
@@ -78,11 +107,18 @@ export const Download = memo<DownloadProps>((props) => {
 
       const reader = response.body?.getReader();
 
+      if (!reader) {
+        notify.error(FALLBACK_API_ERROR_MESSAGE, {
+          name: DOWNLOAD_NOTIFICATION_NAME.missingBody,
+        });
+        return;
+      }
+
       let receivedSize = 0;
-      const chunks = [];
+      const chunks: BlobPart[] = [];
 
       while (true) {
-        const { done, value } = await reader!.read();
+        const { done, value } = await reader.read();
 
         if (done) {
           const blob = new Blob(chunks);
@@ -91,27 +127,33 @@ export const Download = memo<DownloadProps>((props) => {
 
           a.href = downloadUrl;
           a.download = fileName;
+          document.body.appendChild(a);
           a.click();
+          document.body.removeChild(a);
           window.URL.revokeObjectURL(downloadUrl);
+          notify.success(DOWNLOAD_NOTIFICATION_MESSAGE.success(name), {
+            name: DOWNLOAD_NOTIFICATION_NAME.success,
+          });
 
           break;
         }
 
-        chunks.push(value);
+        chunks.push(new Uint8Array(value));
         receivedSize += value.length;
 
         const percentage = (receivedSize / totalSize) * 100;
 
         setProgress(percentage);
       }
-    } catch (error) {
-      console.error('Error downloading track:', error);
-      alert('Failed to download the track');
+    } catch {
+      notify.error(FALLBACK_API_ERROR_MESSAGE, {
+        name: DOWNLOAD_NOTIFICATION_NAME.networkError,
+      });
     } finally {
       setInProgress(false);
       setProgress(0);
     }
-  }, [album, lyrics, name, url]);
+  }, [album, lyrics, name, notify, url]);
 
   return (
     <div className={styles.download}>
