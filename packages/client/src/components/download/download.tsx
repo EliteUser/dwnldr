@@ -1,6 +1,6 @@
 import { ArrowShapeDownToLine } from '@gravity-ui/icons';
 import { TextInput, Button, Icon, TextArea, Label, Progress, Loader } from '@gravity-ui/uikit';
-import { useState, useEffect, memo, useCallback } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 
 import { useGetSoundCloudTracksQuery, useGetYoutubeTracksQuery } from '../../api/api.slice';
 import {
@@ -19,42 +19,110 @@ type DownloadProps = {
   selectedUrl?: string;
 };
 
-export const Download = memo<DownloadProps>((props) => {
+const METADATA_DEBOUNCE_MS = 300;
+
+const canUseSaveFilePicker = () =>
+  typeof window !== 'undefined' && window.isSecureContext && 'showSaveFilePicker' in window;
+
+const isAbortError = (error: unknown) => (error as { name?: string }).name === 'AbortError';
+
+const getDownloadFileName = (contentDisposition: string | null, fallbackName: string) => {
+  if (!contentDisposition) {
+    return fallbackName;
+  }
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return fallbackName;
+    }
+  }
+
+  const quotedMatch = contentDisposition.match(/filename="([^"]+)"/i);
+
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1];
+  }
+
+  return fallbackName;
+};
+
+const triggerBrowserDownload = (fileName: string, chunks: BlobPart[]) => {
+  const blob = new Blob(chunks);
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+
+  anchor.href = downloadUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  window.URL.revokeObjectURL(downloadUrl);
+};
+
+const readResponse = async (
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onChunk: (value: Uint8Array) => Promise<void> | void,
+) => {
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      return;
+    }
+
+    if (value) {
+      await onChunk(value);
+    }
+  }
+};
+
+export const Download = memo<DownloadProps>(function Download(props) {
   const { selectedUrl } = props;
 
-  const [url, setUrl] = useState(selectedUrl || '');
+  const [urlInput, setUrlInput] = useState(selectedUrl || '');
+  const [debouncedUrl, setDebouncedUrl] = useState(selectedUrl || '');
   const [name, setName] = useState('');
   const [album, setAlbum] = useState('');
   const [lyrics, setLyrics] = useState('');
 
   const [progress, setProgress] = useState(0);
   const [inProgress, setInProgress] = useState(false);
+  const [isProgressKnown, setIsProgressKnown] = useState(false);
   const notify = useNotify();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const source = url ? classifySource(url) : null;
+  const source = debouncedUrl ? classifySource(debouncedUrl) : null;
 
   const {
-    data: soundCloudTrack,
+    currentData: soundCloudTrack,
     error: soundCloudTrackError,
     isFetching: isSoundCloudTrackFetching,
-  } = useGetSoundCloudTracksQuery(url, {
-    skip: !url || source !== 'soundcloud',
+  } = useGetSoundCloudTracksQuery(debouncedUrl, {
+    skip: !debouncedUrl || source !== 'soundcloud',
   });
 
   const {
-    data: youTubeTrack,
+    currentData: youTubeTrack,
     error: youTubeTrackError,
     isFetching: isYouTubeTrackFetching,
-  } = useGetYoutubeTracksQuery(url, {
-    skip: !url || source !== 'youtube',
+  } = useGetYoutubeTracksQuery(debouncedUrl, {
+    skip: !debouncedUrl || source !== 'youtube',
   });
 
-  const track = soundCloudTrack || youTubeTrack;
+  const track = source === 'soundcloud' ? soundCloudTrack : source === 'youtube' ? youTubeTrack : undefined;
   const isFetching = isSoundCloudTrackFetching || isYouTubeTrackFetching;
   const metadataError = soundCloudTrackError ?? youTubeTrackError;
 
   useEffect(() => {
-    setUrl(selectedUrl || '');
+    setUrlInput(selectedUrl || '');
+    setDebouncedUrl(selectedUrl || '');
+    setName('');
+    setAlbum('');
+    setLyrics('');
   }, [selectedUrl]);
 
   useEffect(() => {
@@ -62,6 +130,22 @@ export const Download = memo<DownloadProps>((props) => {
       setName(`${track.user} - ${track.title}`);
     }
   }, [track, isFetching]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedUrl(urlInput.trim());
+    }, METADATA_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [urlInput]);
+
+  useEffect(() => {
+    if (!urlInput || urlInput !== debouncedUrl) {
+      setName('');
+    }
+  }, [debouncedUrl, urlInput]);
 
   useEffect(() => {
     if (metadataError) {
@@ -72,14 +156,45 @@ export const Download = memo<DownloadProps>((props) => {
   }, [metadataError, notify]);
 
   const handleDownload = useCallback(async () => {
-    if (!url || !name) {
+    if (!urlInput || !name) {
       return;
     }
 
+    const suggestedFileName = `${name}.mp3`;
+    let fileHandle: FileSystemFileHandle | null = null;
+
+    try {
+      fileHandle = canUseSaveFilePicker()
+        ? await window.showSaveFilePicker({
+            suggestedName: suggestedFileName,
+            types: [
+              {
+                description: 'Audio',
+                accept: {
+                  'audio/mpeg': ['.mp3'],
+                },
+              },
+            ],
+          })
+        : null;
+    } catch (error) {
+      if (!isAbortError(error)) {
+        notify.error(FALLBACK_API_ERROR_MESSAGE, {
+          name: DOWNLOAD_NOTIFICATION_NAME.networkError,
+        });
+      }
+
+      return;
+    }
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
     setInProgress(true);
+    setIsProgressKnown(false);
+    setProgress(0);
 
     const body = {
-      url,
+      url: urlInput,
       name,
       ...(album && { album }),
       ...(lyrics && { lyrics }),
@@ -93,6 +208,7 @@ export const Download = memo<DownloadProps>((props) => {
           Accept: 'application/octet-stream',
         },
         body: JSON.stringify(body),
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -102,10 +218,8 @@ export const Download = memo<DownloadProps>((props) => {
         return;
       }
 
-      const totalSize = parseInt(response.headers.get('content-length') ?? '0');
-      const fileName = response.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] || `${name}.mp3`;
-
       const reader = response.body?.getReader();
+      const fileName = getDownloadFileName(response.headers.get('content-disposition'), suggestedFileName);
 
       if (!reader) {
         notify.error(FALLBACK_API_ERROR_MESSAGE, {
@@ -114,46 +228,65 @@ export const Download = memo<DownloadProps>((props) => {
         return;
       }
 
+      const totalSize = Number.parseInt(response.headers.get('content-length') ?? '0', 10);
+      const hasKnownSize = Number.isFinite(totalSize) && totalSize > 0;
+
       let receivedSize = 0;
-      const chunks: BlobPart[] = [];
+      setIsProgressKnown(hasKnownSize);
 
-      while (true) {
-        const { done, value } = await reader.read();
+      if (fileHandle) {
+        const writable = await fileHandle.createWritable();
 
-        if (done) {
-          const blob = new Blob(chunks);
-          const downloadUrl = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
+        try {
+          await readResponse(reader, async (value) => {
+            await writable.write(value.slice());
+            receivedSize += value.length;
 
-          a.href = downloadUrl;
-          a.download = fileName;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(downloadUrl);
-          notify.success(DOWNLOAD_NOTIFICATION_MESSAGE.success(name), {
-            name: DOWNLOAD_NOTIFICATION_NAME.success,
+            if (hasKnownSize) {
+              setProgress((receivedSize / totalSize) * 100);
+            }
           });
 
-          break;
+          await writable.close();
+        } catch (error) {
+          await writable.abort();
+          throw error;
         }
+      } else {
+        const chunks: BlobPart[] = [];
 
-        chunks.push(new Uint8Array(value));
-        receivedSize += value.length;
+        await readResponse(reader, (value) => {
+          chunks.push(new Uint8Array(value));
+          receivedSize += value.length;
 
-        const percentage = (receivedSize / totalSize) * 100;
+          if (hasKnownSize) {
+            setProgress((receivedSize / totalSize) * 100);
+          }
+        });
 
-        setProgress(percentage);
+        triggerBrowserDownload(fileName, chunks);
       }
-    } catch {
-      notify.error(FALLBACK_API_ERROR_MESSAGE, {
-        name: DOWNLOAD_NOTIFICATION_NAME.networkError,
+
+      notify.success(DOWNLOAD_NOTIFICATION_MESSAGE.success(name), {
+        name: DOWNLOAD_NOTIFICATION_NAME.success,
       });
+    } catch (error) {
+      if (!isAbortError(error)) {
+        notify.error(FALLBACK_API_ERROR_MESSAGE, {
+          name: DOWNLOAD_NOTIFICATION_NAME.networkError,
+        });
+      }
     } finally {
+      abortControllerRef.current = null;
       setInProgress(false);
       setProgress(0);
+      setIsProgressKnown(false);
     }
-  }, [album, lyrics, name, notify, url]);
+  }, [album, lyrics, name, notify, urlInput]);
+
+  const handleCancelDownload = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
 
   return (
     <div className={styles.download}>
@@ -165,8 +298,8 @@ export const Download = memo<DownloadProps>((props) => {
         }
         size='xl'
         hasClear
-        value={url}
-        onChange={(evt) => setUrl(evt.target.value)}
+        value={urlInput}
+        onChange={(evt) => setUrlInput(evt.target.value)}
         placeholder='Enter track URL'
       />
 
@@ -213,13 +346,20 @@ export const Download = memo<DownloadProps>((props) => {
         size='xl'
         view='action'
         loading={inProgress}
-        disabled={inProgress || !url || !name}
+        disabled={inProgress || !urlInput || !name}
         onClick={handleDownload}
       >
         <Icon size={16} data={ArrowShapeDownToLine} /> Download
       </Button>
 
-      {inProgress && <Progress size='xs' theme='warning' value={progress} />}
+      {inProgress && (
+        <div className={styles.actions}>
+          <Button size='xl' view='outlined' onClick={handleCancelDownload}>
+            Cancel
+          </Button>
+          <Progress size='xs' theme='info' value={progress} loading={!isProgressKnown} />
+        </div>
+      )}
     </div>
   );
 });

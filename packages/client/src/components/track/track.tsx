@@ -1,10 +1,9 @@
 import { ArrowDownToLine } from '@gravity-ui/icons';
 import { Avatar, Button, Icon, Text } from '@gravity-ui/uikit';
 import clsx from 'clsx';
-import { forwardRef, memo, useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { forwardRef, memo } from 'react';
 
-import { RootState } from '../../store';
+import { useAppSelector } from '../../store';
 import { getDuration, isTrackDownloaded } from '../../utils';
 
 import styles from './track.module.scss';
@@ -17,17 +16,13 @@ type TrackProps = {
 };
 
 export const Track = memo(
-  forwardRef<HTMLDivElement, TrackProps>((props, ref) => {
+  forwardRef<HTMLDivElement, TrackProps>(function Track(props, ref) {
     const { title, coverUrl, duration, onDownloadClick, ...rest } = props;
 
-    const files = useSelector((state: RootState) => state.files.files);
-    const directory = useSelector((state: RootState) => state.files.directoryName);
+    const files = useAppSelector((state) => state.files.files);
+    const directory = useAppSelector((state) => state.files.directoryName);
 
-    const [isDownloaded, setIsDownloaded] = useState(false);
-
-    useEffect(() => {
-      setIsDownloaded(files.length > 0 && isTrackDownloaded(files, title));
-    }, [files, title]);
+    const isDownloaded = files.length > 0 && isTrackDownloaded(files, title);
 
     const trackClassNames = clsx(styles.track, {
       [styles.downloaded]: isDownloaded,
@@ -48,7 +43,12 @@ export const Track = memo(
           </Text>
         </div>
 
-        <Button className={styles.button} view='outlined-action' onClick={onDownloadClick}>
+        <Button
+          className={styles.button}
+          view='outlined-action'
+          onClick={onDownloadClick}
+          aria-label={`Download ${title}`}
+        >
           <Icon size={16} data={ArrowDownToLine} />
         </Button>
       </div>

@@ -1,17 +1,16 @@
 import { PersonPencil } from '@gravity-ui/icons';
 import { Avatar, Button, Icon, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { memo, useCallback, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 
 import { useGetUserQuery } from '../../api/api.slice';
-import { RootState } from '../../store';
-import { setUserId } from '../../store/user.slice';
+import { useAppDispatch, useAppSelector } from '../../store';
+import { clearUserId, setUserId } from '../../store/user.slice';
 
 import styles from './user-input.module.scss';
 
 export const UserInput = memo(() => {
-  const dispatch = useDispatch();
-  const userId = useSelector((state: RootState) => state.user.userId);
+  const dispatch = useAppDispatch();
+  const userId = useAppSelector((state) => state.user.userId);
 
   const [inputValue, setInputValue] = useState(userId || '');
   const [isEdit, setIsEdit] = useState(!userId);
@@ -28,6 +27,12 @@ export const UserInput = memo(() => {
       setIsEdit(false);
     }
   }, [dispatch, inputValue]);
+
+  const onChangeUserClick = useCallback(() => {
+    dispatch(clearUserId());
+    setInputValue('');
+    setIsEdit(true);
+  }, [dispatch]);
 
   return isLoading ? (
     <Loader size='l' />
@@ -47,7 +52,7 @@ export const UserInput = memo(() => {
     <div className={styles.input}>
       <Avatar className={styles.avatar} text={full_name || 'User Name'} size='l' imgUrl={avatar_url} />
       <Text variant='header-1'>{full_name}</Text>
-      <Button view='outlined' size='m' onClick={() => setIsEdit(true)}>
+      <Button view='outlined' size='m' onClick={onChangeUserClick} aria-label='Change SoundCloud user'>
         <Icon data={PersonPencil} size={18} />
       </Button>
     </div>

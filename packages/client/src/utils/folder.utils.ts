@@ -1,13 +1,14 @@
 import type { FileData } from '../types';
 
 import { store } from '../store';
-import { clearFiles, setDirectoryName, setFiles, setLoading } from '../store/files.slice';
+import { clearFiles, setDirectoryName, setFiles, setLastSyncAt, setLoading } from '../store/files.slice';
 import { getFileData } from './common.utils';
 import { loadDirectoryHandle, saveDirectoryHandle } from './directory-handle.utils';
 import { FOLDER_NOTIFICATION_MESSAGE, FOLDER_NOTIFICATION_NAME } from './notify.constants';
 import { notify } from './notify.utils';
 
 type SyncFolderOptions = {
+  notifyOnStart?: boolean;
   notifyOnSuccess?: boolean;
 };
 
@@ -25,15 +26,14 @@ export const canUseFileSystemAccess = () =>
 const verifyPermission = async (handle: FileSystemDirectoryHandle): Promise<boolean> => {
   if ((await handle.queryPermission({ mode: 'read' })) === 'granted') {
     return true;
-  } else if ((await handle.requestPermission({ mode: 'read' })) === 'granted') {
-    return true;
   }
 
-  return false;
+  return (await handle.requestPermission({ mode: 'read' })) === 'granted';
 };
 
 export const handleSyncFolder = async (
   options: SyncFolderOptions = {
+    notifyOnStart: true,
     notifyOnSuccess: true,
   },
 ): Promise<SyncFolderResult | null> => {
@@ -51,12 +51,21 @@ export const handleSyncFolder = async (
       return null;
     }
 
+    if (options.notifyOnStart) {
+      notify.info(FOLDER_NOTIFICATION_MESSAGE.syncStarted(savedHandle.name), {
+        name: FOLDER_NOTIFICATION_NAME.syncStarted,
+      });
+    }
+
     const fileList: FileData[] = [];
     for await (const fileName of savedHandle.keys()) {
       fileList.push(getFileData(fileName));
     }
 
     store.dispatch(setFiles(fileList));
+    store.dispatch(setDirectoryName(savedHandle.name));
+    store.dispatch(setLastSyncAt(new Date().toISOString()));
+
     const result = {
       directoryName: savedHandle.name,
       fileCount: fileList.length,

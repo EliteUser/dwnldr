@@ -16,6 +16,7 @@ export const DOWNLOAD_NOTIFICATION_MESSAGE = {
 } as const;
 
 export const FOLDER_NOTIFICATION_NAME = {
+  syncStarted: 'folder-sync-started',
   syncSuccess: 'folder-sync-success',
   syncError: 'folder-sync-error',
   apiUnsupported: 'folder-api-unsupported',
@@ -25,6 +26,7 @@ export const FOLDER_NOTIFICATION_NAME = {
 export const FOLDER_NOTIFICATION_MESSAGE = {
   fileSystemAccessError:
     'File system access requires a supported browser and a trusted secure context (HTTPS or localhost).',
+  syncStarted: (directoryName: string) => `Syncing ${directoryName}`,
   syncError: 'Failed to sync the selected folder.',
   pickerError: 'Failed to pick the music folder.',
   syncSuccess: (fileCount: number, directoryName: string) => `${fileCount} files found in ${directoryName}`,

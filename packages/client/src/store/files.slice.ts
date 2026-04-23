@@ -6,12 +6,14 @@ export type FilesState = {
   loading: boolean;
   files: FileData[];
   directoryName: string | null;
+  lastSyncAt: string | null;
 };
 
 const initialState: FilesState = {
   loading: false,
   files: [],
-  directoryName: localStorage.getItem('directory'),
+  directoryName: null,
+  lastSyncAt: null,
 };
 
 const filesSlice = createSlice({
@@ -29,10 +31,12 @@ const filesSlice = createSlice({
     },
     setDirectoryName: (state, action: PayloadAction<string>) => {
       state.directoryName = action.payload;
-      localStorage.setItem('directory', action.payload);
+    },
+    setLastSyncAt: (state, action: PayloadAction<string | null>) => {
+      state.lastSyncAt = action.payload;
     },
   },
 });
 
-export const { setLoading, setFiles, clearFiles, setDirectoryName } = filesSlice.actions;
+export const { setLoading, setFiles, clearFiles, setDirectoryName, setLastSyncAt } = filesSlice.actions;
 export default filesSlice.reducer;

@@ -22,6 +22,17 @@
   border: 1px solid color-mix(in srgb, var(--g-color-base-warning-heavy) 30%, transparent);
 }
 
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  row-gap: 12px;
+  margin: 0 16px 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--g-color-private-blue-100-solid) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--g-color-private-blue-350-solid) 45%, transparent);
+}
+
 .loader {
   display: flex;
   flex-direction: column;

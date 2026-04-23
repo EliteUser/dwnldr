@@ -1,39 +1,65 @@
 import { Heart, ArrowShapeDownToLine, MusicNote } from '@gravity-ui/icons';
 import { TabList, Tab, Icon, TabPanel, TabProvider } from '@gravity-ui/uikit';
-import { memo, useCallback, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { memo, useCallback, useEffect, useState } from 'react';
 
-import { useGetFavoritesQuery } from './api/api.slice';
 import { Likes } from './components';
 import { Download } from './components/download/download';
-import { RootState } from './store';
 
 import styles from './app.module.scss';
 
-export const App = memo(() => {
-  const [activeTab, setActiveTab] = useState('likes');
-  const [selectedUrl, setSelectedUrl] = useState<string | undefined>(undefined);
+const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
+const ENABLED_TABS = ['likes', 'download'] as const;
+type ActiveTab = (typeof ENABLED_TABS)[number];
 
-  const userId = useSelector((state: RootState) => state.user.userId);
-  const { data: favorites } = useGetFavoritesQuery(userId || '', {
-    skip: !userId,
-  });
+const DEFAULT_TAB: ActiveTab = 'likes';
+
+const isActiveTab = (value: string | null): value is ActiveTab =>
+  value !== null && ENABLED_TABS.includes(value as ActiveTab);
+
+const readActiveTab = () => {
+  if (typeof window === 'undefined') {
+    return DEFAULT_TAB;
+  }
+
+  const activeTab = window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+
+  return isActiveTab(activeTab) ? activeTab : DEFAULT_TAB;
+};
+
+export const App = memo(() => {
+  const [activeTab, setActiveTab] = useState(readActiveTab);
+  const [selectedUrl, setSelectedUrl] = useState<string | undefined>(undefined);
+  const [favoritesCount, setFavoritesCount] = useState(0);
 
   const handleDownloadClick = useCallback((url: string) => {
     setSelectedUrl(url);
     setActiveTab('download');
   }, []);
 
+  const handleTabChange = useCallback((value: string) => {
+    if (isActiveTab(value)) {
+      setActiveTab(value);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+    }
+  }, [activeTab]);
+
   return (
     <div className={styles.app}>
-      <TabProvider value={activeTab} onUpdate={setActiveTab}>
+      <TabProvider value={activeTab} onUpdate={handleTabChange}>
         <div className={styles.tabPanels}>
           <TabPanel className={styles.tabPanel} value='likes'>
-            <Likes onDownloadClick={handleDownloadClick} />
+            <Likes onDownloadClick={handleDownloadClick} onFavoritesCountChange={setFavoritesCount} />
           </TabPanel>
+
           <TabPanel className={styles.tabPanel} value='download'>
             <Download selectedUrl={selectedUrl} />
           </TabPanel>
+
           <TabPanel className={styles.tabPanel} value='metadata'>
             Meta Panel
           </TabPanel>
@@ -44,7 +70,7 @@ export const App = memo(() => {
             className={styles.tab}
             value='likes'
             icon={<Icon size={16} data={Heart} />}
-            label={{ content: favorites ? favorites?.length : null }}
+            label={{ content: favoritesCount || null }}
           >
             Likes
           </Tab>

@@ -43,6 +43,7 @@ describe('Track', () => {
             },
           ],
           directoryName: 'Music',
+          lastSyncAt: null,
         },
         user: {
           userId: null,
