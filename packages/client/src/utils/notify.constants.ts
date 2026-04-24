@@ -4,6 +4,7 @@ export const FALLBACK_API_ERROR_MESSAGE = 'Something went wrong on the server.';
 export const REQUEST_FAILED_MESSAGE = 'Request failed';
 
 export const DOWNLOAD_NOTIFICATION_NAME = {
+  filePickerError: 'download-file-picker-error',
   metadataError: 'download-metadata-error',
   submitError: 'download-submit-error',
   missingBody: 'download-missing-body',
@@ -12,6 +13,7 @@ export const DOWNLOAD_NOTIFICATION_NAME = {
 } as const;
 
 export const DOWNLOAD_NOTIFICATION_MESSAGE = {
+  filePickerError: 'Failed to open the save dialog.',
   success: (name: string) => `Track downloaded: ${name}`,
 } as const;
 

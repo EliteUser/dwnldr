@@ -67,8 +67,7 @@ export const loadDirectoryHandle = async (): Promise<FileSystemDirectoryHandle |
       request.onsuccess = () => resolve(request.result ?? null);
       request.onerror = () => reject(request.error);
     });
-  } catch (err) {
-    console.warn('Failed to load handle from IndexedDB:', err);
+  } catch {
     return null;
   }
 };

@@ -4,7 +4,8 @@ import clsx from 'clsx';
 import { forwardRef, memo } from 'react';
 
 import { useAppSelector } from '../../store';
-import { getDuration, isTrackDownloaded } from '../../utils';
+import { getDuration } from '../../utils/common.utils';
+import { isTrackDownloaded } from '../../utils/match-track';
 
 import styles from './track.module.scss';
 

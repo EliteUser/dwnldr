@@ -1,65 +1,26 @@
 import type { TrackOptions } from '../types.js';
-import type { VideoInfo } from 'ytdlp-nodejs';
+import type { PlaylistInfo, VideoInfo } from 'ytdlp-nodejs';
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import sharp from 'sharp';
 
+import { getErrorMessage } from '../errors/error-utils.js';
 import { HttpError } from '../errors/http-error.js';
 import {
-  getErrorMessage,
   isYtDlpSignatureError,
   isYtDlpSpawnError,
   toYouTubeHttpError,
   YOUTUBE_UPSTREAM_MESSAGE,
-} from '../errors/upstream-error.js';
+} from '../errors/youtube-errors.js';
 import { logTimedOperation } from '../lib/logger.js';
 import { createYtDlp } from '../lib/ytdlp.js';
-import { postProcessTrack } from './post-process.utils.js';
-import { sanitizeFilename } from './sanitize.utils.js';
+import { sanitizeFilename } from '../utils/sanitize.utils.js';
+import { postProcessTrack } from './post-process.service.js';
+import { saveThumbnailFromUrl } from './thumbnail.service.js';
 
 type YoutubeDownloadOptions = {
   folder: string;
   track: TrackOptions;
-};
-
-const cropToCenterSquare = async (buffer: Buffer): Promise<Buffer> => {
-  const image = sharp(buffer);
-  const metadata = await image.metadata();
-
-  if (!metadata.width || !metadata.height) {
-    throw new Error('Unable to read image dimensions');
-  }
-
-  const side = Math.min(metadata.width, metadata.height);
-  const left = Math.floor((metadata.width - side) / 2);
-  const top = Math.floor((metadata.height - side) / 2);
-
-  return image
-    .extract({
-      left,
-      top,
-      width: side,
-      height: side,
-    })
-    .toBuffer();
-};
-
-const resizeImage = async (buffer: Buffer, size: number = 512): Promise<Buffer> => {
-  const image = sharp(buffer);
-  const metadata = await image.metadata();
-
-  if (!metadata.width || metadata.width < size) {
-    return buffer;
-  }
-
-  return image
-    .resize(size, size, {
-      fit: 'fill',
-      withoutEnlargement: true,
-    })
-    .png()
-    .toBuffer();
 };
 
 const getYoutubeThumbnail = async (info: VideoInfo, folder: string): Promise<string | undefined> => {
@@ -71,20 +32,7 @@ const getYoutubeThumbnail = async (info: VideoInfo, folder: string): Promise<str
     throw new Error('No thumbnail found for video');
   }
 
-  const response = await fetch(info.thumbnail);
-
-  if (!response.ok) {
-    throw new Error('Failed to download thumbnail');
-  }
-
-  const originalBuffer = Buffer.from(await response.arrayBuffer());
-  const squareBuffer = await cropToCenterSquare(originalBuffer);
-  const finalImage = await resizeImage(squareBuffer);
-  const outputPath = path.join(folder, 'cover.png');
-
-  await sharp(finalImage).png().toFile(outputPath);
-
-  return outputPath;
+  return saveThumbnailFromUrl(info.thumbnail, path.join(folder, 'cover.png'));
 };
 
 export const downloadYoutubeTrack = async (options: YoutubeDownloadOptions) => {
@@ -122,9 +70,17 @@ export const downloadYoutubeTrack = async (options: YoutubeDownloadOptions) => {
         },
       },
       () => ytdlp.getInfoAsync(url),
-    )) as VideoInfo;
+    )) as PlaylistInfo | VideoInfo;
+
+    if (info._type === 'playlist') {
+      throw new HttpError(400, 'Playlists are not supported', {
+        code: 'YOUTUBE_PLAYLIST',
+      });
+    }
+
     const trackName = (name ?? info.title).trim();
-    const downloadTargetPath = path.join(folder, `${sanitizeFilename(trackName)}.source.mp3`);
+    const sanitizedTrackName = sanitizeFilename(trackName);
+    const downloadTargetPath = path.join(folder, `${sanitizedTrackName}.source.mp3`);
 
     const [trackPath, coverPath] = await Promise.all([
       logTimedOperation(

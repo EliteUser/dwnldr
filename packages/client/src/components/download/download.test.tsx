@@ -50,7 +50,7 @@ vi.mock('../../api/api.slice', () => ({
   useGetYoutubeTracksQuery: (...args: unknown[]) => youTubeQueryMock(...args),
 }));
 
-vi.mock('../../utils', () => ({
+vi.mock('../../utils/common.utils', () => ({
   classifySource: (url: string) => {
     if (url.includes('soundcloud')) {
       return 'soundcloud';
@@ -62,10 +62,15 @@ vi.mock('../../utils', () => ({
 
     return null;
   },
+}));
+
+vi.mock('../../utils/notify.constants', () => ({
   DOWNLOAD_NOTIFICATION_MESSAGE: {
+    filePickerError: 'Failed to open the save dialog.',
     success: (name: string) => `Track downloaded: ${name}`,
   },
   DOWNLOAD_NOTIFICATION_NAME: {
+    filePickerError: 'download-file-picker-error',
     metadataError: 'download-metadata-error',
     submitError: 'download-submit-error',
     missingBody: 'download-missing-body',
@@ -73,6 +78,9 @@ vi.mock('../../utils', () => ({
     success: 'download-success',
   },
   FALLBACK_API_ERROR_MESSAGE: 'Something went wrong on the server.',
+}));
+
+vi.mock('../../utils/notify.utils', () => ({
   getApiErrorFromRtkError: (error: unknown) => error,
   parseApiErrorResponse: async () => ({ code: 'INTERNAL_ERROR', error: 'Failed' }),
   useNotify: () => ({
@@ -219,5 +227,36 @@ describe('Download', () => {
     rerender(<Download selectedUrl='https://soundcloud.com/artist/track-two' />);
 
     expect(screen.getByPlaceholderText('Track name')).toHaveValue('');
+  });
+
+  it('shows a local picker error instead of a server error when the save dialog fails', async () => {
+    soundCloudQueryMock.mockReturnValue({
+      currentData: {
+        user: 'Artist',
+        title: 'Track Name',
+      },
+      error: undefined,
+      isFetching: false,
+    });
+
+    vi.stubGlobal('showSaveFilePicker', vi.fn().mockRejectedValue(new DOMException('Failed', 'SecurityError')));
+    Object.defineProperty(window, 'isSecureContext', {
+      configurable: true,
+      value: true,
+    });
+
+    render(<Download selectedUrl='https://soundcloud.com/artist/track' />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track Name');
+    });
+
+    fireEvent.click(screen.getByText(/download/i));
+
+    await waitFor(() => {
+      expect(notifyErrorMock).toHaveBeenCalledWith('Failed to open the save dialog.', {
+        name: 'download-file-picker-error',
+      });
+    });
   });
 });

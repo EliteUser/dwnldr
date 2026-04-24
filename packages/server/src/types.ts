@@ -9,6 +9,7 @@ export type TrackOptions = TrackProps & {
 };
 
 export type TrackProcessOptions = TrackProps & {
+  coverPath?: string;
   filePath: string;
   name: string;
 };

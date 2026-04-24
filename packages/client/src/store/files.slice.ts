@@ -29,7 +29,7 @@ const filesSlice = createSlice({
     clearFiles(state) {
       state.files = [];
     },
-    setDirectoryName: (state, action: PayloadAction<string>) => {
+    setDirectoryName: (state, action: PayloadAction<string | null>) => {
       state.directoryName = action.payload;
     },
     setLastSyncAt: (state, action: PayloadAction<string | null>) => {

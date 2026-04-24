@@ -7,7 +7,7 @@ import path from 'node:path';
 import { DEFAULT_ALBUM_NAME, IMAGE_EXTENSIONS } from '../constants.js';
 import { HttpError } from '../errors/http-error.js';
 import { getLogger } from '../lib/logger.js';
-import { getId } from './common.utils.js';
+import { getId } from '../utils/common.utils.js';
 
 const getTrackTags = (options: TrackProps) => {
   const { name, album = DEFAULT_ALBUM_NAME, lyrics = '' } = options;
@@ -26,24 +26,38 @@ const getTrackTags = (options: TrackProps) => {
   };
 };
 
-const getImageTags = (filePath: string) => {
+const getImageTagFromPath = (imagePath: string) => {
+  if (!fs.existsSync(imagePath)) {
+    return {};
+  }
+
+  const imageBuffer = fs.readFileSync(imagePath);
+  const extension = path.extname(imagePath).toLowerCase();
+
+  return {
+    image: {
+      mime: extension === '.png' ? 'image/png' : 'image/jpeg',
+      type: {
+        id: 0x03,
+        name: 'front cover',
+      },
+      description: 'Track Cover',
+      imageBuffer,
+    },
+  };
+};
+
+const getImageTags = (filePath: string, coverPath?: string) => {
+  if (coverPath) {
+    return getImageTagFromPath(coverPath);
+  }
+
   for (const extension of IMAGE_EXTENSIONS) {
     const imagePath = filePath.replace('.mp3', extension);
+    const imageTags = getImageTagFromPath(imagePath);
 
-    if (fs.existsSync(imagePath)) {
-      const imageBuffer = fs.readFileSync(imagePath);
-
-      return {
-        image: {
-          mime: extension === '.png' ? 'image/png' : 'image/jpeg',
-          type: {
-            id: 0x03,
-            name: 'front cover',
-          },
-          description: 'Track Cover',
-          imageBuffer,
-        },
-      };
+    if ('image' in imageTags) {
+      return imageTags;
     }
   }
 
@@ -51,7 +65,7 @@ const getImageTags = (filePath: string) => {
 };
 
 export const updateTrackMeta = async (options: TrackProcessOptions) => {
-  const { filePath, name, album, lyrics } = options;
+  const { coverPath, filePath, name, album, lyrics } = options;
   const folder = path.dirname(filePath);
   const logger = getLogger({
     folder,
@@ -60,7 +74,7 @@ export const updateTrackMeta = async (options: TrackProcessOptions) => {
 
   const tags = {
     ...getTrackTags({ name, album, lyrics }),
-    ...getImageTags(filePath),
+    ...getImageTags(filePath, coverPath),
   };
   const trackTitle = `${tags.artist} - ${tags.title}`;
 

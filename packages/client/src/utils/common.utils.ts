@@ -16,6 +16,13 @@ export const getFileData = (fileName: string): FileData => {
 
   const index = fileName.lastIndexOf('.');
 
+  if (index <= 0) {
+    return {
+      name: fileName,
+      extension: '',
+    };
+  }
+
   return {
     name: fileName.slice(0, index),
     extension: fileName.slice(index + 1),
@@ -23,6 +30,10 @@ export const getFileData = (fileName: string): FileData => {
 };
 
 export const getDuration = (milliseconds: number): string => {
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) {
+    return '0:00';
+  }
+
   const totalSeconds = Math.floor(milliseconds / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;

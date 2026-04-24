@@ -3,14 +3,13 @@ import type { Soundcloud } from 'soundcloud.ts';
 
 import fs from 'node:fs/promises';
 
-import { getErrorStatus, SOUNDCLOUD_UNAUTHORIZED_MESSAGE, toSoundCloudHttpError } from '../errors/upstream-error.js';
-import { logTimedOperation } from '../lib/logger.js';
-import { postProcessTrack } from './post-process.utils.js';
+import { callSoundCloudApi } from '../lib/soundcloud-api.js';
+import { postProcessTrack } from './post-process.service.js';
 
 type SoundCloudDownloadOptions = {
   api: Soundcloud;
-  track: TrackOptions;
   folder: string;
+  track: TrackOptions;
 };
 
 export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions) => {
@@ -19,56 +18,40 @@ export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions
 
   await fs.mkdir(folder, { recursive: true });
 
-  const [trackPath, coverPath] = await logTimedOperation(
+  const [trackPath, coverPath] = await callSoundCloudApi(
     {
       startEvt: 'sc.download.started',
       successEvt: 'sc.download.completed',
-      failureEvt: (error) =>
-        getErrorStatus(error) === 401 || getErrorStatus(error) === 403 ? 'sc.api.unauthorized' : 'sc.download.failed',
+      failureEvt: 'sc.download.failed',
       startMessage: 'Downloading SoundCloud track assets',
       successMessage: 'Downloaded SoundCloud track assets',
-      failureMessage: (error) =>
-        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
-          ? SOUNDCLOUD_UNAUTHORIZED_MESSAGE
-          : 'Failed to download SoundCloud track assets',
+      failureMessage: 'Failed to download SoundCloud track assets',
       bindings: {
         provider: 'soundcloud',
         url,
         folder,
       },
+      notFoundMessage: 'Track not found',
     },
     () => Promise.all([api.util.downloadTrack(url, folder, false), api.util.downloadSongCover(url, folder)]),
-  ).catch((error: unknown) => {
-    throw toSoundCloudHttpError(error, {
-      notFoundMessage: 'Track not found',
-    });
-  });
+  );
 
-  const trackInfo = await logTimedOperation(
+  const trackInfo = await callSoundCloudApi(
     {
       startEvt: 'sc.track.fetch.started',
       successEvt: 'sc.track.fetch.completed',
-      failureEvt: (error) =>
-        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
-          ? 'sc.api.unauthorized'
-          : 'sc.track.fetch.failed',
+      failureEvt: 'sc.track.fetch.failed',
       startMessage: 'Fetching SoundCloud track details',
       successMessage: 'Fetched SoundCloud track details',
-      failureMessage: (error) =>
-        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
-          ? SOUNDCLOUD_UNAUTHORIZED_MESSAGE
-          : 'Failed to fetch SoundCloud track details',
+      failureMessage: 'Failed to fetch SoundCloud track details',
       bindings: {
         provider: 'soundcloud',
         url,
       },
+      notFoundMessage: 'Track not found',
     },
     () => api.tracks.get(url),
-  ).catch((error: unknown) => {
-    throw toSoundCloudHttpError(error, {
-      notFoundMessage: 'Track not found',
-    });
-  });
+  );
 
   const trackName = (name ?? `${trackInfo.user.username} - ${trackInfo.title}`).trim();
 

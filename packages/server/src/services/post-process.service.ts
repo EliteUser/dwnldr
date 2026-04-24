@@ -1,9 +1,9 @@
 import path from 'node:path';
 
-import { getExtension, renameFile } from './common.utils.js';
-import { convertToMp3 } from './convert.utils.js';
-import { updateTrackMeta } from './metadata.utils.js';
-import { sanitizeFilename } from './sanitize.utils.js';
+import { getExtension, renameFile } from '../utils/common.utils.js';
+import { sanitizeFilename } from '../utils/sanitize.utils.js';
+import { convertToMp3 } from './ffmpeg.service.js';
+import { updateTrackMeta } from './metadata.service.js';
 
 type PostProcessTrackOptions = {
   album?: string;
@@ -38,6 +38,7 @@ export const postProcessTrack = async (options: PostProcessTrackOptions) => {
 
   await updateTrackMeta({
     album: album?.trim(),
+    coverPath: finalCoverPath,
     filePath: finalTrackPath,
     lyrics: lyrics?.trim(),
     name: rawTrackName,

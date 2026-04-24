@@ -1,35 +1,27 @@
 import type { SoundcloudTrack, SoundcloudUser } from 'soundcloud.ts';
 
 import { HttpError } from '../errors/http-error.js';
-import { getErrorStatus, SOUNDCLOUD_UNAUTHORIZED_MESSAGE, toSoundCloudHttpError } from '../errors/upstream-error.js';
-import { logTimedOperation } from '../lib/logger.js';
+import { callSoundCloudApi } from '../lib/soundcloud-api.js';
 import { soundcloud } from '../lib/soundcloud.js';
 import { getSoundCloudTrackData } from './track-metadata.service.js';
 
 export const getUserById = async (userId: string): Promise<SoundcloudUser> => {
-  const user = await logTimedOperation(
+  const user = await callSoundCloudApi(
     {
       startEvt: 'sc.user.fetch.started',
       successEvt: 'sc.user.fetch.completed',
-      failureEvt: (error) =>
-        getErrorStatus(error) === 401 || getErrorStatus(error) === 403 ? 'sc.api.unauthorized' : 'sc.user.fetch.failed',
+      failureEvt: 'sc.user.fetch.failed',
       startMessage: 'Fetching SoundCloud user',
       successMessage: 'Fetched SoundCloud user',
-      failureMessage: (error) =>
-        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
-          ? SOUNDCLOUD_UNAUTHORIZED_MESSAGE
-          : 'Failed to fetch SoundCloud user',
+      failureMessage: 'Failed to fetch SoundCloud user',
       bindings: {
         provider: 'soundcloud',
         userId,
       },
+      notFoundMessage: `User with id ${userId} not found`,
     },
     () => soundcloud.users.get(userId),
-  ).catch((error: unknown) => {
-    throw toSoundCloudHttpError(error, {
-      notFoundMessage: `User with id ${userId} not found`,
-    });
-  });
+  );
 
   if (!user) {
     throw new HttpError(404, `User with id ${userId} not found`, {
@@ -41,31 +33,22 @@ export const getUserById = async (userId: string): Promise<SoundcloudUser> => {
 };
 
 export const getSoundCloudTrackByUrl = async (url: string) => {
-  const track = await logTimedOperation(
+  const track = await callSoundCloudApi(
     {
       startEvt: 'sc.track.fetch.started',
       successEvt: 'sc.track.fetch.completed',
-      failureEvt: (error) =>
-        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
-          ? 'sc.api.unauthorized'
-          : 'sc.track.fetch.failed',
+      failureEvt: 'sc.track.fetch.failed',
       startMessage: 'Fetching SoundCloud track metadata',
       successMessage: 'Fetched SoundCloud track metadata',
-      failureMessage: (error) =>
-        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
-          ? SOUNDCLOUD_UNAUTHORIZED_MESSAGE
-          : 'Failed to fetch SoundCloud track metadata',
+      failureMessage: 'Failed to fetch SoundCloud track metadata',
       bindings: {
         provider: 'soundcloud',
         url,
       },
+      notFoundMessage: 'Track not found',
     },
     () => soundcloud.tracks.get(url),
-  ).catch((error: unknown) => {
-    throw toSoundCloudHttpError(error, {
-      notFoundMessage: 'Track not found',
-    });
-  });
+  );
 
   if (!track) {
     throw new HttpError(404, 'Track not found', {
@@ -78,20 +61,14 @@ export const getSoundCloudTrackByUrl = async (url: string) => {
 
 export const getFavoritesByUserId = async (userId: string, limit?: number) => {
   const user = await getUserById(userId);
-  const favorites = await logTimedOperation(
+  const favorites = await callSoundCloudApi(
     {
       startEvt: 'sc.likes.fetch.started',
       successEvt: 'sc.likes.fetch.completed',
-      failureEvt: (error) =>
-        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
-          ? 'sc.api.unauthorized'
-          : 'sc.likes.fetch.failed',
+      failureEvt: 'sc.likes.fetch.failed',
       startMessage: 'Fetching SoundCloud likes',
       successMessage: 'Fetched SoundCloud likes',
-      failureMessage: (error) =>
-        getErrorStatus(error) === 401 || getErrorStatus(error) === 403
-          ? SOUNDCLOUD_UNAUTHORIZED_MESSAGE
-          : 'Failed to fetch SoundCloud likes',
+      failureMessage: 'Failed to fetch SoundCloud likes',
       bindings: {
         provider: 'soundcloud',
         userId,
@@ -99,9 +76,7 @@ export const getFavoritesByUserId = async (userId: string, limit?: number) => {
       },
     },
     () => soundcloud.users.likes(user.id, limit),
-  ).catch((error: unknown) => {
-    throw toSoundCloudHttpError(error);
-  });
+  );
 
   return favorites
     .filter((track): track is SoundcloudTrack => Boolean(track))

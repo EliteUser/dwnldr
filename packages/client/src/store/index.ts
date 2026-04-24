@@ -1,3 +1,5 @@
+import type { ThunkAction, UnknownAction } from '@reduxjs/toolkit';
+
 import { combineReducers, configureStore, createListenerMiddleware } from '@reduxjs/toolkit';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -87,7 +89,12 @@ const createPersistenceMiddleware = () => {
   persistenceMiddleware.startListening({
     actionCreator: setDirectoryName,
     effect: async (action) => {
-      writeStorageValue(DIRECTORY_STORAGE_KEY, action.payload);
+      if (action.payload) {
+        writeStorageValue(DIRECTORY_STORAGE_KEY, action.payload);
+        return;
+      }
+
+      removeStorageValue(DIRECTORY_STORAGE_KEY);
     },
   });
 
@@ -108,6 +115,9 @@ export const createAppStore = (preloadedState = loadInitialState()) => {
 export const store = createAppStore();
 
 export type RootState = ReturnType<typeof rootReducer>;
-export type AppDispatch = typeof store.dispatch;
+export type AppStore = ReturnType<typeof createAppStore>;
+export type AppDispatch = AppStore['dispatch'];
+export type AppThunk<ReturnType = void> = ThunkAction<ReturnType, RootState, unknown, UnknownAction>;
+
 export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
 export const useAppSelector = useSelector.withTypes<RootState>();

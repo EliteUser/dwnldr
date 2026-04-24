@@ -49,4 +49,41 @@ describe('API validation', () => {
     expect(downloadResponse.body.error).toBe('Unsupported URL source. Use a SoundCloud or YouTube link.');
     expect(downloadResponse.body.code).toBe('UNSUPPORTED_SOURCE');
   });
+
+  it('returns health status at /health', async () => {
+    const response = await request(app).get('/health');
+
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe('ok');
+    expect(typeof response.body.uptime).toBe('number');
+  });
+
+  it('returns readiness details at /ready', async () => {
+    const readinessApp = createApp({
+      getReadiness: async () => ({
+        status: 'error',
+        checks: {
+          ffmpeg: {
+            ok: false,
+            details: 'missing',
+          },
+          server: {
+            ok: true,
+          },
+          tempDir: {
+            ok: true,
+          },
+          ytDlp: {
+            ok: true,
+          },
+        },
+      }),
+    });
+    const response = await request(readinessApp).get('/ready');
+
+    expect(response.status).toBe(503);
+    expect(response.body.status).toBe('error');
+    expect(response.body.checks.ffmpeg.ok).toBe(false);
+    expect(response.body.checks.ffmpeg.details).toBe('missing');
+  });
 });

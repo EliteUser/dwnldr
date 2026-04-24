@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "prepare": "husky",
-    "dev": "concurrently -n server,client -c blue,green \"pnpm --filter ./packages/server dev\" \"pnpm --filter ./packages/client dev\"",
+    "dev": "concurrently -n server,client -c green,blue --kill-others \"pnpm --filter ./packages/server dev\" \"wait-on http://localhost:3000/ready && pnpm --filter ./packages/client dev\"",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "oxlint . --deny-warnings",
@@ -18,7 +18,8 @@
     "husky": "9.1.7",
     "lint-staged": "16.2.6",
     "oxfmt": "0.46.0",
-    "oxlint": "1.61.0"
+    "oxlint": "1.61.0",
+    "wait-on": "9.0.5"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs,json,jsonc}": [

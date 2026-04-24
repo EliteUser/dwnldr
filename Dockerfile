@@ -38,4 +38,6 @@ ENV NODE_ENV=production
 
 EXPOSE 80 443
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD node -e "const port = process.env.PORT ?? '3000'; fetch(\`http://127.0.0.1:${port}/health\`).then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))"
+
 CMD ["/app/start.sh"]

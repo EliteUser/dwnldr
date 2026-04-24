@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { downloadSoundCloudTrack } from './download.utils.js';
+import { downloadSoundCloudTrack } from './soundcloud-download.service.js';
 
 describe('downloadSoundCloudTrack', () => {
   it('propagates upstream download failures instead of returning an empty path', async () => {

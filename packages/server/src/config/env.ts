@@ -7,9 +7,21 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).optional(),
   TEMP_DIR: z.string().default('./tmp/downloads'),
+  DOWNLOAD_TIMEOUT_MS: z.coerce.number().int().positive().default(600000),
 });
 
-const parsedEnv = envSchema.parse(process.env);
+const parsedEnvResult = envSchema.safeParse(process.env);
+
+if (!parsedEnvResult.success) {
+  const issueList = parsedEnvResult.error.issues
+    .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
+    .join('; ');
+
+  process.stderr.write(`Invalid environment configuration: ${issueList}\n`);
+  throw new Error(`Invalid environment configuration: ${issueList}`);
+}
+
+const parsedEnv = parsedEnvResult.data;
 
 export const env = {
   ...parsedEnv,

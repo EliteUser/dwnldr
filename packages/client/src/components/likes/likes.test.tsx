@@ -11,7 +11,12 @@ import { Likes } from './likes';
 
 const favoritesQueryMock = vi.fn();
 const notifyApiErrorMock = vi.fn();
+const notifyErrorMock = vi.fn();
+const notifyInfoMock = vi.fn();
+const notifySuccessMock = vi.fn();
 const refetchMock = vi.fn();
+const syncFolderMock = vi.fn(() => async () => ({ status: 'success', directoryName: 'Music', fileCount: 1 }));
+const selectFolderMock = vi.fn(() => async () => ({ status: 'success', directoryName: 'Music', fileCount: 1 }));
 
 vi.mock('@gravity-ui/uikit', () => ({
   Button: ({ children, disabled, onClick }: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) => (
@@ -59,14 +64,23 @@ vi.mock('../../api/api.slice', () => ({
   useGetFavoritesQuery: (...args: unknown[]) => favoritesQueryMock(...args),
 }));
 
-vi.mock('../../utils', () => ({
+vi.mock('../../store/folder.thunks', () => ({
+  selectFolder: () => selectFolderMock(),
+  syncFolder: () => syncFolderMock(),
+}));
+
+vi.mock('../../utils/folder.utils', () => ({
   FILE_SYSTEM_ACCESS_HELP_TEXT: 'Folder sync help',
   canUseFileSystemAccess: () => true,
+}));
+
+vi.mock('../../utils/notify.utils', () => ({
   getApiErrorFromRtkError: (error: unknown) => error,
-  handleSelectFolder: vi.fn(),
-  handleSyncFolder: vi.fn(),
   useNotify: () => ({
     apiError: notifyApiErrorMock,
+    error: notifyErrorMock,
+    info: notifyInfoMock,
+    success: notifySuccessMock,
   }),
 }));
 
@@ -116,7 +130,12 @@ describe('Likes', () => {
   beforeEach(() => {
     favoritesQueryMock.mockReset();
     notifyApiErrorMock.mockReset();
+    notifyErrorMock.mockReset();
+    notifyInfoMock.mockReset();
+    notifySuccessMock.mockReset();
     refetchMock.mockReset();
+    syncFolderMock.mockClear();
+    selectFolderMock.mockClear();
   });
 
   it('shows a getting-started empty state when no user is configured', () => {

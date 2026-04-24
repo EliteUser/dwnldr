@@ -1,17 +1,13 @@
 import { ArrowRotateRight, FolderArrowUpIn, FolderOpen, Gear } from '@gravity-ui/icons';
 import { Button, DropdownMenu, Icon, Loader, Progress, Text } from '@gravity-ui/uikit';
-import { memo, useEffect, useMemo } from 'react';
+import { memo, useCallback, useEffect, useMemo } from 'react';
 
 import { useGetFavoritesQuery } from '../../api/api.slice';
-import { useAppSelector } from '../../store';
-import {
-  canUseFileSystemAccess,
-  FILE_SYSTEM_ACCESS_HELP_TEXT,
-  getApiErrorFromRtkError,
-  handleSelectFolder,
-  handleSyncFolder,
-  useNotify,
-} from '../../utils';
+import { useAppDispatch, useAppSelector } from '../../store';
+import { selectFolder, syncFolder } from '../../store/folder.thunks';
+import { canUseFileSystemAccess, FILE_SYSTEM_ACCESS_HELP_TEXT } from '../../utils/folder.utils';
+import { FOLDER_NOTIFICATION_MESSAGE, FOLDER_NOTIFICATION_NAME } from '../../utils/notify.constants';
+import { getApiErrorFromRtkError, useNotify } from '../../utils/notify.utils';
 import { TrackList } from '../track-list/track-list';
 import { UserInput } from '../user-input/user-input';
 
@@ -25,6 +21,7 @@ type LikesProps = {
 export const Likes = memo<LikesProps>((props) => {
   const { onDownloadClick, onFavoritesCountChange } = props;
 
+  const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.user.userId);
   const isSyncInProgress = useAppSelector((state) => state.files.loading);
   const folder = useAppSelector((state) => state.files.directoryName);
@@ -45,6 +42,55 @@ export const Likes = memo<LikesProps>((props) => {
   const hasFolder = !!folder;
   const hasFavorites = !!favorites?.length;
   const supportsFileSystemAccess = canUseFileSystemAccess();
+
+  const runSyncFolder = useCallback(
+    async (options: { notifyOnStart?: boolean; notifyOnSuccess?: boolean } = {}) => {
+      if (options.notifyOnStart && folder) {
+        notify.info(FOLDER_NOTIFICATION_MESSAGE.syncStarted(folder), {
+          name: FOLDER_NOTIFICATION_NAME.syncStarted,
+        });
+      }
+
+      const result = await dispatch(syncFolder());
+
+      if (result.status === 'success' && options.notifyOnSuccess) {
+        notify.success(FOLDER_NOTIFICATION_MESSAGE.syncSuccess(result.fileCount, result.directoryName), {
+          name: FOLDER_NOTIFICATION_NAME.syncSuccess,
+        });
+      }
+
+      if (result.status === 'error') {
+        notify.error(FOLDER_NOTIFICATION_MESSAGE.syncError, {
+          name: FOLDER_NOTIFICATION_NAME.syncError,
+        });
+      }
+    },
+    [dispatch, folder, notify],
+  );
+
+  const runSelectFolder = useCallback(async () => {
+    const result = await dispatch(selectFolder());
+
+    if (result.status === 'unsupported') {
+      notify.error(FOLDER_NOTIFICATION_MESSAGE.fileSystemAccessError, {
+        name: FOLDER_NOTIFICATION_NAME.apiUnsupported,
+      });
+      return;
+    }
+
+    if (result.status === 'success') {
+      notify.success(FOLDER_NOTIFICATION_MESSAGE.syncSuccess(result.fileCount, result.directoryName), {
+        name: FOLDER_NOTIFICATION_NAME.syncSuccess,
+      });
+      return;
+    }
+
+    if (result.status === 'error') {
+      notify.error(FOLDER_NOTIFICATION_MESSAGE.pickerError, {
+        name: FOLDER_NOTIFICATION_NAME.pickerError,
+      });
+    }
+  }, [dispatch, notify]);
 
   const formattedLastSyncAt = useMemo(() => {
     if (!lastSyncAt) {
@@ -79,11 +125,11 @@ export const Likes = memo<LikesProps>((props) => {
       return;
     }
 
-    void handleSyncFolder({
+    void runSyncFolder({
       notifyOnStart: false,
       notifyOnSuccess: false,
     });
-  }, [folder, supportsFileSystemAccess]);
+  }, [folder, runSyncFolder, supportsFileSystemAccess]);
 
   useEffect(() => {
     onFavoritesCountChange(favorites?.length ?? 0);
@@ -128,13 +174,13 @@ export const Likes = memo<LikesProps>((props) => {
             },
             {
               iconStart: <Icon size={16} data={FolderArrowUpIn} />,
-              action: () => handleSyncFolder(),
+              action: () => void runSyncFolder({ notifyOnStart: true, notifyOnSuccess: true }),
               text: 'Sync File System',
               hidden: !hasFolder || !supportsFileSystemAccess,
             },
             {
               iconStart: <Icon size={16} data={FolderOpen} />,
-              action: () => handleSelectFolder(),
+              action: () => void runSelectFolder(),
               text: 'Pick Music Folder',
               disabled: !supportsFileSystemAccess,
             },
@@ -188,7 +234,7 @@ export const Likes = memo<LikesProps>((props) => {
           <Text variant='body-2' color='secondary'>
             Folder sync compares cloud tracks against filenames in your local library.
           </Text>
-          <Button view='outlined-action' size='l' onClick={() => handleSelectFolder()}>
+          <Button view='outlined-action' size='l' onClick={() => void runSelectFolder()}>
             Pick Music Folder
           </Button>
         </div>
