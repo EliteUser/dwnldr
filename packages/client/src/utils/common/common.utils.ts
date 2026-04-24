@@ -1,6 +1,6 @@
 import type { FileData } from '../../types';
 
-export type Source = 'youtube' | 'soundcloud';
+export const isAbortError = (error: unknown) => (error as { name?: string }).name === 'AbortError';
 
 export const getFileData = (fileName: string): FileData => {
   const regex = /^(.+)\.([a-z0-9]{2,5})$/i;
@@ -40,22 +40,4 @@ export const getDuration = (milliseconds: number): string => {
   const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
 
   return `${minutes}:${formattedSeconds}`;
-};
-
-export const classifySource = (url: string): Source | null => {
-  try {
-    const hostname = new URL(url).hostname.toLowerCase();
-
-    if (hostname === 'youtu.be' || hostname === 'youtube.com' || hostname.endsWith('.youtube.com')) {
-      return 'youtube';
-    }
-
-    if (hostname === 'soundcloud.com' || hostname.endsWith('.soundcloud.com')) {
-      return 'soundcloud';
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
 };

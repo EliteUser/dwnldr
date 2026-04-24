@@ -22,3 +22,17 @@ export type TrackMetadata = {
   title: string;
   user: string;
 };
+
+export type ProviderKey = 'soundcloud' | 'youtube';
+
+export type SourceInfo = {
+  provider: ProviderKey;
+  url: string;
+};
+
+export type ProviderCapabilities = {
+  collections: boolean;
+  downloads: boolean;
+  metadata: boolean;
+  users: boolean;
+};

@@ -1,3 +1,4 @@
+import { isAbortError } from '../utils/common/common.utils';
 import { clearDirectoryHandle, loadDirectoryHandle, saveDirectoryHandle } from '../utils/folder/directory-handle.utils';
 import { canUseFileSystemAccess, collectFiles, verifyPermission } from '../utils/folder/folder.utils';
 import { useAppStore } from './index';
@@ -51,8 +52,6 @@ const syncDirectoryHandle = async (
     status: 'success',
   };
 };
-
-const isAbortError = (error: unknown) => (error as { name?: string }).name === 'AbortError';
 
 export const syncFolder = async (): Promise<FolderSyncResult> => {
   if (!canUseFileSystemAccess()) {

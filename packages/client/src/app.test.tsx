@@ -21,11 +21,8 @@ vi.mock('@gravity-ui/icons', () => ({
 }));
 
 vi.mock('./components', () => ({
-  Likes: () => <div>Likes Panel</div>,
-}));
-
-vi.mock('./components/download/download.tsx', () => ({
   Download: () => <div>Download Panel</div>,
+  Likes: () => <div>Likes Panel</div>,
 }));
 
 vi.mock('./api/api', () => ({

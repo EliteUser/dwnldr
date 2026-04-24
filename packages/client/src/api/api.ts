@@ -1,5 +1,6 @@
 import { QueryClient, useQuery } from '@tanstack/react-query';
 
+import { getProviderByUrl } from '../providers';
 import { parseApiErrorResponse, type ApiErrorResponse } from '../utils';
 
 type UserResult = {
@@ -8,8 +9,8 @@ type UserResult = {
 };
 
 export type TracksResult = {
-  id: number;
-  artwork_url: string;
+  id: number | string;
+  artwork_url: string | null;
   permalink_url: string;
   duration: number;
   title: string;
@@ -69,39 +70,29 @@ const fetchJson = async <T>(path: string, params: Record<string, string>): Promi
 export const useGetUserQuery = (userId: string, options: QueryOptions = {}) =>
   useQuery({
     enabled: !options.skip && !!userId,
-    queryFn: () => fetchJson<UserResult>('users', { userId }),
-    queryKey: ['user', userId],
+    queryFn: () => fetchJson<UserResult>('soundcloud/users', { userId }),
+    queryKey: ['providers', 'soundcloud', 'user', userId],
   });
 
-export const useGetSoundCloudTracksQuery = (url: string, options: QueryOptions = {}) => {
+export const useGetProviderTrackQuery = (url: string, options: QueryOptions = {}) => {
+  const provider = getProviderByUrl(url);
+
   const query = useQuery({
-    enabled: !options.skip && !!url,
-    queryFn: () => fetchJson<TracksResult>('soundcloud/tracks', { url }),
-    queryKey: ['soundcloud-tracks', url],
+    enabled: !options.skip && !!url && !!provider,
+    queryFn: () => fetchJson<TracksResult>('tracks', { url }),
+    queryKey: provider?.getTrackQueryKey(url) ?? ['providers', 'unknown', 'track', url],
   });
 
   return {
     ...query,
     currentData: query.data,
-  };
-};
-
-export const useGetYoutubeTracksQuery = (url: string, options: QueryOptions = {}) => {
-  const query = useQuery({
-    enabled: !options.skip && !!url,
-    queryFn: () => fetchJson<TracksResult>('youtube/tracks', { url }),
-    queryKey: ['youtube-tracks', url],
-  });
-
-  return {
-    ...query,
-    currentData: query.data,
+    provider,
   };
 };
 
 export const useGetFavoritesQuery = (userId: string, options: QueryOptions = {}) =>
   useQuery({
     enabled: !options.skip && !!userId,
-    queryFn: () => fetchJson<TracksResult[]>('favorites', { userId }),
-    queryKey: ['favorites', userId],
+    queryFn: () => fetchJson<TracksResult[]>('soundcloud/favorites', { userId }),
+    queryKey: ['providers', 'soundcloud', 'favorites', userId],
   });

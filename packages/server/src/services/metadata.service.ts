@@ -1,4 +1,4 @@
-import type { TrackProcessOptions, TrackProps } from '../types.js';
+import type { TrackProcessOptions } from '../types.js';
 
 import NodeID3 from 'node-id3';
 import fs from 'node:fs';
@@ -9,9 +9,9 @@ import { HttpError } from '../errors/http-error.js';
 import { getLogger } from '../lib/logger.js';
 import { getId } from '../utils/common.utils.js';
 
-const getTrackTags = (options: TrackProps) => {
+const getTrackTags = (options: Pick<TrackProcessOptions, 'album' | 'lyrics' | 'name'>) => {
   const { name, album = DEFAULT_ALBUM_NAME, lyrics = '' } = options;
-  const [artist, ...titleParts] = name!.split(' - ');
+  const [artist, ...titleParts] = name.split(' - ');
   const title = titleParts.join(' - ') || artist;
 
   return {

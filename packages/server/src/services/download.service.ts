@@ -8,12 +8,9 @@ import path from 'node:path';
 import { env } from '../config/env.js';
 import { HttpError } from '../errors/http-error.js';
 import { getLogger } from '../lib/logger.js';
-import { soundcloud } from '../lib/soundcloud.js';
-import { classifySource } from '../utils/common.utils.js';
+import { requireProviderByUrl, requireProviderFeature } from '../providers/index.js';
 import { getContentDispositionHeader } from '../utils/sanitize.utils.js';
 import { createDownloadFolder, removeFolder } from '../utils/temp.utils.js';
-import { downloadSoundCloudTrack } from './soundcloud-download.service.js';
-import { downloadYoutubeTrack } from './youtube-download.service.js';
 
 export type DownloadResult = {
   downloadFolder: string;
@@ -26,14 +23,14 @@ const withDownloadTimeout = async <T>(
   operation: () => Promise<T>,
   options: {
     downloadFolder: string;
-    source: 'soundcloud' | 'youtube';
+    provider: string;
   },
 ) =>
   new Promise<T>((resolve, reject) => {
     let settled = false;
     const logger = getLogger({
       downloadFolder: options.downloadFolder,
-      provider: options.source,
+      provider: options.provider,
     });
     const timeout = setTimeout(() => {
       if (settled) {
@@ -84,13 +81,8 @@ const withDownloadTimeout = async <T>(
   });
 
 export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult> => {
-  const source = classifySource(track.url);
-
-  if (!source) {
-    throw new HttpError(400, 'Unsupported URL source. Use a SoundCloud or YouTube link.', {
-      code: 'UNSUPPORTED_SOURCE',
-    });
-  }
+  const provider = requireProviderByUrl(track.url);
+  const providerDownloadTrack = requireProviderFeature(provider, 'downloadTrack');
 
   const downloadFolder = await createDownloadFolder();
   const logger = getLogger({
@@ -100,7 +92,7 @@ export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult
   logger.info(
     {
       evt: 'download.provider.selected',
-      provider: source,
+      provider: provider.key,
       url: track.url,
     },
     'Selected download provider',
@@ -109,19 +101,13 @@ export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult
   try {
     const filePath = await withDownloadTimeout(
       () =>
-        source === 'youtube'
-          ? downloadYoutubeTrack({
-              track,
-              folder: downloadFolder,
-            })
-          : downloadSoundCloudTrack({
-              api: soundcloud,
-              track,
-              folder: downloadFolder,
-            }),
+        providerDownloadTrack({
+          track,
+          folder: downloadFolder,
+        }),
       {
         downloadFolder,
-        source,
+        provider: provider.key,
       },
     );
 

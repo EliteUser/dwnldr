@@ -2,8 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { HttpError } from '../../errors/http-error.js';
-import { getYouTubeTrackByUrl } from '../../services/youtube.service.js';
-import { classifySource } from '../../utils/index.js';
+import { getProvider, requireProviderFeature, classifySource } from '../../providers/index.js';
 
 const youTubeTrackQuerySchema = z.object({
   url: z.string().trim().url(),
@@ -20,7 +19,9 @@ youtubeRouter.get('/youtube/tracks', async (req, res) => {
     });
   }
 
-  const track = await getYouTubeTrackByUrl(url);
+  const provider = getProvider('youtube');
+  const resolveTrack = requireProviderFeature(provider, 'resolveTrack');
+  const track = await resolveTrack(url);
 
   res.json(track);
 });

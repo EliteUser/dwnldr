@@ -58,3 +58,5 @@ export const UserInput = memo(() => {
     </div>
   );
 });
+
+UserInput.displayName = 'UserInput';

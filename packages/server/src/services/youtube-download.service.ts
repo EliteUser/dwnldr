@@ -1,4 +1,4 @@
-import type { TrackOptions } from '../types.js';
+import type { ProviderDownloadOptions } from '../providers/types.js';
 import type { PlaylistInfo, VideoInfo } from 'ytdlp-nodejs';
 
 import fs from 'node:fs/promises';
@@ -18,11 +18,6 @@ import { sanitizeFilename } from '../utils/sanitize.utils.js';
 import { postProcessTrack } from './post-process.service.js';
 import { saveThumbnailFromUrl } from './thumbnail.service.js';
 
-type YoutubeDownloadOptions = {
-  folder: string;
-  track: TrackOptions;
-};
-
 const getYoutubeThumbnail = async (info: VideoInfo, folder: string): Promise<string | undefined> => {
   if (info._type !== 'video') {
     return undefined;
@@ -35,7 +30,7 @@ const getYoutubeThumbnail = async (info: VideoInfo, folder: string): Promise<str
   return saveThumbnailFromUrl(info.thumbnail, path.join(folder, 'cover.png'));
 };
 
-export const downloadYoutubeTrack = async (options: YoutubeDownloadOptions) => {
+export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => {
   const { folder, track } = options;
   const { url, name, album, lyrics } = track;
   const ytdlp = createYtDlp();

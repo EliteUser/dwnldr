@@ -5,8 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Download } from './download';
 
-const soundCloudQueryMock = vi.fn();
-const youTubeQueryMock = vi.fn();
+const providerTrackQueryMock = vi.fn();
 const notifyApiErrorMock = vi.fn();
 const notifyErrorMock = vi.fn();
 const notifySuccessMock = vi.fn();
@@ -46,22 +45,7 @@ vi.mock('@gravity-ui/icons', () => ({
 }));
 
 vi.mock('../../api/api', () => ({
-  useGetSoundCloudTracksQuery: (...args: unknown[]) => soundCloudQueryMock(...args),
-  useGetYoutubeTracksQuery: (...args: unknown[]) => youTubeQueryMock(...args),
-}));
-
-vi.mock('../../utils/common/common.utils', () => ({
-  classifySource: (url: string) => {
-    if (url.includes('soundcloud')) {
-      return 'soundcloud';
-    }
-
-    if (url.includes('youtube') || url.includes('youtu.be')) {
-      return 'youtube';
-    }
-
-    return null;
-  },
+  useGetProviderTrackQuery: (...args: unknown[]) => providerTrackQueryMock(...args),
 }));
 
 vi.mock('../../utils/notify/notify.constants', () => ({
@@ -90,15 +74,11 @@ vi.mock('../../utils/notify/notify.utils', () => ({
 
 describe('Download', () => {
   beforeEach(() => {
-    soundCloudQueryMock.mockReturnValue({
+    providerTrackQueryMock.mockReturnValue({
       currentData: undefined,
       error: undefined,
       isFetching: false,
-    });
-    youTubeQueryMock.mockReturnValue({
-      currentData: undefined,
-      error: undefined,
-      isFetching: false,
+      provider: undefined,
     });
     notifyApiErrorMock.mockReset();
     notifyErrorMock.mockReset();
@@ -120,13 +100,15 @@ describe('Download', () => {
       target: { value: 'https://soundcloud.com/artist/track' },
     });
 
-    expect(soundCloudQueryMock.mock.calls.some(([url]) => url === 'https://soundcloud.com/artist/track')).toBe(false);
+    expect(providerTrackQueryMock.mock.calls.some(([url]) => url === 'https://soundcloud.com/artist/track')).toBe(
+      false,
+    );
 
     act(() => {
       vi.advanceTimersByTime(300);
     });
 
-    expect(soundCloudQueryMock.mock.calls.some(([url]) => url === 'https://soundcloud.com/artist/track')).toBe(true);
+    expect(providerTrackQueryMock.mock.calls.some(([url]) => url === 'https://soundcloud.com/artist/track')).toBe(true);
   });
 
   it('clears form fields when a different likes-track URL is selected', () => {
@@ -150,13 +132,14 @@ describe('Download', () => {
   });
 
   it('aborts an in-progress download when Cancel is clicked', async () => {
-    soundCloudQueryMock.mockReturnValue({
+    providerTrackQueryMock.mockReturnValue({
       currentData: {
         user: 'Artist',
         title: 'Track Name',
       },
       error: undefined,
       isFetching: false,
+      provider: undefined,
     });
 
     let requestSignal: AbortSignal | undefined;
@@ -198,7 +181,7 @@ describe('Download', () => {
   });
 
   it('does not repopulate the name field from stale query data while a new URL is loading', async () => {
-    soundCloudQueryMock
+    providerTrackQueryMock
       .mockReturnValueOnce({
         currentData: {
           user: 'Artist',
@@ -206,6 +189,7 @@ describe('Download', () => {
         },
         error: undefined,
         isFetching: false,
+        provider: undefined,
       })
       .mockReturnValue({
         data: {
@@ -215,6 +199,7 @@ describe('Download', () => {
         currentData: undefined,
         error: undefined,
         isFetching: true,
+        provider: undefined,
       });
 
     const { rerender } = render(<Download selectedUrl='https://soundcloud.com/artist/track-one' />);
@@ -229,13 +214,14 @@ describe('Download', () => {
   });
 
   it('uses the browser download flow without opening the save file picker', async () => {
-    soundCloudQueryMock.mockReturnValue({
+    providerTrackQueryMock.mockReturnValue({
       currentData: {
         user: 'Artist',
         title: 'Track Name',
       },
       error: undefined,
       isFetching: false,
+      provider: undefined,
     });
 
     const anchorClickMock = vi.fn();

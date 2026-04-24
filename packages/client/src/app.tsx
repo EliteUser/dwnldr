@@ -2,8 +2,7 @@ import { Heart, ArrowShapeDownToLine, MusicNote } from '@gravity-ui/icons';
 import { TabList, Tab, Icon, TabPanel, TabProvider } from '@gravity-ui/uikit';
 import { memo, useCallback, useEffect, useState } from 'react';
 
-import { Likes } from './components';
-import { Download } from './components/download/download';
+import { Download, Likes } from './components';
 
 import styles from './app.module.scss';
 

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
+import { isAbortError } from '../../utils/common/common.utils';
 import { getDownloadFileName, readResponse, triggerBrowserDownload } from '../../utils/download/download.utils';
 import {
   DOWNLOAD_NOTIFICATION_MESSAGE,
@@ -14,8 +15,6 @@ type DownloadInput = {
   name: string;
   url: string;
 };
-
-const isAbortError = (error: unknown) => (error as { name?: string }).name === 'AbortError';
 
 export const useDownload = () => {
   const notify = useNotify();

@@ -2,8 +2,7 @@ import { ArrowShapeDownToLine } from '@gravity-ui/icons';
 import { Button, Icon, Label, Loader, Progress, TextArea, TextInput } from '@gravity-ui/uikit';
 import { memo, useEffect, useState } from 'react';
 
-import { useGetSoundCloudTracksQuery, useGetYoutubeTracksQuery } from '../../api/api';
-import { classifySource } from '../../utils/common/common.utils';
+import { useGetProviderTrackQuery } from '../../api/api';
 import { DOWNLOAD_NOTIFICATION_NAME } from '../../utils/notify/notify.constants';
 import { getApiErrorFromQueryError, useNotify } from '../../utils/notify/notify.utils';
 import { useDownload } from './use-download';
@@ -27,27 +26,15 @@ export const Download = memo<DownloadProps>(function Download(props) {
 
   const notify = useNotify();
   const { cancel, download, inProgress, isProgressKnown, progress } = useDownload();
-  const source = debouncedUrl ? classifySource(debouncedUrl) : null;
 
   const {
-    currentData: soundCloudTrack,
-    error: soundCloudTrackError,
-    isFetching: isSoundCloudTrackFetching,
-  } = useGetSoundCloudTracksQuery(debouncedUrl, {
-    skip: !debouncedUrl || source !== 'soundcloud',
+    currentData: track,
+    error: metadataError,
+    isFetching,
+    provider,
+  } = useGetProviderTrackQuery(debouncedUrl, {
+    skip: !debouncedUrl,
   });
-
-  const {
-    currentData: youTubeTrack,
-    error: youTubeTrackError,
-    isFetching: isYouTubeTrackFetching,
-  } = useGetYoutubeTracksQuery(debouncedUrl, {
-    skip: !debouncedUrl || source !== 'youtube',
-  });
-
-  const track = source === 'soundcloud' ? soundCloudTrack : source === 'youtube' ? youTubeTrack : undefined;
-  const isFetching = isSoundCloudTrackFetching || isYouTubeTrackFetching;
-  const metadataError = soundCloudTrackError ?? youTubeTrackError;
 
   useEffect(() => {
     setUrlInput(selectedUrl || '');
@@ -59,9 +46,9 @@ export const Download = memo<DownloadProps>(function Download(props) {
 
   useEffect(() => {
     if (track && !isFetching) {
-      setName(`${track.user} - ${track.title}`);
+      setName(provider?.toDownloadName(track) ?? `${track.user} - ${track.title}`);
     }
-  }, [track, isFetching]);
+  }, [provider, track, isFetching]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
