@@ -1,4 +1,4 @@
-import { FileData } from '../types';
+import type { FileData } from '../../types';
 
 export type Source = 'youtube' | 'soundcloud';
 

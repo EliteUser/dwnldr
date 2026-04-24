@@ -45,12 +45,12 @@ vi.mock('@gravity-ui/icons', () => ({
   ArrowShapeDownToLine: {},
 }));
 
-vi.mock('../../api/api.slice', () => ({
+vi.mock('../../api/api', () => ({
   useGetSoundCloudTracksQuery: (...args: unknown[]) => soundCloudQueryMock(...args),
   useGetYoutubeTracksQuery: (...args: unknown[]) => youTubeQueryMock(...args),
 }));
 
-vi.mock('../../utils/common.utils', () => ({
+vi.mock('../../utils/common/common.utils', () => ({
   classifySource: (url: string) => {
     if (url.includes('soundcloud')) {
       return 'soundcloud';
@@ -64,24 +64,22 @@ vi.mock('../../utils/common.utils', () => ({
   },
 }));
 
-vi.mock('../../utils/notify.constants', () => ({
+vi.mock('../../utils/notify/notify.constants', () => ({
   DOWNLOAD_NOTIFICATION_MESSAGE: {
-    filePickerError: 'Failed to open the save dialog.',
     success: (name: string) => `Track downloaded: ${name}`,
   },
   DOWNLOAD_NOTIFICATION_NAME: {
-    filePickerError: 'download-file-picker-error',
     metadataError: 'download-metadata-error',
     submitError: 'download-submit-error',
     missingBody: 'download-missing-body',
     networkError: 'download-network-error',
     success: 'download-success',
   },
-  FALLBACK_API_ERROR_MESSAGE: 'Something went wrong on the server.',
+  FALLBACK_API_ERROR_MESSAGE: 'Something went wrong. Try again.',
 }));
 
-vi.mock('../../utils/notify.utils', () => ({
-  getApiErrorFromRtkError: (error: unknown) => error,
+vi.mock('../../utils/notify/notify.utils', () => ({
+  getApiErrorFromQueryError: (error: unknown) => error,
   parseApiErrorResponse: async () => ({ code: 'INTERNAL_ERROR', error: 'Failed' }),
   useNotify: () => ({
     apiError: notifyApiErrorMock,
@@ -109,6 +107,7 @@ describe('Download', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -229,7 +228,7 @@ describe('Download', () => {
     expect(screen.getByPlaceholderText('Track name')).toHaveValue('');
   });
 
-  it('shows a local picker error instead of a server error when the save dialog fails', async () => {
+  it('uses the browser download flow without opening the save file picker', async () => {
     soundCloudQueryMock.mockReturnValue({
       currentData: {
         user: 'Artist',
@@ -239,11 +238,37 @@ describe('Download', () => {
       isFetching: false,
     });
 
-    vi.stubGlobal('showSaveFilePicker', vi.fn().mockRejectedValue(new DOMException('Failed', 'SecurityError')));
-    Object.defineProperty(window, 'isSecureContext', {
-      configurable: true,
-      value: true,
+    const anchorClickMock = vi.fn();
+    const createObjectURLMock = vi.fn(() => 'blob:download');
+    const revokeObjectURLMock = vi.fn();
+    const showSaveFilePickerMock = vi.fn();
+    const appendChildMock = vi.spyOn(document.body, 'appendChild');
+    const removeChildMock = vi.spyOn(document.body, 'removeChild');
+
+    vi.stubGlobal('showSaveFilePicker', showSaveFilePickerMock);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(new Uint8Array([1, 2, 3]), {
+          headers: {
+            'content-disposition': 'attachment; filename="track.mp3"',
+            'content-length': '3',
+          },
+          status: 200,
+        }),
+      ),
+    );
+    vi.spyOn(document, 'createElement').mockImplementation((tagName) => {
+      const element = document.createElementNS('http://www.w3.org/1999/xhtml', tagName) as HTMLAnchorElement;
+
+      if (tagName === 'a') {
+        element.click = anchorClickMock;
+      }
+
+      return element;
     });
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(createObjectURLMock);
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(revokeObjectURLMock);
 
     render(<Download selectedUrl='https://soundcloud.com/artist/track' />);
 
@@ -254,9 +279,16 @@ describe('Download', () => {
     fireEvent.click(screen.getByText(/download/i));
 
     await waitFor(() => {
-      expect(notifyErrorMock).toHaveBeenCalledWith('Failed to open the save dialog.', {
-        name: 'download-file-picker-error',
-      });
+      expect(anchorClickMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(showSaveFilePickerMock).not.toHaveBeenCalled();
+    expect(createObjectURLMock).toHaveBeenCalled();
+    expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:download');
+    expect(appendChildMock).toHaveBeenCalled();
+    expect(removeChildMock).toHaveBeenCalled();
+    expect(notifySuccessMock).toHaveBeenCalledWith('Track downloaded: Artist - Track Name', {
+      name: 'download-success',
     });
   });
 });

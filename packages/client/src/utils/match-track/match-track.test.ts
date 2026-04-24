@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isTrackDownloaded, isTrackMatch, normalizeTrackName } from './match-track';
+import { createDownloadedTrackMatcher, isTrackDownloaded, isTrackMatch, normalizeTrackName } from './match-track';
 
 describe('normalizeTrackName', () => {
   it('normalizes unicode, punctuation, and separators while preserving words', () => {
@@ -100,5 +100,17 @@ describe('isTrackDownloaded', () => {
         'Alok & Illenium - To The Moon',
       ),
     ).toBe(false);
+  });
+});
+
+describe('createDownloadedTrackMatcher', () => {
+  it('reuses a precomputed file index for repeated track checks', () => {
+    const isDownloaded = createDownloadedTrackMatcher([
+      { name: 'Unrelated Artist - Another Song', extension: 'mp3' },
+      { name: 'Alok - To The Moon', extension: 'mp3' },
+    ]);
+
+    expect(isDownloaded('Alok & Illenium - To The Moon')).toBe(true);
+    expect(isDownloaded('Different Artist - To The Sun')).toBe(false);
   });
 });

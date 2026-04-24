@@ -3,7 +3,9 @@ import { Icon, Text, TextInput } from '@gravity-ui/uikit';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useMemo, useRef, useState } from 'react';
 
-import { TracksResult } from '../../api/api.slice';
+import { TracksResult } from '../../api/api';
+import { useAppStore } from '../../store';
+import { createDownloadedTrackMatcher } from '../../utils';
 import { Track } from '../track/track';
 
 import styles from './track-list.module.scss';
@@ -13,12 +15,17 @@ export type TrackListProps = {
   onDownloadClick: (url: string) => void;
 };
 
+const TRACK_ROW_HEIGHT = 64;
+
 const filterFn = (arg: string, filterValue: string) => arg.toLowerCase().includes(filterValue.toLowerCase());
 
 export const TrackList = memo<TrackListProps>((props) => {
   const { tracks, onDownloadClick } = props;
 
   const parentRef = useRef<HTMLDivElement>(null);
+  const files = useAppStore((state) => state.files);
+  const isDirectorySelected = useAppStore((state) => !!state.directoryName);
+  const isDownloadedTrack = useMemo(() => createDownloadedTrackMatcher(files), [files]);
 
   const [filter, setFilter] = useState('');
 
@@ -35,9 +42,10 @@ export const TrackList = memo<TrackListProps>((props) => {
 
   const virtualizer = useVirtualizer({
     count,
+    getItemKey: (index) => filteredTracks[index]?.id ?? filteredTracks[index]?.permalink_url ?? index,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 60,
-    overscan: 4,
+    estimateSize: () => TRACK_ROW_HEIGHT,
+    overscan: 6,
   });
 
   const items = virtualizer.getVirtualItems();
@@ -76,12 +84,13 @@ export const TrackList = memo<TrackListProps>((props) => {
                 return (
                   <Track
                     key={virtualRow.key}
-                    data-index={virtualRow.index}
-                    ref={virtualizer.measureElement}
                     title={trackTitle}
                     duration={duration}
                     coverUrl={artwork_url}
-                    onDownloadClick={() => onDownloadClick(permalink_url)}
+                    downloadUrl={permalink_url}
+                    isDirectorySelected={isDirectorySelected}
+                    isDownloaded={files.length > 0 && isDownloadedTrack(trackTitle)}
+                    onDownloadClick={onDownloadClick}
                   />
                 );
               })}

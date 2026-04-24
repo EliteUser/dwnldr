@@ -1,4 +1,4 @@
-import { FileData } from '../types';
+import type { FileData } from '../../types';
 
 const SHORT_TITLE_TOKEN_THRESHOLD = 3;
 const SHORT_TITLE_MATCH_THRESHOLD = 0.6;
@@ -101,6 +101,22 @@ const tokenize = (input: string): string[] => {
 
 const uniqueTokens = (input: string): string[] => Array.from(new Set(tokenize(input)));
 
+type TokenizedTrackName = {
+  name: string;
+  numericTokens: string[];
+  tokens: string[];
+};
+
+const tokenizeTrackName = (name: string): TokenizedTrackName => {
+  const tokens = uniqueTokens(name);
+
+  return {
+    name,
+    numericTokens: getNumericTokens(tokens),
+    tokens,
+  };
+};
+
 const getNumericTokens = (tokens: string[]): string[] => tokens.filter((token) => NUMERIC_TOKEN.test(token));
 
 const haveSameNumericTokens = (left: string[], right: string[]): boolean => {
@@ -171,15 +187,15 @@ const isContained = (leftTokens: string[], rightTokens: string[]): boolean => {
   return hasExactPhrase || hasTokenSubset;
 };
 
-export const isTrackMatch = (trackTitle: string, fileName: string): boolean => {
-  const titleTokens = uniqueTokens(trackTitle);
-  const fileTokens = uniqueTokens(fileName);
+const isTokenizedTrackMatch = (track: TokenizedTrackName, file: TokenizedTrackName): boolean => {
+  const titleTokens = track.tokens;
+  const fileTokens = file.tokens;
 
   if (titleTokens.length === 0 || fileTokens.length === 0) {
     return false;
   }
 
-  if (!haveSameNumericTokens(getNumericTokens(titleTokens), getNumericTokens(fileTokens))) {
+  if (!haveSameNumericTokens(track.numericTokens, file.numericTokens)) {
     return false;
   }
 
@@ -195,5 +211,18 @@ export const isTrackMatch = (trackTitle: string, fileName: string): boolean => {
   return isContained(titleTokens, fileTokens);
 };
 
+export const isTrackMatch = (trackTitle: string, fileName: string): boolean =>
+  isTokenizedTrackMatch(tokenizeTrackName(trackTitle), tokenizeTrackName(fileName));
+
+export const createDownloadedTrackMatcher = (files: FileData[]) => {
+  const fileIndex = files.map(({ name }) => tokenizeTrackName(name));
+
+  return (title: string): boolean => {
+    const tokenizedTitle = tokenizeTrackName(title);
+
+    return fileIndex.some((file) => isTokenizedTrackMatch(tokenizedTitle, file));
+  };
+};
+
 export const isTrackDownloaded = (files: FileData[], title: string): boolean =>
-  files.some(({ name }) => isTrackMatch(title, name));
+  createDownloadedTrackMatcher(files)(title);

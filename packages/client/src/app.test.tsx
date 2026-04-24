@@ -1,11 +1,9 @@
 import type { ReactNode } from 'react';
 
 import { render, screen } from '@testing-library/react';
-import { Provider } from 'react-redux';
 import { vi } from 'vitest';
 
 import { App } from './app';
-import { store } from './store';
 
 vi.mock('@gravity-ui/uikit', () => ({
   Icon: () => null,
@@ -30,22 +28,13 @@ vi.mock('./components/download/download.tsx', () => ({
   Download: () => <div>Download Panel</div>,
 }));
 
-vi.mock('./api/api.slice', () => ({
-  apiSlice: {
-    reducerPath: 'api',
-    reducer: () => ({}),
-    middleware: () => (next: (action: unknown) => unknown) => (action: unknown) => next(action),
-  },
+vi.mock('./api/api', () => ({
   useGetFavoritesQuery: () => ({ data: [] }),
 }));
 
 describe('App', () => {
   it('renders the main tabs', () => {
-    render(
-      <Provider store={store}>
-        <App />
-      </Provider>,
-    );
+    render(<App />);
 
     expect(screen.getByText('Likes')).toBeInTheDocument();
     expect(screen.getByText('Download')).toBeInTheDocument();

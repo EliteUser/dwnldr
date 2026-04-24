@@ -1,17 +1,12 @@
 import { useCallback, useRef, useState } from 'react';
 
-import {
-  canUseSaveFilePicker,
-  getDownloadFileName,
-  readResponse,
-  triggerBrowserDownload,
-} from '../../utils/download.utils';
+import { getDownloadFileName, readResponse, triggerBrowserDownload } from '../../utils/download/download.utils';
 import {
   DOWNLOAD_NOTIFICATION_MESSAGE,
   DOWNLOAD_NOTIFICATION_NAME,
   FALLBACK_API_ERROR_MESSAGE,
-} from '../../utils/notify.constants';
-import { parseApiErrorResponse, useNotify } from '../../utils/notify.utils';
+} from '../../utils/notify/notify.constants';
+import { parseApiErrorResponse, useNotify } from '../../utils/notify/notify.utils';
 
 type DownloadInput = {
   album?: string;
@@ -37,32 +32,6 @@ export const useDownload = () => {
       }
 
       const suggestedFileName = `${name}.mp3`;
-      let fileHandle: FileSystemFileHandle | null = null;
-
-      try {
-        fileHandle = canUseSaveFilePicker()
-          ? await window.showSaveFilePicker({
-              suggestedName: suggestedFileName,
-              types: [
-                {
-                  description: 'Audio',
-                  accept: {
-                    'audio/mpeg': ['.mp3'],
-                  },
-                },
-              ],
-            })
-          : null;
-      } catch (error) {
-        if (!isAbortError(error)) {
-          notify.error(DOWNLOAD_NOTIFICATION_MESSAGE.filePickerError, {
-            name: DOWNLOAD_NOTIFICATION_NAME.filePickerError,
-          });
-        }
-
-        return;
-      }
-
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
       setInProgress(true);
@@ -110,38 +79,18 @@ export const useDownload = () => {
         let receivedSize = 0;
         setIsProgressKnown(hasKnownSize);
 
-        if (fileHandle) {
-          const writable = await fileHandle.createWritable();
+        const chunks: BlobPart[] = [];
 
-          try {
-            await readResponse(reader, async (value) => {
-              await writable.write(value.slice());
-              receivedSize += value.length;
+        await readResponse(reader, (value) => {
+          chunks.push(new Uint8Array(value));
+          receivedSize += value.length;
 
-              if (hasKnownSize) {
-                setProgress((receivedSize / totalSize) * 100);
-              }
-            });
-
-            await writable.close();
-          } catch (error) {
-            await writable.abort();
-            throw error;
+          if (hasKnownSize) {
+            setProgress((receivedSize / totalSize) * 100);
           }
-        } else {
-          const chunks: BlobPart[] = [];
+        });
 
-          await readResponse(reader, (value) => {
-            chunks.push(new Uint8Array(value));
-            receivedSize += value.length;
-
-            if (hasKnownSize) {
-              setProgress((receivedSize / totalSize) * 100);
-            }
-          });
-
-          triggerBrowserDownload(fileName, chunks);
-        }
+        triggerBrowserDownload(fileName, chunks);
 
         notify.success(DOWNLOAD_NOTIFICATION_MESSAGE.success(name), {
           name: DOWNLOAD_NOTIFICATION_NAME.success,

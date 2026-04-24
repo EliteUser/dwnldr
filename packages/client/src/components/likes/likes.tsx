@@ -2,12 +2,17 @@ import { ArrowRotateRight, FolderArrowUpIn, FolderOpen, Gear } from '@gravity-ui
 import { Button, DropdownMenu, Icon, Loader, Progress, Text } from '@gravity-ui/uikit';
 import { memo, useCallback, useEffect, useMemo } from 'react';
 
-import { useGetFavoritesQuery } from '../../api/api.slice';
-import { useAppDispatch, useAppSelector } from '../../store';
-import { selectFolder, syncFolder } from '../../store/folder.thunks';
-import { canUseFileSystemAccess, FILE_SYSTEM_ACCESS_HELP_TEXT } from '../../utils/folder.utils';
-import { FOLDER_NOTIFICATION_MESSAGE, FOLDER_NOTIFICATION_NAME } from '../../utils/notify.constants';
-import { getApiErrorFromRtkError, useNotify } from '../../utils/notify.utils';
+import { useGetFavoritesQuery } from '../../api/api';
+import { useAppStore } from '../../store';
+import { selectFolder, syncFolder } from '../../store/folder.actions';
+import {
+  canUseFileSystemAccess,
+  FILE_SYSTEM_ACCESS_HELP_TEXT,
+  getApiErrorFromQueryError,
+  useNotify,
+  FOLDER_NOTIFICATION_MESSAGE,
+  FOLDER_NOTIFICATION_NAME,
+} from '../../utils';
 import { TrackList } from '../track-list/track-list';
 import { UserInput } from '../user-input/user-input';
 
@@ -21,12 +26,11 @@ type LikesProps = {
 export const Likes = memo<LikesProps>((props) => {
   const { onDownloadClick, onFavoritesCountChange } = props;
 
-  const dispatch = useAppDispatch();
-  const userId = useAppSelector((state) => state.user.userId);
-  const isSyncInProgress = useAppSelector((state) => state.files.loading);
-  const folder = useAppSelector((state) => state.files.directoryName);
-  const fileCount = useAppSelector((state) => state.files.files.length);
-  const lastSyncAt = useAppSelector((state) => state.files.lastSyncAt);
+  const userId = useAppStore((state) => state.userId);
+  const isSyncInProgress = useAppStore((state) => state.isFolderSyncInProgress);
+  const folder = useAppStore((state) => state.directoryName);
+  const fileCount = useAppStore((state) => state.files.length);
+  const lastSyncAt = useAppStore((state) => state.lastSyncAt);
   const notify = useNotify();
 
   const {
@@ -51,7 +55,7 @@ export const Likes = memo<LikesProps>((props) => {
         });
       }
 
-      const result = await dispatch(syncFolder());
+      const result = await syncFolder();
 
       if (result.status === 'success' && options.notifyOnSuccess) {
         notify.success(FOLDER_NOTIFICATION_MESSAGE.syncSuccess(result.fileCount, result.directoryName), {
@@ -65,11 +69,11 @@ export const Likes = memo<LikesProps>((props) => {
         });
       }
     },
-    [dispatch, folder, notify],
+    [folder, notify],
   );
 
   const runSelectFolder = useCallback(async () => {
-    const result = await dispatch(selectFolder());
+    const result = await selectFolder();
 
     if (result.status === 'unsupported') {
       notify.error(FOLDER_NOTIFICATION_MESSAGE.fileSystemAccessError, {
@@ -90,7 +94,7 @@ export const Likes = memo<LikesProps>((props) => {
         name: FOLDER_NOTIFICATION_NAME.pickerError,
       });
     }
-  }, [dispatch, notify]);
+  }, [notify]);
 
   const formattedLastSyncAt = useMemo(() => {
     if (!lastSyncAt) {
@@ -137,7 +141,7 @@ export const Likes = memo<LikesProps>((props) => {
 
   useEffect(() => {
     if (favoritesError) {
-      notify.apiError(getApiErrorFromRtkError(favoritesError), {
+      notify.apiError(getApiErrorFromQueryError(favoritesError), {
         name: 'likes-fetch-error',
       });
     }
@@ -220,7 +224,7 @@ export const Likes = memo<LikesProps>((props) => {
         <div className={styles.emptyState}>
           <Text variant='subheader-2'>Failed to load your likes</Text>
           <Text variant='body-2' color='secondary'>
-            The request did not complete successfully. Retry after checking the server notification.
+            The request did not complete successfully. Retry after checking the notification.
           </Text>
           <Button view='action' size='l' onClick={() => refetch()}>
             Retry

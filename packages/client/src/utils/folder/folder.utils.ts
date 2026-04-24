@@ -1,6 +1,6 @@
-import type { FileData } from '../types';
+import type { FileData } from '../../types';
 
-import { getFileData } from './common.utils';
+import { getFileData } from '../common/common.utils';
 
 export const FILE_SYSTEM_ACCESS_HELP_TEXT =
   'Folder sync works only in browsers that support the File System Access API and only in a secure context.';

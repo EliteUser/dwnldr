@@ -13,7 +13,7 @@ vi.mock('@gravity-ui/uikit/toaster-singleton', () => ({
 }));
 
 import { API_ERROR_MESSAGE } from './notify.constants';
-import { getApiErrorFromRtkError, getApiErrorMessage } from './notify.utils';
+import { getApiErrorFromQueryError, getApiErrorMessage } from './notify.utils';
 
 describe('getApiErrorMessage', () => {
   it('maps known API codes to user-facing messages', () => {
@@ -22,7 +22,7 @@ describe('getApiErrorMessage', () => {
     expect(getApiErrorMessage({ code: 'UPSTREAM_UNAUTHORIZED' })).toBe(API_ERROR_MESSAGE.UPSTREAM_UNAUTHORIZED);
   });
 
-  it('falls back to the server error for invalid input', () => {
+  it('uses safe server messages for invalid input', () => {
     expect(
       getApiErrorMessage({
         code: 'INVALID_INPUT',
@@ -30,17 +30,26 @@ describe('getApiErrorMessage', () => {
       }),
     ).toBe('Track not found');
   });
+
+  it('does not expose raw server messages for internal failures', () => {
+    expect(
+      getApiErrorMessage({
+        code: 'INTERNAL_ERROR',
+        error: 'YouTube service is not started',
+      }),
+    ).toBe(API_ERROR_MESSAGE.INTERNAL_ERROR);
+  });
 });
 
-describe('getApiErrorFromRtkError', () => {
-  it('extracts structured API payloads from RTK Query errors', () => {
+describe('getApiErrorFromQueryError', () => {
+  it('extracts structured API payloads from query errors', () => {
     expect(
-      getApiErrorFromRtkError({
-        status: 502,
-        data: {
+      getApiErrorFromQueryError({
+        response: {
           code: 'UPSTREAM_FAILURE',
           error: 'SoundCloud did not respond. Try again later.',
         },
+        status: 502,
       }),
     ).toEqual({
       code: 'UPSTREAM_FAILURE',

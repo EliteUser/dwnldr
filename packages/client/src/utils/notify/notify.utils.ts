@@ -1,6 +1,4 @@
 import type { ToastTheme, ToasterPublicMethods } from '@gravity-ui/uikit';
-import type { SerializedError } from '@reduxjs/toolkit';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 
 import { useToaster } from '@gravity-ui/uikit';
 import { toaster } from '@gravity-ui/uikit/toaster-singleton';
@@ -52,34 +50,25 @@ export const getApiErrorMessage = (error?: ApiErrorResponse | null) => {
     case 'CONVERSION_FAILURE':
       return API_ERROR_MESSAGE.CONVERSION_FAILURE;
     case 'INVALID_INPUT':
-      return error.error ?? API_ERROR_MESSAGE.INVALID_INPUT;
+      return error.error || API_ERROR_MESSAGE.INVALID_INPUT;
     case 'INTERNAL_ERROR':
     default:
-      return error?.error ?? API_ERROR_MESSAGE.INTERNAL_ERROR;
+      return API_ERROR_MESSAGE.INTERNAL_ERROR;
   }
 };
 
-export const getApiErrorFromRtkError = (
-  error?: FetchBaseQueryError | SerializedError | null,
-): ApiErrorResponse | null => {
+export const getApiErrorFromQueryError = (error?: unknown): ApiErrorResponse | null => {
   if (!error) {
     return null;
   }
 
-  if ('status' in error) {
-    if (typeof error.data === 'object' && error.data !== null) {
-      return error.data as ApiErrorResponse;
-    }
-
-    return {
-      code: 'INTERNAL_ERROR',
-      error: 'error' in error && typeof error.error === 'string' ? error.error : REQUEST_FAILED_MESSAGE,
-    };
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    return (error as { response: ApiErrorResponse }).response;
   }
 
   return {
     code: 'INTERNAL_ERROR',
-    error: error.message,
+    error: error instanceof Error ? error.message : REQUEST_FAILED_MESSAGE,
   };
 };
 

@@ -1,10 +1,9 @@
 import type { ApiErrorCode } from './notify.utils';
 
-export const FALLBACK_API_ERROR_MESSAGE = 'Something went wrong on the server.';
-export const REQUEST_FAILED_MESSAGE = 'Request failed';
+export const FALLBACK_API_ERROR_MESSAGE = 'Something went wrong. Try again.';
+export const REQUEST_FAILED_MESSAGE = 'The request failed. Try again.';
 
 export const DOWNLOAD_NOTIFICATION_NAME = {
-  filePickerError: 'download-file-picker-error',
   metadataError: 'download-metadata-error',
   submitError: 'download-submit-error',
   missingBody: 'download-missing-body',
@@ -13,7 +12,6 @@ export const DOWNLOAD_NOTIFICATION_NAME = {
 } as const;
 
 export const DOWNLOAD_NOTIFICATION_MESSAGE = {
-  filePickerError: 'Failed to open the save dialog.',
   success: (name: string) => `Track downloaded: ${name}`,
 } as const;
 
@@ -26,20 +24,19 @@ export const FOLDER_NOTIFICATION_NAME = {
 } as const;
 
 export const FOLDER_NOTIFICATION_MESSAGE = {
-  fileSystemAccessError:
-    'File system access requires a supported browser and a trusted secure context (HTTPS or localhost).',
+  fileSystemAccessError: 'Folder access is not available in this browser or connection.',
   syncStarted: (directoryName: string) => `Syncing ${directoryName}`,
-  syncError: 'Failed to sync the selected folder.',
-  pickerError: 'Failed to pick the music folder.',
+  syncError: 'Could not sync the selected folder.',
+  pickerError: 'Could not open the folder picker.',
   syncSuccess: (fileCount: number, directoryName: string) => `${fileCount} files found in ${directoryName}`,
 } as const;
 
 export const API_ERROR_MESSAGE: Record<ApiErrorCode, string> = {
-  INVALID_INPUT: 'Invalid request.',
+  INVALID_INPUT: 'Check the entered value and try again.',
   UNSUPPORTED_SOURCE: 'This URL is not supported. Use a SoundCloud or YouTube link.',
   YOUTUBE_PLAYLIST: 'Playlists are not supported - paste a link to a single video.',
-  UPSTREAM_UNAUTHORIZED: 'SoundCloud rejected the request. Its client_id likely expired - restart the server.',
-  UPSTREAM_FAILURE: 'SoundCloud / YouTube did not respond. Try again later.',
-  CONVERSION_FAILURE: 'Audio conversion failed. The track may be in an unsupported format.',
+  UPSTREAM_UNAUTHORIZED: 'Could not access this source right now. Try again later.',
+  UPSTREAM_FAILURE: 'Could not reach this source right now. Try again later.',
+  CONVERSION_FAILURE: 'Could not prepare the audio file.',
   INTERNAL_ERROR: FALLBACK_API_ERROR_MESSAGE,
 };

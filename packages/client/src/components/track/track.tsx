@@ -1,33 +1,34 @@
 import { ArrowDownToLine } from '@gravity-ui/icons';
 import { Avatar, Button, Icon, Text } from '@gravity-ui/uikit';
 import clsx from 'clsx';
-import { forwardRef, memo } from 'react';
+import { forwardRef, memo, useCallback } from 'react';
 
-import { useAppSelector } from '../../store';
-import { getDuration } from '../../utils/common.utils';
-import { isTrackDownloaded } from '../../utils/match-track';
+import { getDuration } from '../../utils';
 
 import styles from './track.module.scss';
 
 type TrackProps = {
   title: string;
   coverUrl: string;
+  downloadUrl: string;
   duration: number;
-  onDownloadClick: () => void;
+  isDirectorySelected: boolean;
+  isDownloaded: boolean;
+  onDownloadClick: (url: string) => void;
 };
 
 export const Track = memo(
   forwardRef<HTMLDivElement, TrackProps>(function Track(props, ref) {
-    const { title, coverUrl, duration, onDownloadClick, ...rest } = props;
+    const { title, coverUrl, downloadUrl, duration, isDirectorySelected, isDownloaded, onDownloadClick, ...rest } =
+      props;
 
-    const files = useAppSelector((state) => state.files.files);
-    const directory = useAppSelector((state) => state.files.directoryName);
-
-    const isDownloaded = files.length > 0 && isTrackDownloaded(files, title);
+    const handleDownloadClick = useCallback(() => {
+      onDownloadClick(downloadUrl);
+    }, [downloadUrl, onDownloadClick]);
 
     const trackClassNames = clsx(styles.track, {
       [styles.downloaded]: isDownloaded,
-      [styles.directorySelected]: !!directory,
+      [styles.directorySelected]: isDirectorySelected,
     });
 
     return (
@@ -47,7 +48,7 @@ export const Track = memo(
         <Button
           className={styles.button}
           view='outlined-action'
-          onClick={onDownloadClick}
+          onClick={handleDownloadClick}
           aria-label={`Download ${title}`}
         >
           <Icon size={16} data={ArrowDownToLine} />

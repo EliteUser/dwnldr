@@ -5,6 +5,7 @@
     "prepare": "husky",
     "dev": "concurrently -n server,client -c green,blue --kill-others \"pnpm --filter ./packages/server dev\" \"wait-on http://localhost:3000/ready && pnpm --filter ./packages/client dev\"",
     "build": "pnpm -r build",
+    "preview": "pnpm build && concurrently -n server,client -c green,blue --kill-others \"pnpm --filter ./packages/server start\" \"wait-on http://localhost:3000/ready && pnpm --filter ./packages/client preview\"",
     "typecheck": "pnpm -r typecheck",
     "lint": "oxlint . --deny-warnings",
     "lint:fix": "oxlint . --fix",

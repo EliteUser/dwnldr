@@ -1,12 +1,9 @@
 import type { ReactNode } from 'react';
 
-import { configureStore } from '@reduxjs/toolkit';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import filesReducer from '../../store/files.slice';
-import userReducer from '../../store/user.slice';
+import { useAppStore } from '../../store';
 import { Likes } from './likes';
 
 const favoritesQueryMock = vi.fn();
@@ -15,8 +12,8 @@ const notifyErrorMock = vi.fn();
 const notifyInfoMock = vi.fn();
 const notifySuccessMock = vi.fn();
 const refetchMock = vi.fn();
-const syncFolderMock = vi.fn(() => async () => ({ status: 'success', directoryName: 'Music', fileCount: 1 }));
-const selectFolderMock = vi.fn(() => async () => ({ status: 'success', directoryName: 'Music', fileCount: 1 }));
+const syncFolderMock = vi.fn(async () => ({ status: 'success', directoryName: 'Music', fileCount: 1 }));
+const selectFolderMock = vi.fn(async () => ({ status: 'success', directoryName: 'Music', fileCount: 1 }));
 
 vi.mock('@gravity-ui/uikit', () => ({
   Button: ({ children, disabled, onClick }: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) => (
@@ -55,27 +52,22 @@ vi.mock('@gravity-ui/icons', () => ({
   Gear: {},
 }));
 
-vi.mock('../../api/api.slice', () => ({
-  apiSlice: {
-    reducerPath: 'api',
-    reducer: () => ({}),
-    middleware: () => (next: (action: unknown) => unknown) => (action: unknown) => next(action),
-  },
+vi.mock('../../api/api', () => ({
   useGetFavoritesQuery: (...args: unknown[]) => favoritesQueryMock(...args),
 }));
 
-vi.mock('../../store/folder.thunks', () => ({
+vi.mock('../../store/folder.actions', () => ({
   selectFolder: () => selectFolderMock(),
   syncFolder: () => syncFolderMock(),
 }));
 
-vi.mock('../../utils/folder.utils', () => ({
+vi.mock('../../utils/folder/folder.utils', () => ({
   FILE_SYSTEM_ACCESS_HELP_TEXT: 'Folder sync help',
   canUseFileSystemAccess: () => true,
 }));
 
-vi.mock('../../utils/notify.utils', () => ({
-  getApiErrorFromRtkError: (error: unknown) => error,
+vi.mock('../../utils/notify/notify.utils', () => ({
+  getApiErrorFromQueryError: (error: unknown) => error,
   useNotify: () => ({
     apiError: notifyApiErrorMock,
     error: notifyErrorMock,
@@ -97,33 +89,19 @@ const renderLikes = (
   filesState?: {
     directoryName?: string | null;
     files?: Array<{ extension: string; name: string }>;
+    isFolderSyncInProgress?: boolean;
     lastSyncAt?: string | null;
-    loading?: boolean;
   },
 ) => {
-  const store = configureStore({
-    reducer: {
-      files: filesReducer,
-      user: userReducer,
-    },
-    preloadedState: {
-      files: {
-        loading: filesState?.loading ?? false,
-        files: filesState?.files ?? [],
-        directoryName: filesState?.directoryName ?? null,
-        lastSyncAt: filesState?.lastSyncAt ?? null,
-      },
-      user: {
-        userId,
-      },
-    },
+  useAppStore.setState({
+    directoryName: filesState?.directoryName ?? null,
+    files: filesState?.files ?? [],
+    isFolderSyncInProgress: filesState?.isFolderSyncInProgress ?? false,
+    lastSyncAt: filesState?.lastSyncAt ?? null,
+    userId,
   });
 
-  return render(
-    <Provider store={store}>
-      <Likes onDownloadClick={() => undefined} onFavoritesCountChange={() => undefined} />
-    </Provider>,
-  );
+  return render(<Likes onDownloadClick={() => undefined} onFavoritesCountChange={() => undefined} />);
 };
 
 describe('Likes', () => {
@@ -136,6 +114,13 @@ describe('Likes', () => {
     refetchMock.mockReset();
     syncFolderMock.mockClear();
     selectFolderMock.mockClear();
+    useAppStore.setState({
+      directoryName: null,
+      files: [],
+      isFolderSyncInProgress: false,
+      lastSyncAt: null,
+      userId: null,
+    });
   });
 
   it('shows a getting-started empty state when no user is configured', () => {

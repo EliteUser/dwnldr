@@ -1,12 +1,8 @@
 import type { ReactNode } from 'react';
 
-import { configureStore } from '@reduxjs/toolkit';
-import { act, render, waitFor } from '@testing-library/react';
-import { Provider } from 'react-redux';
+import { render, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import filesReducer, { clearFiles } from '../../store/files.slice';
-import userReducer from '../../store/user.slice';
 import { Track } from './track';
 
 import styles from './track.module.scss';
@@ -28,33 +24,16 @@ vi.mock('@gravity-ui/icons', () => ({
 
 describe('Track', () => {
   it('clears the downloaded state when the synced file list becomes empty', async () => {
-    const store = configureStore({
-      reducer: {
-        files: filesReducer,
-        user: userReducer,
-      },
-      preloadedState: {
-        files: {
-          loading: false,
-          files: [
-            {
-              name: 'Artist - Track Title',
-              extension: 'mp3',
-            },
-          ],
-          directoryName: 'Music',
-          lastSyncAt: null,
-        },
-        user: {
-          userId: null,
-        },
-      },
-    });
-
-    const { container } = render(
-      <Provider store={store}>
-        <Track title='Artist - Track Title' coverUrl='' duration={210000} onDownloadClick={() => undefined} />
-      </Provider>,
+    const { container, rerender } = render(
+      <Track
+        title='Artist - Track Title'
+        coverUrl=''
+        duration={210000}
+        isDirectorySelected
+        isDownloaded
+        downloadUrl='https://soundcloud.com/artist/track-title'
+        onDownloadClick={() => undefined}
+      />,
     );
 
     const root = container.firstElementChild as HTMLElement;
@@ -63,9 +42,17 @@ describe('Track', () => {
       expect(root).toHaveClass(styles.downloaded);
     });
 
-    await act(async () => {
-      store.dispatch(clearFiles());
-    });
+    rerender(
+      <Track
+        title='Artist - Track Title'
+        coverUrl=''
+        duration={210000}
+        isDirectorySelected
+        isDownloaded={false}
+        downloadUrl='https://soundcloud.com/artist/track-title'
+        onDownloadClick={() => undefined}
+      />,
+    );
 
     await waitFor(() => {
       expect(root).not.toHaveClass(styles.downloaded);

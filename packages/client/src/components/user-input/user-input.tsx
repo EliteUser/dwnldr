@@ -2,15 +2,15 @@ import { PersonPencil } from '@gravity-ui/icons';
 import { Avatar, Button, Icon, Loader, Text, TextInput } from '@gravity-ui/uikit';
 import { memo, useCallback, useState } from 'react';
 
-import { useGetUserQuery } from '../../api/api.slice';
-import { useAppDispatch, useAppSelector } from '../../store';
-import { clearUserId, setUserId } from '../../store/user.slice';
+import { useGetUserQuery } from '../../api/api';
+import { useAppStore } from '../../store';
 
 import styles from './user-input.module.scss';
 
 export const UserInput = memo(() => {
-  const dispatch = useAppDispatch();
-  const userId = useAppSelector((state) => state.user.userId);
+  const userId = useAppStore((state) => state.userId);
+  const setUserId = useAppStore((state) => state.setUserId);
+  const clearUserId = useAppStore((state) => state.clearUserId);
 
   const [inputValue, setInputValue] = useState(userId || '');
   const [isEdit, setIsEdit] = useState(!userId);
@@ -23,16 +23,16 @@ export const UserInput = memo(() => {
 
   const onSyncButtonClick = useCallback(() => {
     if (inputValue) {
-      dispatch(setUserId(inputValue));
+      setUserId(inputValue);
       setIsEdit(false);
     }
-  }, [dispatch, inputValue]);
+  }, [inputValue, setUserId]);
 
   const onChangeUserClick = useCallback(() => {
-    dispatch(clearUserId());
+    clearUserId();
     setInputValue('');
     setIsEdit(true);
-  }, [dispatch]);
+  }, [clearUserId]);
 
   return isLoading ? (
     <Loader size='l' />
@@ -42,7 +42,7 @@ export const UserInput = memo(() => {
         value={inputValue}
         onChange={(evt) => setInputValue(evt.target.value)}
         size='xl'
-        placeholder='Soundcloud user ID'
+        placeholder='SoundCloud user ID'
       />
       <Button onClick={onSyncButtonClick} view='action' size='xl' disabled={!inputValue}>
         Sync

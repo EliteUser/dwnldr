@@ -1,29 +1,30 @@
-import type { ThunkAction, UnknownAction } from '@reduxjs/toolkit';
+import type { FileData } from '../types';
 
-import { combineReducers, configureStore, createListenerMiddleware } from '@reduxjs/toolkit';
-import { useDispatch, useSelector } from 'react-redux';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { apiSlice } from '../api/api.slice';
-import filesReducer, { FilesState, setDirectoryName } from './files.slice';
-import userReducer, { clearUserId, setUserId } from './user.slice';
-
-const USER_STORAGE_KEY = 'userId';
-const DIRECTORY_STORAGE_KEY = 'directory';
-
-const rootReducer = combineReducers({
-  user: userReducer,
-  files: filesReducer,
-  [apiSlice.reducerPath]: apiSlice.reducer,
-});
-
-type InitialState = {
-  user: {
-    userId: string | null;
-  };
-  files: FilesState;
+type AppState = {
+  directoryName: string | null;
+  files: FileData[];
+  isFolderSyncInProgress: boolean;
+  lastSyncAt: string | null;
+  userId: string | null;
 };
 
-const readStorageValue = (key: string): string | null => {
+type AppActions = {
+  clearFiles: () => void;
+  clearUserId: () => void;
+  resetFolder: () => void;
+  setDirectoryName: (directoryName: string | null) => void;
+  setFiles: (files: FileData[]) => void;
+  setFolderSyncInProgress: (isFolderSyncInProgress: boolean) => void;
+  setLastSyncAt: (lastSyncAt: string | null) => void;
+  setUserId: (userId: string) => void;
+};
+
+export type AppStore = AppState & AppActions;
+
+const readLegacyStorageValue = (key: string): string | null => {
   if (typeof window === 'undefined') {
     return null;
   }
@@ -35,89 +36,44 @@ const readStorageValue = (key: string): string | null => {
   }
 };
 
-const writeStorageValue = (key: string, value: string) => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {}
+const initialState: AppState = {
+  directoryName: readLegacyStorageValue('directory'),
+  files: [],
+  isFolderSyncInProgress: false,
+  lastSyncAt: null,
+  userId: readLegacyStorageValue('userId'),
 };
 
-const removeStorageValue = (key: string) => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.localStorage.removeItem(key);
-  } catch {}
-};
-
-export const loadInitialState = (): InitialState => {
-  return {
-    user: {
-      userId: readStorageValue(USER_STORAGE_KEY),
+export const useAppStore = create<AppStore>()(
+  persist(
+    (set) => ({
+      ...initialState,
+      clearFiles: () => set({ files: [] }),
+      clearUserId: () => set({ userId: null }),
+      resetFolder: () =>
+        set({
+          directoryName: null,
+          files: [],
+          lastSyncAt: null,
+        }),
+      setDirectoryName: (directoryName) => set({ directoryName }),
+      setFiles: (files) => set({ files }),
+      setFolderSyncInProgress: (isFolderSyncInProgress) => set({ isFolderSyncInProgress }),
+      setLastSyncAt: (lastSyncAt) => set({ lastSyncAt }),
+      setUserId: (userId) => set({ userId }),
+    }),
+    {
+      name: 'dwnldr-store',
+      onRehydrateStorage: () => (state) => {
+        state?.setFolderSyncInProgress(false);
+      },
+      partialize: ({ directoryName, files, lastSyncAt, userId }) => ({
+        directoryName,
+        files,
+        lastSyncAt,
+        userId,
+      }),
+      storage: createJSONStorage(() => localStorage),
     },
-    files: {
-      loading: false,
-      files: [],
-      directoryName: readStorageValue(DIRECTORY_STORAGE_KEY),
-      lastSyncAt: null,
-    },
-  };
-};
-
-const createPersistenceMiddleware = () => {
-  const persistenceMiddleware = createListenerMiddleware();
-
-  persistenceMiddleware.startListening({
-    actionCreator: setUserId,
-    effect: async (action) => {
-      writeStorageValue(USER_STORAGE_KEY, action.payload);
-    },
-  });
-
-  persistenceMiddleware.startListening({
-    actionCreator: clearUserId,
-    effect: async () => {
-      removeStorageValue(USER_STORAGE_KEY);
-    },
-  });
-
-  persistenceMiddleware.startListening({
-    actionCreator: setDirectoryName,
-    effect: async (action) => {
-      if (action.payload) {
-        writeStorageValue(DIRECTORY_STORAGE_KEY, action.payload);
-        return;
-      }
-
-      removeStorageValue(DIRECTORY_STORAGE_KEY);
-    },
-  });
-
-  return persistenceMiddleware;
-};
-
-export const createAppStore = (preloadedState = loadInitialState()) => {
-  const persistenceMiddleware = createPersistenceMiddleware();
-
-  return configureStore({
-    reducer: rootReducer,
-    preloadedState,
-    middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware().prepend(persistenceMiddleware.middleware).concat(apiSlice.middleware),
-  });
-};
-
-export const store = createAppStore();
-
-export type RootState = ReturnType<typeof rootReducer>;
-export type AppStore = ReturnType<typeof createAppStore>;
-export type AppDispatch = AppStore['dispatch'];
-export type AppThunk<ReturnType = void> = ThunkAction<ReturnType, RootState, unknown, UnknownAction>;
-
-export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
-export const useAppSelector = useSelector.withTypes<RootState>();
+  ),
+);

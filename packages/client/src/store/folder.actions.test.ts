@@ -1,10 +1,7 @@
-import type { AppThunk } from './index';
-
-import { configureStore } from '@reduxjs/toolkit';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import filesReducer from './files.slice';
-import { selectFolder, syncFolder } from './folder.thunks';
+import { selectFolder, syncFolder } from './folder.actions';
+import { useAppStore } from './index';
 
 const { clearDirectoryHandleMock, loadDirectoryHandleMock, saveDirectoryHandleMock } = vi.hoisted(() => ({
   clearDirectoryHandleMock: vi.fn(),
@@ -12,7 +9,7 @@ const { clearDirectoryHandleMock, loadDirectoryHandleMock, saveDirectoryHandleMo
   saveDirectoryHandleMock: vi.fn(),
 }));
 
-vi.mock('../utils/directory-handle.utils', () => ({
+vi.mock('../utils/folder/directory-handle.utils', () => ({
   clearDirectoryHandle: clearDirectoryHandleMock,
   loadDirectoryHandle: loadDirectoryHandleMock,
   saveDirectoryHandle: saveDirectoryHandleMock,
@@ -53,19 +50,20 @@ const createFileHandle = (name: string): MockFileHandle => ({
   name,
 });
 
-const createStore = () =>
-  configureStore({
-    reducer: {
-      files: filesReducer,
-    },
+const resetStore = () => {
+  useAppStore.setState({
+    directoryName: null,
+    files: [],
+    isFolderSyncInProgress: false,
+    lastSyncAt: null,
+    userId: null,
   });
+};
 
-const dispatchThunk = <T>(store: ReturnType<typeof createStore>, thunk: AppThunk<Promise<T>>) =>
-  store.dispatch(thunk as never) as Promise<T>;
-
-describe('folder thunks', () => {
+describe('folder actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetStore();
     clearDirectoryHandleMock.mockResolvedValue(undefined);
     saveDirectoryHandleMock.mockResolvedValue(undefined);
     Object.defineProperty(window, 'isSecureContext', {
@@ -86,15 +84,14 @@ describe('folder thunks', () => {
       ]),
     );
 
-    const store = createStore();
-    const result = await dispatchThunk(store, syncFolder());
+    const result = await syncFolder();
 
     expect(result).toEqual({
       directoryName: 'Music',
       fileCount: 3,
       status: 'success',
     });
-    expect(store.getState().files.files).toEqual([
+    expect(useAppStore.getState().files).toEqual([
       { extension: 'mp3', name: 'Artist - Root Track' },
       { extension: 'mp3', name: 'Artist - Nested Track' },
       { extension: 'flac', name: 'Artist - Deep Track' },
@@ -104,27 +101,20 @@ describe('folder thunks', () => {
   it('clears stale folder state when the saved handle is unavailable', async () => {
     loadDirectoryHandleMock.mockResolvedValue(null);
 
-    const store = configureStore({
-      reducer: {
-        files: filesReducer,
-      },
-      preloadedState: {
-        files: {
-          directoryName: 'Music',
-          files: [],
-          lastSyncAt: '2026-04-23T10:00:00.000Z',
-          loading: false,
-        },
-      },
+    useAppStore.setState({
+      directoryName: 'Music',
+      files: [],
+      isFolderSyncInProgress: false,
+      lastSyncAt: '2026-04-23T10:00:00.000Z',
     });
 
-    const result = await dispatchThunk(store, syncFolder());
+    const result = await syncFolder();
 
     expect(result).toEqual({
       status: 'missing-handle',
     });
-    expect(store.getState().files.directoryName).toBeNull();
-    expect(store.getState().files.lastSyncAt).toBeNull();
+    expect(useAppStore.getState().directoryName).toBeNull();
+    expect(useAppStore.getState().lastSyncAt).toBeNull();
     expect(clearDirectoryHandleMock).toHaveBeenCalledTimes(1);
   });
 
@@ -133,13 +123,12 @@ describe('folder thunks', () => {
 
     vi.stubGlobal('showDirectoryPicker', vi.fn().mockResolvedValue(deniedHandle));
 
-    const store = createStore();
-    const result = await dispatchThunk(store, selectFolder());
+    const result = await selectFolder();
 
     expect(result).toEqual({
       status: 'permission-denied',
     });
     expect(saveDirectoryHandleMock).not.toHaveBeenCalled();
-    expect(store.getState().files.directoryName).toBeNull();
+    expect(useAppStore.getState().directoryName).toBeNull();
   });
 });

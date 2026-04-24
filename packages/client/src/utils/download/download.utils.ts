@@ -1,6 +1,3 @@
-export const canUseSaveFilePicker = () =>
-  typeof window !== 'undefined' && window.isSecureContext && 'showSaveFilePicker' in window;
-
 export const getDownloadFileName = (contentDisposition: string | null, fallbackName: string) => {
   if (!contentDisposition) {
     return fallbackName;

@@ -2,10 +2,10 @@ import { ArrowShapeDownToLine } from '@gravity-ui/icons';
 import { Button, Icon, Label, Loader, Progress, TextArea, TextInput } from '@gravity-ui/uikit';
 import { memo, useEffect, useState } from 'react';
 
-import { useGetSoundCloudTracksQuery, useGetYoutubeTracksQuery } from '../../api/api.slice';
-import { classifySource } from '../../utils/common.utils';
-import { DOWNLOAD_NOTIFICATION_NAME } from '../../utils/notify.constants';
-import { getApiErrorFromRtkError, useNotify } from '../../utils/notify.utils';
+import { useGetSoundCloudTracksQuery, useGetYoutubeTracksQuery } from '../../api/api';
+import { classifySource } from '../../utils/common/common.utils';
+import { DOWNLOAD_NOTIFICATION_NAME } from '../../utils/notify/notify.constants';
+import { getApiErrorFromQueryError, useNotify } from '../../utils/notify/notify.utils';
 import { useDownload } from './use-download';
 
 import styles from './download.module.scss';
@@ -81,7 +81,7 @@ export const Download = memo<DownloadProps>(function Download(props) {
 
   useEffect(() => {
     if (metadataError) {
-      notify.apiError(getApiErrorFromRtkError(metadataError), {
+      notify.apiError(getApiErrorFromQueryError(metadataError), {
         name: DOWNLOAD_NOTIFICATION_NAME.metadataError,
       });
     }

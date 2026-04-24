@@ -27,6 +27,10 @@ body {
   width: 100%;
 }
 
+.appToaster {
+  inset-block-end: calc(48px + env(safe-area-inset-bottom, 0px));
+}
+
 *::-webkit-scrollbar {
   width: 12px;
   height: 12px;

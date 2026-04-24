@@ -1,8 +1,6 @@
-import type { AppThunk } from './index';
-
-import { clearDirectoryHandle, loadDirectoryHandle, saveDirectoryHandle } from '../utils/directory-handle.utils';
-import { canUseFileSystemAccess, collectFiles, verifyPermission } from '../utils/folder.utils';
-import { clearFiles, setDirectoryName, setFiles, setLastSyncAt, setLoading } from './files.slice';
+import { clearDirectoryHandle, loadDirectoryHandle, saveDirectoryHandle } from '../utils/folder/directory-handle.utils';
+import { canUseFileSystemAccess, collectFiles, verifyPermission } from '../utils/folder/folder.utils';
+import { useAppStore } from './index';
 
 export type FolderSyncResult =
   | {
@@ -14,13 +12,8 @@ export type FolderSyncResult =
       status: 'success';
     };
 
-const resetSyncedFolderState = async (
-  dispatch: (action: unknown) => void,
-  options: { clearPersistedHandle?: boolean } = {},
-) => {
-  dispatch(clearFiles());
-  dispatch(setDirectoryName(null));
-  dispatch(setLastSyncAt(null));
+const resetSyncedFolderState = async (options: { clearPersistedHandle?: boolean } = {}) => {
+  useAppStore.getState().resetFolder();
 
   if (options.clearPersistedHandle) {
     await clearDirectoryHandle().catch(() => undefined);
@@ -28,7 +21,6 @@ const resetSyncedFolderState = async (
 };
 
 const syncDirectoryHandle = async (
-  dispatch: (action: unknown) => void,
   handle: FileSystemDirectoryHandle,
   options: {
     resetOnPermissionFailure?: boolean;
@@ -36,7 +28,7 @@ const syncDirectoryHandle = async (
 ): Promise<FolderSyncResult> => {
   if (!(await verifyPermission(handle))) {
     if (options.resetOnPermissionFailure) {
-      await resetSyncedFolderState(dispatch, {
+      await resetSyncedFolderState({
         clearPersistedHandle: true,
       });
     }
@@ -47,10 +39,11 @@ const syncDirectoryHandle = async (
   }
 
   const fileList = await collectFiles(handle);
+  const { setDirectoryName, setFiles, setLastSyncAt } = useAppStore.getState();
 
-  dispatch(setFiles(fileList));
-  dispatch(setDirectoryName(handle.name));
-  dispatch(setLastSyncAt(new Date().toISOString()));
+  setFiles(fileList);
+  setDirectoryName(handle.name);
+  setLastSyncAt(new Date().toISOString());
 
   return {
     directoryName: handle.name,
@@ -61,21 +54,23 @@ const syncDirectoryHandle = async (
 
 const isAbortError = (error: unknown) => (error as { name?: string }).name === 'AbortError';
 
-export const syncFolder = (): AppThunk<Promise<FolderSyncResult>> => async (dispatch) => {
+export const syncFolder = async (): Promise<FolderSyncResult> => {
   if (!canUseFileSystemAccess()) {
     return {
       status: 'unsupported',
     };
   }
 
+  const { clearFiles, setFolderSyncInProgress } = useAppStore.getState();
+
   try {
-    dispatch(setLoading(true));
-    dispatch(clearFiles());
+    setFolderSyncInProgress(true);
+    clearFiles();
 
     const savedHandle = await loadDirectoryHandle();
 
     if (!savedHandle) {
-      await resetSyncedFolderState(dispatch, {
+      await resetSyncedFolderState({
         clearPersistedHandle: true,
       });
 
@@ -84,7 +79,7 @@ export const syncFolder = (): AppThunk<Promise<FolderSyncResult>> => async (disp
       };
     }
 
-    return await syncDirectoryHandle(dispatch, savedHandle, {
+    return await syncDirectoryHandle(savedHandle, {
       resetOnPermissionFailure: true,
     });
   } catch (error: unknown) {
@@ -98,11 +93,11 @@ export const syncFolder = (): AppThunk<Promise<FolderSyncResult>> => async (disp
       status: 'error',
     };
   } finally {
-    dispatch(setLoading(false));
+    useAppStore.getState().setFolderSyncInProgress(false);
   }
 };
 
-export const selectFolder = (): AppThunk<Promise<FolderSyncResult>> => async (dispatch) => {
+export const selectFolder = async (): Promise<FolderSyncResult> => {
   if (!canUseFileSystemAccess()) {
     return {
       status: 'unsupported',
@@ -110,10 +105,10 @@ export const selectFolder = (): AppThunk<Promise<FolderSyncResult>> => async (di
   }
 
   try {
-    dispatch(setLoading(true));
+    useAppStore.getState().setFolderSyncInProgress(true);
 
     const dirHandle = await window.showDirectoryPicker();
-    const syncResult = await syncDirectoryHandle(dispatch, dirHandle, {
+    const syncResult = await syncDirectoryHandle(dirHandle, {
       resetOnPermissionFailure: false,
     });
 
@@ -133,6 +128,6 @@ export const selectFolder = (): AppThunk<Promise<FolderSyncResult>> => async (di
       status: 'error',
     };
   } finally {
-    dispatch(setLoading(false));
+    useAppStore.getState().setFolderSyncInProgress(false);
   }
 };
