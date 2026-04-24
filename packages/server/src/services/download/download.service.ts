@@ -1,16 +1,16 @@
-import type { TrackOptions } from '../types.js';
+import type { TrackOptions } from '../../types.js';
 import type { Response } from 'express';
 
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 
-import { env } from '../config/env.js';
-import { HttpError } from '../errors/http-error.js';
-import { getLogger } from '../lib/logger.js';
-import { requireProviderByUrl, requireProviderFeature } from '../providers/index.js';
-import { getContentDispositionHeader } from '../utils/sanitize.utils.js';
-import { createDownloadFolder, removeFolder } from '../utils/temp.utils.js';
+import { env } from '../../config/env.js';
+import { HttpError } from '../../errors/http-error.js';
+import { getLogger } from '../../lib/logger.js';
+import { requireProviderByUrl, requireProviderFeature } from '../../providers/index.js';
+import { getContentDispositionHeader } from '../../utils/sanitize.utils.js';
+import { createDownloadFolder, removeFolder } from '../../utils/temp.utils.js';
 
 export type DownloadResult = {
   downloadFolder: string;

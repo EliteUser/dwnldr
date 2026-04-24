@@ -1,6 +1,9 @@
+import type { UploadedArtwork } from './services/artwork/artwork.types.js';
+
 export type TrackProps = {
   name?: string;
   album?: string;
+  artwork?: UploadedArtwork;
   lyrics?: string;
 };
 
@@ -16,6 +19,9 @@ export type TrackProcessOptions = TrackProps & {
 
 export type TrackMetadata = {
   id: number | string;
+  artwork: {
+    url: string | null;
+  };
   artwork_url: string | null;
   permalink_url: string;
   duration: number;

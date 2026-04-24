@@ -1,4 +1,4 @@
-FROM node:22-bullseye-slim AS builder
+FROM node:24-bullseye-slim AS builder
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY . .
 RUN pnpm build
 RUN pnpm --filter ./packages/server --legacy deploy --prod /prod/server
 
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 RUN npm install -g pnpm@10.33.0 \
     && apt-get update \

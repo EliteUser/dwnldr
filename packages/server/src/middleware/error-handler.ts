@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler } from 'express';
 
+import multer from 'multer';
 import { ZodError } from 'zod';
 
 import { HttpError } from '../errors/http-error.js';
@@ -40,6 +41,23 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
       error: error.message,
       code: error.code,
       details: error.details,
+    });
+    return;
+  }
+
+  if (error instanceof multer.MulterError) {
+    logger.warn(
+      {
+        evt: 'request.upload.invalid',
+        code: error.code,
+        field: error.field,
+      },
+      error.message,
+    );
+
+    res.status(400).json({
+      error: error.code === 'LIMIT_FILE_SIZE' ? 'Uploaded file is too large.' : 'Invalid upload.',
+      code: 'INVALID_INPUT',
     });
     return;
   }

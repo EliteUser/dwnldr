@@ -1,9 +1,9 @@
 import type { SoundcloudTrack, SoundcloudUser } from 'soundcloud.ts';
 
-import { HttpError } from '../errors/http-error.js';
-import { callSoundCloudApi } from '../lib/soundcloud-api.js';
-import { soundcloud } from '../lib/soundcloud.js';
-import { getSoundCloudTrackData } from './track-metadata.service.js';
+import { HttpError } from '../../errors/http-error.js';
+import { callSoundCloudApi } from '../../lib/soundcloud-api.js';
+import { soundcloud } from '../../lib/soundcloud.js';
+import { getSoundCloudTrackData } from '../metadata/track-metadata.service.js';
 
 export const getUserById = async (userId: string): Promise<SoundcloudUser> => {
   const user = await callSoundCloudApi(

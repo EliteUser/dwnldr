@@ -1,8 +1,8 @@
-import type { ReadinessStatus } from '../../services/health.service.js';
+import type { ReadinessStatus } from '../../services/health/health.service.js';
 
 import { Router } from 'express';
 
-import { getHealthStatus, getReadinessStatus } from '../../services/health.service.js';
+import { getHealthStatus, getReadinessStatus } from '../../services/health/health.service.js';
 
 export type HealthRouterOptions = {
   getReadiness?: () => Promise<ReadinessStatus>;

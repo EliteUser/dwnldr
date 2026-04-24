@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const checkInstallationAsyncMock = vi.fn();
 const getInfoAsyncMock = vi.fn();
 
-vi.mock('../lib/ytdlp.js', () => ({
+vi.mock('../../lib/ytdlp.js', () => ({
   createYtDlp: () => ({
     checkInstallationAsync: checkInstallationAsyncMock,
     getInfoAsync: getInfoAsyncMock,

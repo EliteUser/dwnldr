@@ -1,0 +1,137 @@
+.artworkEditor {
+  display: flex;
+  flex-direction: column;
+  row-gap: 12px;
+}
+
+.previewRow {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.preview {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--g-color-line-generic);
+  border-radius: 8px;
+  background: var(--g-color-base-generic);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.uploadButton {
+  display: inline-flex;
+  align-items: center;
+  column-gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--g-color-line-generic);
+  border-radius: 6px;
+  color: var(--g-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.sheetContent {
+  padding: 0;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 16px;
+  padding: 16px;
+}
+
+.sheetToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.error {
+  flex-basis: 100%;
+}
+
+.cropArea {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  flex-grow: 1;
+  padding: 16px;
+  border: 1px solid var(--g-color-line-generic);
+  border-radius: 8px;
+  background: var(--g-color-base-generic);
+}
+
+.crop {
+  max-width: min(720px, 100%);
+  max-height: min(62dvh, 680px);
+
+  :global(.ReactCrop__child-wrapper) > img {
+    width: auto;
+    height: min(62dvh, 680px);
+    max-width: 100%;
+    max-height: inherit;
+  }
+}
+
+.emptyCrop {
+  display: grid;
+  place-items: center;
+  min-height: 280px;
+  padding: 24px;
+}
+
+.sheetActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .previewRow {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .preview {
+    width: 88px;
+  }
+
+  .sheetActions {
+    grid-template-columns: 1fr;
+  }
+}

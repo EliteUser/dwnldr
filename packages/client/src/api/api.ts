@@ -10,6 +10,9 @@ type UserResult = {
 
 export type TracksResult = {
   id: number | string;
+  artwork?: {
+    url: string | null;
+  };
   artwork_url: string | null;
   permalink_url: string;
   duration: number;

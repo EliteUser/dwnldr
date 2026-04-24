@@ -10,38 +10,63 @@ const notifyApiErrorMock = vi.fn();
 const notifyErrorMock = vi.fn();
 const notifySuccessMock = vi.fn();
 
-vi.mock('@gravity-ui/uikit', () => ({
-  Button: ({ children, disabled, onClick }: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) => (
-    <button disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  ),
-  Icon: () => null,
-  Label: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
-  Loader: () => <div>Loading</div>,
-  Progress: ({ value }: { value?: number }) => <div>{value ?? 0}</div>,
-  TextArea: ({
-    onChange,
-    placeholder,
-    value,
-  }: {
-    onChange?: (event: { target: { value: string } }) => void;
-    placeholder?: string;
-    value?: string;
-  }) => <textarea placeholder={placeholder} value={value} onChange={(event) => onChange?.(event as never)} />,
-  TextInput: ({
-    onChange,
-    placeholder,
-    value,
-  }: {
-    onChange?: (event: { target: { value: string } }) => void;
-    placeholder?: string;
-    value?: string;
-  }) => <input placeholder={placeholder} value={value} onChange={(event) => onChange?.(event as never)} />,
-}));
+vi.mock('@gravity-ui/uikit', () => {
+  const DisclosureMock = ({ children, summary }: { children?: ReactNode; summary?: ReactNode }) => (
+    <section>
+      <div>{summary}</div>
+      <div>{children}</div>
+    </section>
+  );
+  DisclosureMock.Details = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
+
+  return {
+    Button: ({
+      children,
+      disabled,
+      onClick,
+      ...props
+    }: {
+      children?: ReactNode;
+      disabled?: boolean;
+      onClick?: () => void;
+    }) => (
+      <button disabled={disabled} onClick={onClick} {...props}>
+        {children}
+      </button>
+    ),
+    Disclosure: DisclosureMock,
+    Icon: () => null,
+    Loader: () => <div>Loading</div>,
+    Progress: ({ value }: { value?: number }) => <div>{value ?? 0}</div>,
+    Sheet: ({ children, visible }: { children?: ReactNode; visible?: boolean }) =>
+      visible ? <div>{children}</div> : null,
+    Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
+    TextArea: ({
+      onChange,
+      placeholder,
+      value,
+    }: {
+      onChange?: (event: { target: { value: string } }) => void;
+      placeholder?: string;
+      value?: string;
+    }) => <textarea placeholder={placeholder} value={value} onChange={(event) => onChange?.(event as never)} />,
+    TextInput: ({
+      onChange,
+      placeholder,
+      value,
+    }: {
+      onChange?: (event: { target: { value: string } }) => void;
+      placeholder?: string;
+      value?: string;
+    }) => <input placeholder={placeholder} value={value} onChange={(event) => onChange?.(event as never)} />,
+  };
+});
 
 vi.mock('@gravity-ui/icons', () => ({
+  ArrowRotateLeft: {},
   ArrowShapeDownToLine: {},
+  ArrowShapeUpFromLine: {},
+  Pencil: {},
 }));
 
 vi.mock('../../api/api', () => ({
@@ -112,6 +137,16 @@ describe('Download', () => {
   });
 
   it('clears form fields when a different likes-track URL is selected', () => {
+    providerTrackQueryMock.mockReturnValue({
+      currentData: {
+        user: 'Artist',
+        title: 'Track One',
+      },
+      error: undefined,
+      isFetching: false,
+      provider: undefined,
+    });
+
     const { rerender } = render(<Download selectedUrl='https://soundcloud.com/artist/track-one' />);
 
     fireEvent.change(screen.getByPlaceholderText('Track name'), {
@@ -124,11 +159,18 @@ describe('Download', () => {
       target: { value: 'Lyrics text' },
     });
 
+    providerTrackQueryMock.mockReturnValue({
+      currentData: undefined,
+      error: undefined,
+      isFetching: true,
+      provider: undefined,
+    });
+
     rerender(<Download selectedUrl='https://soundcloud.com/artist/track-two' />);
 
-    expect(screen.getByPlaceholderText('Track name')).toHaveValue('');
-    expect(screen.getByPlaceholderText('Album (optional)')).toHaveValue('');
-    expect(screen.getByPlaceholderText('Lyrics (optional)')).toHaveValue('');
+    expect(screen.queryByPlaceholderText('Track name')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Album (optional)')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Lyrics (optional)')).not.toBeInTheDocument();
   });
 
   it('aborts an in-progress download when Cancel is clicked', async () => {
@@ -181,16 +223,19 @@ describe('Download', () => {
   });
 
   it('does not repopulate the name field from stale query data while a new URL is loading', async () => {
+    const loadedTrackQuery = {
+      currentData: {
+        user: 'Artist',
+        title: 'Track One',
+      },
+      error: undefined,
+      isFetching: false,
+      provider: undefined,
+    };
+
     providerTrackQueryMock
-      .mockReturnValueOnce({
-        currentData: {
-          user: 'Artist',
-          title: 'Track One',
-        },
-        error: undefined,
-        isFetching: false,
-        provider: undefined,
-      })
+      .mockReturnValueOnce(loadedTrackQuery)
+      .mockReturnValueOnce(loadedTrackQuery)
       .mockReturnValue({
         data: {
           user: 'Artist',
@@ -210,7 +255,7 @@ describe('Download', () => {
 
     rerender(<Download selectedUrl='https://soundcloud.com/artist/track-two' />);
 
-    expect(screen.getByPlaceholderText('Track name')).toHaveValue('');
+    expect(screen.queryByPlaceholderText('Track name')).not.toBeInTheDocument();
   });
 
   it('uses the browser download flow without opening the save file picker', async () => {

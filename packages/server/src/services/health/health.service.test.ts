@@ -23,11 +23,11 @@ vi.mock('node:fs/promises', async () => {
   };
 });
 
-vi.mock('../utils/temp.utils.js', () => ({
+vi.mock('../../utils/temp.utils.js', () => ({
   ensureTempRoot: ensureTempRootMock,
 }));
 
-vi.mock('../lib/ytdlp.js', () => ({
+vi.mock('../../lib/ytdlp.js', () => ({
   createYtDlp: () => ({
     binaryPath: '/usr/bin/yt-dlp',
     checkInstallationAsync: checkInstallationAsyncMock,

@@ -17,7 +17,7 @@ vi.mock('node:fs/promises', async () => {
   };
 });
 
-vi.mock('../lib/ytdlp.js', () => ({
+vi.mock('../../lib/ytdlp.js', () => ({
   createYtDlp: () => ({
     execAsync: execAsyncMock,
     getInfoAsync: getInfoAsyncMock,

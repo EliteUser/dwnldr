@@ -3,10 +3,10 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { getErrorMessage, isEnospcError } from '../errors/error-utils.js';
-import { HttpError } from '../errors/http-error.js';
-import { getLogger, logTimedOperation } from '../lib/logger.js';
-import { renameFile } from '../utils/common.utils.js';
+import { getErrorMessage, isEnospcError } from '../../errors/error-utils.js';
+import { HttpError } from '../../errors/http-error.js';
+import { getLogger, logTimedOperation } from '../../lib/logger.js';
+import { renameFile } from '../../utils/common.utils.js';
 
 const resolvedFfmpegPath = (ffmpegPath as unknown as string | null) ?? undefined;
 

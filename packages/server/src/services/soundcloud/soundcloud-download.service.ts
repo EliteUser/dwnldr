@@ -1,10 +1,11 @@
-import type { TrackOptions } from '../types.js';
+import type { TrackOptions } from '../../types.js';
 import type { Soundcloud } from 'soundcloud.ts';
 
 import fs from 'node:fs/promises';
 
-import { callSoundCloudApi } from '../lib/soundcloud-api.js';
-import { postProcessTrack } from './post-process.service.js';
+import { callSoundCloudApi } from '../../lib/soundcloud-api.js';
+import { resolveArtworkPath } from '../artwork/artwork.service.js';
+import { postProcessTrack } from '../media/post-process.service.js';
 
 type SoundCloudDownloadOptions = {
   api: Soundcloud;
@@ -57,7 +58,7 @@ export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions
 
   const processedTrack = await postProcessTrack({
     album: album?.trim(),
-    coverPath,
+    coverPath: await resolveArtworkPath(track.artwork, folder, coverPath),
     folder,
     lyrics: lyrics?.trim(),
     name: trackName,

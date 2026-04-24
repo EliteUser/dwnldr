@@ -1,13 +1,13 @@
-import type { TrackProcessOptions } from '../types.js';
+import type { TrackProcessOptions } from '../../types.js';
 
 import NodeID3 from 'node-id3';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_ALBUM_NAME, IMAGE_EXTENSIONS } from '../constants.js';
-import { HttpError } from '../errors/http-error.js';
-import { getLogger } from '../lib/logger.js';
-import { getId } from '../utils/common.utils.js';
+import { DEFAULT_ALBUM_NAME, IMAGE_EXTENSIONS } from '../../constants.js';
+import { HttpError } from '../../errors/http-error.js';
+import { getLogger } from '../../lib/logger.js';
+import { getId } from '../../utils/common.utils.js';
 
 const getTrackTags = (options: Pick<TrackProcessOptions, 'album' | 'lyrics' | 'name'>) => {
   const { name, album = DEFAULT_ALBUM_NAME, lyrics = '' } = options;

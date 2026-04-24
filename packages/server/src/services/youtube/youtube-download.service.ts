@@ -1,22 +1,23 @@
-import type { ProviderDownloadOptions } from '../providers/types.js';
+import type { ProviderDownloadOptions } from '../../providers/types.js';
 import type { PlaylistInfo, VideoInfo } from 'ytdlp-nodejs';
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { getErrorMessage } from '../errors/error-utils.js';
-import { HttpError } from '../errors/http-error.js';
+import { getErrorMessage } from '../../errors/error-utils.js';
+import { HttpError } from '../../errors/http-error.js';
 import {
   isYtDlpSignatureError,
   isYtDlpSpawnError,
   toYouTubeHttpError,
   YOUTUBE_UPSTREAM_MESSAGE,
-} from '../errors/youtube-errors.js';
-import { logTimedOperation } from '../lib/logger.js';
-import { createYtDlp } from '../lib/ytdlp.js';
-import { sanitizeFilename } from '../utils/sanitize.utils.js';
-import { postProcessTrack } from './post-process.service.js';
-import { saveThumbnailFromUrl } from './thumbnail.service.js';
+} from '../../errors/youtube-errors.js';
+import { logTimedOperation } from '../../lib/logger.js';
+import { createYtDlp } from '../../lib/ytdlp.js';
+import { sanitizeFilename } from '../../utils/sanitize.utils.js';
+import { resolveArtworkPath } from '../artwork/artwork.service.js';
+import { postProcessTrack } from '../media/post-process.service.js';
+import { saveThumbnailFromUrl } from '../media/thumbnail.service.js';
 
 const getYoutubeThumbnail = async (info: VideoInfo, folder: string): Promise<string | undefined> => {
   if (info._type !== 'video') {
@@ -126,7 +127,7 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
 
     const processedTrack = await postProcessTrack({
       album: album?.trim(),
-      coverPath,
+      coverPath: await resolveArtworkPath(track.artwork, folder, coverPath),
       folder,
       lyrics: lyrics?.trim(),
       name: trackName,

@@ -11,20 +11,20 @@ const downloadYoutubeTrackMock = vi.fn();
 const downloadSoundCloudTrackMock = vi.fn();
 const soundcloudMock = {};
 
-vi.mock('../utils/temp.utils.js', () => ({
+vi.mock('../../utils/temp.utils.js', () => ({
   createDownloadFolder: createDownloadFolderMock,
   removeFolder: removeFolderMock,
 }));
 
-vi.mock('./youtube-download.service.js', () => ({
+vi.mock('../youtube/youtube-download.service.js', () => ({
   downloadYoutubeTrack: downloadYoutubeTrackMock,
 }));
 
-vi.mock('./soundcloud-download.service.js', () => ({
+vi.mock('../soundcloud/soundcloud-download.service.js', () => ({
   downloadSoundCloudTrack: downloadSoundCloudTrackMock,
 }));
 
-vi.mock('../lib/soundcloud.js', () => ({
+vi.mock('../../lib/soundcloud.js', () => ({
   soundcloud: soundcloudMock,
 }));
 

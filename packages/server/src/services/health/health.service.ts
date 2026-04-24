@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { env } from '../config/env.js';
-import { createYtDlp, ffmpegBinaryPath } from '../lib/ytdlp.js';
-import { ensureTempRoot } from '../utils/temp.utils.js';
+import { env } from '../../config/env.js';
+import { createYtDlp, ffmpegBinaryPath } from '../../lib/ytdlp.js';
+import { ensureTempRoot } from '../../utils/temp.utils.js';
 
 type ReadinessCheck = {
   details?: string;

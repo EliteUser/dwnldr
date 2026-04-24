@@ -4,7 +4,7 @@ const usersGetMock = vi.fn();
 const likesMock = vi.fn();
 const tracksGetMock = vi.fn();
 
-vi.mock('../lib/soundcloud.js', () => ({
+vi.mock('../../lib/soundcloud.js', () => ({
   soundcloud: {
     users: {
       get: usersGetMock,

@@ -1,8 +1,11 @@
+import type { ArtworkDownloadPayload } from '../../types';
+
 import { ArrowShapeDownToLine } from '@gravity-ui/icons';
-import { Button, Icon, Label, Loader, Progress, TextArea, TextInput } from '@gravity-ui/uikit';
+import { Button, Disclosure, Icon, Loader, Progress, Text, TextArea, TextInput } from '@gravity-ui/uikit';
 import { memo, useEffect, useState } from 'react';
 
 import { useGetProviderTrackQuery } from '../../api/api';
+import { ArtworkEditor } from '../../components/artwork-editor';
 import { DOWNLOAD_NOTIFICATION_NAME } from '../../utils/notify/notify.constants';
 import { getApiErrorFromQueryError, useNotify } from '../../utils/notify/notify.utils';
 import { useDownload } from './use-download';
@@ -23,6 +26,8 @@ export const Download = memo<DownloadProps>(function Download(props) {
   const [name, setName] = useState('');
   const [album, setAlbum] = useState('');
   const [lyrics, setLyrics] = useState('');
+  const [artwork, setArtwork] = useState<ArtworkDownloadPayload>();
+  const [isProviderArtworkReady, setIsProviderArtworkReady] = useState(true);
 
   const notify = useNotify();
   const { cancel, download, inProgress, isProgressKnown, progress } = useDownload();
@@ -42,6 +47,7 @@ export const Download = memo<DownloadProps>(function Download(props) {
     setName('');
     setAlbum('');
     setLyrics('');
+    setArtwork(undefined);
   }, [selectedUrl]);
 
   useEffect(() => {
@@ -63,6 +69,7 @@ export const Download = memo<DownloadProps>(function Download(props) {
   useEffect(() => {
     if (!urlInput || urlInput !== debouncedUrl) {
       setName('');
+      setArtwork(undefined);
     }
   }, [debouncedUrl, urlInput]);
 
@@ -74,84 +81,182 @@ export const Download = memo<DownloadProps>(function Download(props) {
     }
   }, [metadataError, notify]);
 
+  const trimmedUrl = urlInput.trim();
+  const hasUrl = Boolean(trimmedUrl);
+  const providerArtworkUrl = track?.artwork?.url ?? track?.artwork_url;
+
+  const isMetadataLoading =
+    hasUrl &&
+    (trimmedUrl !== debouncedUrl ||
+      isFetching ||
+      (Boolean(provider) && !track && !metadataError) ||
+      Boolean(track && providerArtworkUrl && !isProviderArtworkReady));
+
+  const isEditorReady = hasUrl && !isMetadataLoading && Boolean(track);
+  const canDownload = !inProgress && isEditorReady && Boolean(name);
+
+  useEffect(() => {
+    if (!providerArtworkUrl) {
+      setIsProviderArtworkReady(true);
+      return;
+    }
+
+    let isCurrent = true;
+    const image = new Image();
+
+    image.onload = () => {
+      if (isCurrent) {
+        setIsProviderArtworkReady(true);
+      }
+    };
+    image.onerror = () => {
+      if (isCurrent) {
+        setIsProviderArtworkReady(true);
+      }
+    };
+
+    setIsProviderArtworkReady(false);
+    image.src = providerArtworkUrl;
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [providerArtworkUrl]);
+
   return (
     <div className={styles.download}>
-      <TextInput
-        startContent={
-          <Label className={styles.label} theme='normal' size='m'>
-            URL
-          </Label>
-        }
-        size='xl'
-        hasClear
-        value={urlInput}
-        onChange={(evt) => setUrlInput(evt.target.value)}
-        placeholder='Enter track URL'
-      />
+      <section className={styles.sourcePanel}>
+        <div className={styles.sectionHeader}>
+          <Text variant='subheader-2'>Track URL</Text>
 
-      <TextInput
-        startContent={
-          <Label className={styles.label} theme='normal' size='m'>
-            Name
-          </Label>
-        }
-        size='xl'
-        hasClear
-        value={name}
-        onChange={(evt) => setName(evt.target.value)}
-        placeholder='Track name'
-        endContent={
-          isFetching ? (
-            <div className={styles.loader}>
+          {isFetching && (
+            <div className={styles.status}>
               <Loader size='s' />
+              <Text variant='caption-2' color='secondary'>
+                Loading
+              </Text>
             </div>
-          ) : null
-        }
-      />
-
-      <TextInput
-        size='xl'
-        hasClear
-        value={album}
-        onChange={(evt) => setAlbum(evt.target.value)}
-        placeholder='Album (optional)'
-      />
-
-      <TextArea
-        className={styles.textarea}
-        size='xl'
-        hasClear
-        value={lyrics}
-        onChange={(evt) => setLyrics(evt.target.value)}
-        placeholder='Lyrics (optional)'
-        minRows={8}
-        controlProps={{ style: { resize: 'vertical' } }}
-      />
-
-      <Button
-        size='xl'
-        view='action'
-        loading={inProgress}
-        disabled={inProgress || !urlInput || !name}
-        onClick={() =>
-          void download({
-            album,
-            lyrics,
-            name,
-            url: urlInput,
-          })
-        }
-      >
-        <Icon size={16} data={ArrowShapeDownToLine} /> Download
-      </Button>
-
-      {inProgress && (
-        <div className={styles.actions}>
-          <Button size='xl' view='outlined' onClick={cancel}>
-            Cancel
-          </Button>
-          <Progress size='xs' theme='info' value={progress} loading={!isProgressKnown} />
+          )}
         </div>
+
+        <TextInput
+          size='xl'
+          hasClear
+          value={urlInput}
+          onChange={(evt) => setUrlInput(evt.target.value)}
+          placeholder='Enter track URL'
+        />
+      </section>
+
+      {isMetadataLoading ? (
+        <section className={styles.loadingState}>
+          <Loader size='m' />
+          <Text variant='body-2' color='secondary'>
+            Preparing track details and artwork
+          </Text>
+        </section>
+      ) : isEditorReady ? (
+        <div className={styles.editorLayout}>
+          <Disclosure
+            className={styles.metadataPanel}
+            defaultExpanded
+            keepMounted
+            size='l'
+            summary={<Text variant='subheader-2'>Metadata</Text>}
+          >
+            <Disclosure.Details>
+              <div className={styles.fields}>
+                <TextInput
+                  size='xl'
+                  hasClear
+                  value={name}
+                  onChange={(evt) => setName(evt.target.value)}
+                  placeholder='Track name'
+                />
+
+                <TextInput
+                  size='xl'
+                  hasClear
+                  value={album}
+                  onChange={(evt) => setAlbum(evt.target.value)}
+                  placeholder='Album (optional)'
+                />
+
+                <TextArea
+                  className={styles.textarea}
+                  size='xl'
+                  hasClear
+                  value={lyrics}
+                  onChange={(evt) => setLyrics(evt.target.value)}
+                  placeholder='Lyrics (optional)'
+                  minRows={7}
+                  controlProps={{ style: { resize: 'vertical' } }}
+                />
+              </div>
+            </Disclosure.Details>
+          </Disclosure>
+
+          <Disclosure
+            className={styles.sidePanel}
+            defaultExpanded
+            keepMounted
+            size='l'
+            summary={<Text variant='subheader-2'>Cover Image</Text>}
+          >
+            <Disclosure.Details>
+              <div className={styles.artwork}>
+                <ArtworkEditor
+                  disabled={inProgress}
+                  onArtworkChange={setArtwork}
+                  providerArtworkUrl={providerArtworkUrl}
+                  resetKey={debouncedUrl}
+                />
+              </div>
+            </Disclosure.Details>
+          </Disclosure>
+
+          <section className={styles.submitPanel}>
+            <Button
+              size='xl'
+              view='action'
+              width='max'
+              loading={inProgress}
+              disabled={!canDownload}
+              onClick={() =>
+                void download({
+                  album,
+                  artwork,
+                  lyrics,
+                  name,
+                  url: trimmedUrl,
+                })
+              }
+            >
+              <Icon size={16} data={ArrowShapeDownToLine} /> Download
+            </Button>
+
+            {inProgress && (
+              <div className={styles.actions}>
+                <Progress size='xs' theme='info' value={progress} loading={!isProgressKnown} />
+                <Button size='xl' view='outlined' onClick={cancel}>
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : !hasUrl ? (
+        <section className={styles.emptyState}>
+          <Text variant='body-2' color='secondary'>
+            Paste a track URL to start.
+          </Text>
+        </section>
+      ) : (
+        <section className={styles.emptyState}>
+          <Text variant='body-2' color='secondary'>
+            Track details could not be loaded.
+          </Text>
+        </section>
       )}
     </div>
   );

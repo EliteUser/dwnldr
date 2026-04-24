@@ -1,22 +1,54 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { z } from 'zod';
 
+import { HttpError } from '../../errors/http-error.js';
 import { requireProviderByUrl } from '../../providers/index.js';
-import { downloadTrack, streamFileToResponse } from '../../services/download.service.js';
+import { downloadTrack, streamFileToResponse } from '../../services/download/download.service.js';
+
+const MAX_ARTWORK_SIZE = 8 * 1024 * 1024;
 
 const downloadBodySchema = z.object({
   url: z.string().trim().url(),
   name: z.string().trim().optional(),
   album: z.string().trim().optional(),
+  artworkSource: z.enum(['custom']).optional(),
   lyrics: z.string().trim().optional(),
 });
 
 export const downloadRouter = Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_ARTWORK_SIZE,
+    files: 1,
+  },
+});
 
-downloadRouter.post('/download', async (req, res) => {
+downloadRouter.post('/download', upload.single('artwork'), async (req, res) => {
   const track = downloadBodySchema.parse(req.body);
+  const file = req.file;
+
+  if (track.artworkSource === 'custom' && !file) {
+    throw new HttpError(400, 'Custom artwork file is required.', {
+      code: 'INVALID_INPUT',
+    });
+  }
 
   requireProviderByUrl(track.url);
 
-  streamFileToResponse(res, await downloadTrack(track));
+  streamFileToResponse(
+    res,
+    await downloadTrack({
+      ...track,
+      ...(file && {
+        artwork: {
+          buffer: file.buffer,
+          mimeType: file.mimetype,
+          originalName: file.originalname,
+          size: file.size,
+        },
+      }),
+    }),
+  );
 });

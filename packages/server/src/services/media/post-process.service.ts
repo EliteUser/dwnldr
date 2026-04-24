@@ -1,9 +1,9 @@
 import path from 'node:path';
 
-import { getExtension, renameFile } from '../utils/common.utils.js';
-import { sanitizeFilename } from '../utils/sanitize.utils.js';
+import { getExtension, renameFile } from '../../utils/common.utils.js';
+import { sanitizeFilename } from '../../utils/sanitize.utils.js';
+import { updateTrackMeta } from '../metadata/metadata.service.js';
 import { convertToMp3 } from './ffmpeg.service.js';
-import { updateTrackMeta } from './metadata.service.js';
 
 type PostProcessTrackOptions = {
   album?: string;

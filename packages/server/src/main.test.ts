@@ -3,7 +3,7 @@ import type { Server } from 'node:http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createGracefulShutdownHandler } from './main.js';
-import { resetHealthStateForTests } from './services/health.service.js';
+import { resetHealthStateForTests } from './services/health/health.service.js';
 
 describe('createGracefulShutdownHandler', () => {
   afterEach(() => {

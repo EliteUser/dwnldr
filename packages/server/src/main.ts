@@ -8,7 +8,7 @@ import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { assertYtDlpAvailable, createYtDlp, ffmpegBinaryPath } from './lib/ytdlp.js';
-import { setServerShuttingDown } from './services/health.service.js';
+import { setServerShuttingDown } from './services/health/health.service.js';
 import { ensureTempRoot, sweepStaleDownloadFolders } from './utils/temp.utils.js';
 
 const STALE_DOWNLOAD_MAX_AGE_MS = 30 * 60 * 1000;

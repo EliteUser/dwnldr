@@ -3,13 +3,104 @@
   flex-direction: column;
   max-height: 100%;
   flex-grow: 1;
-  row-gap: 16px;
+  min-height: 0;
+  overflow: auto;
+  row-gap: 14px;
   padding: 16px;
 }
 
-.label {
-  margin-inline-end: 4px;
-  height: 36px;
+.sourcePanel,
+.metadataPanel,
+.sidePanel,
+.submitPanel,
+.emptyState,
+.loadingState {
+  border-radius: 8px;
+  background: #18181b;
+}
+
+.sourcePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--g-color-base-generic);
+}
+
+.editorLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 14px;
+  align-items: start;
+  min-height: 0;
+}
+
+.metadataPanel,
+.sidePanel,
+.submitPanel,
+.loadingState {
+  padding: 16px;
+}
+
+.metadataPanel {
+  min-width: 0;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-block-start: 12px;
+}
+
+.sidePanel {
+  position: sticky;
+  top: 0;
+}
+
+.submitPanel {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-direction: column;
+  margin-block-start: auto;
+  gap: 12px;
+}
+
+.emptyState {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  padding: 24px;
+}
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  gap: 12px;
 }
 
 .textarea {
@@ -22,13 +113,26 @@
   }
 }
 
-.loader {
-  display: flex;
-  padding-inline-end: 8px;
+.artwork {
+  padding-block-start: 12px;
 }
 
 .actions {
   display: flex;
   flex-direction: column;
   row-gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .download {
+    padding: 12px;
+  }
+
+  .editorLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidePanel {
+    position: static;
+  }
 }

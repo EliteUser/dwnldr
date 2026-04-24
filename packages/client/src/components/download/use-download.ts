@@ -1,3 +1,5 @@
+import type { ArtworkDownloadPayload } from '../../types';
+
 import { useCallback, useRef, useState } from 'react';
 
 import { isAbortError } from '../../utils/common/common.utils';
@@ -11,6 +13,7 @@ import { parseApiErrorResponse, useNotify } from '../../utils/notify/notify.util
 
 type DownloadInput = {
   album?: string;
+  artwork?: ArtworkDownloadPayload;
   lyrics?: string;
   name: string;
   url: string;
@@ -25,7 +28,7 @@ export const useDownload = () => {
   const [isProgressKnown, setIsProgressKnown] = useState(false);
 
   const download = useCallback(
-    async ({ album, lyrics, name, url }: DownloadInput) => {
+    async ({ album, artwork, lyrics, name, url }: DownloadInput) => {
       if (!url || !name) {
         return;
       }
@@ -37,21 +40,42 @@ export const useDownload = () => {
       setIsProgressKnown(false);
       setProgress(0);
 
-      const body = {
+      const jsonBody = {
         url,
         name,
         ...(album && { album }),
         ...(lyrics && { lyrics }),
       };
+      const body = new FormData();
+
+      body.set('url', url);
+      body.set('name', name);
+
+      if (album) {
+        body.set('album', album);
+      }
+
+      if (lyrics) {
+        body.set('lyrics', lyrics);
+      }
+
+      if (artwork?.source === 'custom') {
+        body.set('artworkSource', 'custom');
+        body.set('artwork', artwork.file);
+      }
 
       try {
         const response = await fetch('/api/download', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/octet-stream',
-          },
-          body: JSON.stringify(body),
+          headers: artwork
+            ? {
+                Accept: 'application/octet-stream',
+              }
+            : {
+                'Content-Type': 'application/json',
+                Accept: 'application/octet-stream',
+              },
+          body: artwork ? body : JSON.stringify(jsonBody),
           signal: abortController.signal,
         });
 

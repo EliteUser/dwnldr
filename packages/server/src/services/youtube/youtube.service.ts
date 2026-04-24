@@ -1,16 +1,16 @@
 import type { VideoInfo } from 'ytdlp-nodejs';
 
-import { getErrorMessage } from '../errors/error-utils.js';
-import { HttpError } from '../errors/http-error.js';
+import { getErrorMessage } from '../../errors/error-utils.js';
+import { HttpError } from '../../errors/http-error.js';
 import {
   isYtDlpSignatureError,
   isYtDlpSpawnError,
   toYouTubeHttpError,
   YOUTUBE_UPSTREAM_MESSAGE,
-} from '../errors/youtube-errors.js';
-import { logTimedOperation } from '../lib/logger.js';
-import { createYtDlp } from '../lib/ytdlp.js';
-import { getYouTubeTrackData } from './track-metadata.service.js';
+} from '../../errors/youtube-errors.js';
+import { logTimedOperation } from '../../lib/logger.js';
+import { createYtDlp } from '../../lib/ytdlp.js';
+import { getYouTubeTrackData } from '../metadata/track-metadata.service.js';
 
 export const getYouTubeTrackByUrl = async (url: string) => {
   const ytdlp = createYtDlp();
