@@ -1,6 +1,5 @@
-import type { ReactNode } from 'react';
-
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Download } from './download';
@@ -38,6 +37,31 @@ vi.mock('@gravity-ui/uikit', () => {
     Icon: () => null,
     Loader: () => <div>Loading</div>,
     Progress: ({ value }: { value?: number }) => <div>{value ?? 0}</div>,
+    SegmentedRadioGroup: ({
+      disabled,
+      onUpdate,
+      options,
+      value,
+    }: {
+      disabled?: boolean;
+      onUpdate?: (value: string) => void;
+      options?: Array<{ content?: ReactNode; value: string }>;
+      value?: string;
+    }) => (
+      <div>
+        {options?.map((option) => (
+          <button
+            disabled={disabled}
+            key={option.value}
+            type='button'
+            aria-pressed={option.value === value}
+            onClick={() => onUpdate?.(option.value)}
+          >
+            {option.content}
+          </button>
+        ))}
+      </div>
+    ),
     Sheet: ({ children, visible }: { children?: ReactNode; visible?: boolean }) =>
       visible ? <div>{children}</div> : null,
     Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
@@ -256,6 +280,28 @@ describe('Download', () => {
     rerender(<Download selectedUrl='https://soundcloud.com/artist/track-two' />);
 
     expect(screen.queryByPlaceholderText('Track name')).not.toBeInTheDocument();
+  });
+
+  it('does not block metadata editing while provider artwork is loading', async () => {
+    providerTrackQueryMock.mockReturnValue({
+      currentData: {
+        artwork: {
+          url: 'https://img.example.test/cover.jpg',
+        },
+        artwork_url: 'https://img.example.test/cover.jpg',
+        user: 'Artist',
+        title: 'Track Name',
+      },
+      error: undefined,
+      isFetching: false,
+      provider: undefined,
+    });
+
+    render(<Download selectedUrl='https://soundcloud.com/artist/track' />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track Name');
+    });
   });
 
   it('uses the browser download flow without opening the save file picker', async () => {

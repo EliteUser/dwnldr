@@ -1,5 +1,4 @@
 import type { RequestHandler } from 'express';
-
 import crypto from 'node:crypto';
 
 import { logger, withRequestContext } from '../lib/logger.js';

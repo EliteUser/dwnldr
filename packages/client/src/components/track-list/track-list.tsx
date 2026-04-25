@@ -3,7 +3,7 @@ import { Icon, Text, TextInput } from '@gravity-ui/uikit';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useMemo, useRef, useState } from 'react';
 
-import { TracksResult } from '../../api/api';
+import type { TracksResult } from '../../api/api';
 import { useAppStore } from '../../store';
 import { createDownloadedTrackMatcher } from '../../utils';
 import { Track } from '../track/track';

@@ -1,7 +1,7 @@
 .header {
   display: flex;
-  align-items: center;
   column-gap: 16px;
+  align-items: center;
   justify-content: space-between;
   padding: 16px;
 }
@@ -9,17 +9,17 @@
 .likes {
   display: flex;
   flex-direction: column;
-  max-height: 100%;
   flex-grow: 1;
-  height: 100%;
+  block-size: 100%;
+  max-block-size: 100%;
 }
 
 .notice {
   margin: 0 16px 16px;
   padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--g-color-base-warning-heavy) 30%, transparent);
   border-radius: 12px;
   background: color-mix(in srgb, var(--g-color-base-warning-light) 20%, transparent);
-  border: 1px solid color-mix(in srgb, var(--g-color-base-warning-heavy) 30%, transparent);
 }
 
 .emptyState {
@@ -28,9 +28,9 @@
   row-gap: 12px;
   margin: 0 16px 16px;
   padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--g-color-private-blue-350-solid) 45%, transparent);
   border-radius: 16px;
   background: color-mix(in srgb, var(--g-color-private-blue-100-solid) 24%, transparent);
-  border: 1px solid color-mix(in srgb, var(--g-color-private-blue-350-solid) 45%, transparent);
 }
 
 .loader {
@@ -39,11 +39,11 @@
   flex-grow: 1;
   align-items: center;
   justify-content: center;
-  max-height: 64px;
+  max-block-size: 64px;
 }
 
 .progress {
   position: fixed;
-  inset-inline: 0;
   inset-block: 0;
+  inset-inline: 0;
 }

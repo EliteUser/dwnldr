@@ -1,7 +1,6 @@
-import type { ArtworkDownloadPayload } from '../../types';
-
 import { useCallback, useRef, useState } from 'react';
 
+import type { ArtworkDownloadPayload } from '../../types';
 import { isAbortError } from '../../utils/common/common.utils';
 import { getDownloadFileName, readResponse, triggerBrowserDownload } from '../../utils/download/download.utils';
 import {

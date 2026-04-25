@@ -1,6 +1,7 @@
-import type { TrackMetadata } from '../../types.js';
 import type { SoundcloudTrack } from 'soundcloud.ts';
 import type { VideoInfo } from 'ytdlp-nodejs';
+
+import type { TrackMetadata } from '../../types.js';
 
 export const getSoundCloudTrackData = (track: SoundcloudTrack): TrackMetadata => {
   const { id, user, title, artwork_url, permalink_url, duration } = track;

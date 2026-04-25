@@ -1,7 +1,6 @@
-import type { MusicProvider } from '../types.js';
-
 import { downloadYoutubeTrack } from '../../services/youtube/youtube-download.service.js';
 import { getYouTubeTrackByUrl } from '../../services/youtube/youtube.service.js';
+import type { MusicProvider } from '../types.js';
 
 export const youtubeProvider: MusicProvider = {
   key: 'youtube',

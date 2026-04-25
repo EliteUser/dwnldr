@@ -121,7 +121,7 @@ export const Likes = memo<LikesProps>((props) => {
       return `Folder: ${folder}`;
     }
 
-    return `${fileCount} files in ${folder} • ${formattedLastSyncAt}`;
+    return `${fileCount} files in ${folder} - ${formattedLastSyncAt}`;
   }, [fileCount, folder, formattedLastSyncAt, hasFolder, isSyncInProgress]);
 
   useEffect(() => {

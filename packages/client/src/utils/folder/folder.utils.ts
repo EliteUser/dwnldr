@@ -1,5 +1,4 @@
 import type { FileData } from '../../types';
-
 import { getFileData } from '../common/common.utils';
 
 export const FILE_SYSTEM_ACCESS_HELP_TEXT =

@@ -28,9 +28,16 @@ const upload = multer({
 downloadRouter.post('/download', upload.single('artwork'), async (req, res) => {
   const track = downloadBodySchema.parse(req.body);
   const file = req.file;
+  const { artworkSource: _artworkSource, ...trackOptions } = track;
 
   if (track.artworkSource === 'custom' && !file) {
     throw new HttpError(400, 'Custom artwork file is required.', {
+      code: 'INVALID_INPUT',
+    });
+  }
+
+  if (file && track.artworkSource !== 'custom') {
+    throw new HttpError(400, 'artworkSource=custom is required when uploading artwork.', {
       code: 'INVALID_INPUT',
     });
   }
@@ -40,15 +47,16 @@ downloadRouter.post('/download', upload.single('artwork'), async (req, res) => {
   streamFileToResponse(
     res,
     await downloadTrack({
-      ...track,
-      ...(file && {
-        artwork: {
-          buffer: file.buffer,
-          mimeType: file.mimetype,
-          originalName: file.originalname,
-          size: file.size,
-        },
-      }),
+      ...trackOptions,
+      ...(track.artworkSource === 'custom' &&
+        file && {
+          artwork: {
+            buffer: file.buffer,
+            mimeType: file.mimetype,
+            originalName: file.originalname,
+            size: file.size,
+          },
+        }),
     }),
   );
 });

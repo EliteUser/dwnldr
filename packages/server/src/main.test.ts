@@ -1,5 +1,4 @@
 import type { Server } from 'node:http';
-
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createGracefulShutdownHandler } from './main.js';

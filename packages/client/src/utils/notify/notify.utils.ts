@@ -1,5 +1,4 @@
 import type { ToastTheme, ToasterPublicMethods } from '@gravity-ui/uikit';
-
 import { useToaster } from '@gravity-ui/uikit';
 import { toaster } from '@gravity-ui/uikit/toaster-singleton';
 import { useMemo } from 'react';

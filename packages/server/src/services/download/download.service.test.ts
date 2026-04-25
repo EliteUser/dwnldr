@@ -1,4 +1,5 @@
 import express from 'express';
+import type * as FsPromises from 'node:fs/promises';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -31,7 +32,7 @@ vi.mock('../../lib/soundcloud.js', () => ({
 const statMock = vi.hoisted(() => vi.fn());
 
 vi.mock('node:fs/promises', async () => {
-  const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
+  const actual = await vi.importActual<typeof FsPromises>('node:fs/promises');
 
   return {
     ...actual,

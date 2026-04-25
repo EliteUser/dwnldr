@@ -39,8 +39,10 @@ export const resizeImage = async (buffer: Buffer, size: number = 512): Promise<B
     .toBuffer();
 };
 
-export const saveThumbnailFromUrl = async (url: string, outputPath: string) => {
-  const response = await fetch(url);
+export const saveThumbnailFromUrl = async (url: string, outputPath: string, signal?: AbortSignal) => {
+  const response = await fetch(url, {
+    signal,
+  });
 
   if (!response.ok) {
     throw new Error('Failed to download thumbnail');

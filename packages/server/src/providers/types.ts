@@ -2,6 +2,7 @@ import type { ProviderCapabilities, ProviderKey, TrackMetadata, TrackOptions } f
 
 export type ProviderDownloadOptions = {
   folder: string;
+  signal?: AbortSignal;
   track: TrackOptions;
 };
 

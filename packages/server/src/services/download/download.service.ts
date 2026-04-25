@@ -1,6 +1,4 @@
-import type { TrackOptions } from '../../types.js';
 import type { Response } from 'express';
-
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
@@ -9,6 +7,7 @@ import { env } from '../../config/env.js';
 import { HttpError } from '../../errors/http-error.js';
 import { getLogger } from '../../lib/logger.js';
 import { requireProviderByUrl, requireProviderFeature } from '../../providers/index.js';
+import type { TrackOptions } from '../../types.js';
 import { getContentDispositionHeader } from '../../utils/sanitize.utils.js';
 import { createDownloadFolder, removeFolder } from '../../utils/temp.utils.js';
 
@@ -19,8 +18,10 @@ export type DownloadResult = {
   fileSize: number;
 };
 
+class DownloadTimeoutError extends HttpError {}
+
 const withDownloadTimeout = async <T>(
-  operation: () => Promise<T>,
+  operation: (signal: AbortSignal) => Promise<T>,
   options: {
     downloadFolder: string;
     provider: string;
@@ -28,6 +29,8 @@ const withDownloadTimeout = async <T>(
 ) =>
   new Promise<T>((resolve, reject) => {
     let settled = false;
+    let timedOut = false;
+    const abortController = new AbortController();
     const logger = getLogger({
       downloadFolder: options.downloadFolder,
       provider: options.provider,
@@ -38,7 +41,8 @@ const withDownloadTimeout = async <T>(
       }
 
       settled = true;
-      removeFolder(options.downloadFolder);
+      timedOut = true;
+      abortController.abort();
       logger.error(
         {
           evt: 'download.timeout',
@@ -47,7 +51,7 @@ const withDownloadTimeout = async <T>(
         'Download timed out before the file was ready',
       );
       reject(
-        new HttpError(504, 'Download timed out before the file was ready.', {
+        new DownloadTimeoutError(504, 'Download timed out before the file was ready.', {
           code: 'INTERNAL_ERROR',
           details: {
             timeoutMs: env.DOWNLOAD_TIMEOUT_MS,
@@ -58,7 +62,7 @@ const withDownloadTimeout = async <T>(
 
     timeout.unref();
 
-    void operation()
+    void operation(abortController.signal)
       .then((result) => {
         if (settled) {
           return;
@@ -77,6 +81,15 @@ const withDownloadTimeout = async <T>(
       })
       .finally(() => {
         clearTimeout(timeout);
+
+        if (timedOut && removeFolder(options.downloadFolder)) {
+          logger.info(
+            {
+              evt: 'download.timeout.cleanup.executed',
+            },
+            'Cleaned up timed out download after provider work stopped',
+          );
+        }
       });
   });
 
@@ -100,10 +113,11 @@ export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult
 
   try {
     const filePath = await withDownloadTimeout(
-      () =>
+      (signal) =>
         providerDownloadTrack({
           track,
           folder: downloadFolder,
+          signal,
         }),
       {
         downloadFolder,
@@ -128,7 +142,10 @@ export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult
       fileSize: stat.size,
     };
   } catch (error) {
-    removeFolder(downloadFolder);
+    if (!(error instanceof DownloadTimeoutError)) {
+      removeFolder(downloadFolder);
+    }
+
     throw error;
   }
 };

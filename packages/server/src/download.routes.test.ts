@@ -80,6 +80,22 @@ describe('download route', () => {
     expect(downloadTrackMock).not.toHaveBeenCalled();
   });
 
+  it('rejects artwork files without the custom artwork source flag', async () => {
+    const response = await request(createApp())
+      .post('/api/download')
+      .field('url', 'https://www.youtube.com/watch?v=abc123')
+      .attach('artwork', Buffer.from([1, 2, 3]), {
+        filename: 'cover.png',
+        contentType: 'image/png',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      code: 'INVALID_INPUT',
+    });
+    expect(downloadTrackMock).not.toHaveBeenCalled();
+  });
+
   it('rejects artwork files above the upload limit as invalid input', async () => {
     const response = await request(createApp())
       .post('/api/download')

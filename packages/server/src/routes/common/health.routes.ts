@@ -1,7 +1,6 @@
-import type { ReadinessStatus } from '../../services/health/health.service.js';
-
 import { Router } from 'express';
 
+import type { ReadinessStatus } from '../../services/health/health.service.js';
 import { getHealthStatus, getReadinessStatus } from '../../services/health/health.service.js';
 
 export type HealthRouterOptions = {

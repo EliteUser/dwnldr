@@ -1,6 +1,5 @@
-import type { ProviderAdapter, ProviderKey, SourceInfo } from './types';
-
 import { soundcloudProvider } from './soundcloud';
+import type { ProviderAdapter, ProviderKey, SourceInfo } from './types';
 import { youtubeProvider } from './youtube';
 
 export const providers = [soundcloudProvider, youtubeProvider] as const satisfies readonly ProviderAdapter[];

@@ -1,5 +1,3 @@
-import type { MusicProvider } from '../types.js';
-
 import { soundcloud } from '../../lib/soundcloud.js';
 import { downloadSoundCloudTrack } from '../../services/soundcloud/soundcloud-download.service.js';
 import {
@@ -7,6 +5,7 @@ import {
   getSoundCloudTrackByUrl,
   getUserById,
 } from '../../services/soundcloud/soundcloud.service.js';
+import type { MusicProvider } from '../types.js';
 
 export const soundcloudProvider: MusicProvider = {
   key: 'soundcloud',
@@ -17,10 +16,11 @@ export const soundcloudProvider: MusicProvider = {
     metadata: true,
     users: true,
   },
-  downloadTrack: ({ folder, track }) =>
+  downloadTrack: ({ folder, signal, track }) =>
     downloadSoundCloudTrack({
       api: soundcloud,
       folder,
+      signal,
       track,
     }),
   fetchFavorites: getFavoritesByUserId,

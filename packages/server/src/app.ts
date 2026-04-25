@@ -1,5 +1,3 @@
-import type { HealthRouterOptions } from './routes/common/health.routes.js';
-
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -11,6 +9,7 @@ import { env } from './config/env.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { requestLogger } from './middleware/request-logger.js';
 import { apiRouter } from './routes/common/api.routes.js';
+import type { HealthRouterOptions } from './routes/common/health.routes.js';
 import { createHealthRouter } from './routes/common/health.routes.js';
 
 const serverDirPath = path.dirname(fileURLToPath(import.meta.url));

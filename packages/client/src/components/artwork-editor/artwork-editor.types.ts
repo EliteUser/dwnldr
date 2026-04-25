@@ -1,8 +1,15 @@
-import type { ArtworkDownloadPayload } from '../../types';
+import type { Crop } from 'react-image-crop';
 
 export type ArtworkEditorProps = {
   disabled?: boolean;
-  onArtworkChange: (payload?: ArtworkDownloadPayload) => void;
-  providerArtworkUrl?: string | null;
-  resetKey: string;
+  draftUrl?: string;
+  initialCrop?: Crop;
+  onApply: (file: File, crop: Crop) => void;
+  onClose: () => void;
+  visible: boolean;
+};
+
+export type ImageSize = {
+  height: number;
+  width: number;
 };

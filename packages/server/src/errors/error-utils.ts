@@ -24,3 +24,6 @@ export const getErrorStatus = (error: unknown): number | undefined => {
 
 export const isEnospcError = (error: unknown) =>
   typeof error === 'object' && error !== null && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOSPC';
+
+export const isAbortError = (error: unknown) =>
+  typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError';

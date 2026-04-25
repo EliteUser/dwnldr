@@ -1,11 +1,11 @@
 .download {
+  overflow: auto;
   display: flex;
   flex-direction: column;
-  max-height: 100%;
   flex-grow: 1;
-  min-height: 0;
-  overflow: auto;
   row-gap: 14px;
+  min-block-size: 0;
+  max-block-size: 100%;
   padding: 16px;
 }
 
@@ -28,9 +28,9 @@
 
 .sectionHeader {
   display: flex;
+  gap: 16px;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
 
   > div:first-child {
     display: flex;
@@ -41,9 +41,9 @@
 
 .status {
   display: inline-flex;
-  align-items: center;
-  min-height: 28px;
   gap: 8px;
+  align-items: center;
+  min-block-size: 28px;
   padding: 0 10px;
   border-radius: 999px;
   background: var(--g-color-base-generic);
@@ -54,7 +54,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
   gap: 14px;
   align-items: start;
-  min-height: 0;
+  min-block-size: 0;
 }
 
 .metadataPanel,
@@ -65,7 +65,7 @@
 }
 
 .metadataPanel {
-  min-width: 0;
+  min-inline-size: 0;
 }
 
 .fields {
@@ -77,36 +77,36 @@
 
 .sidePanel {
   position: sticky;
-  top: 0;
+  inset-block-start: 0;
 }
 
 .submitPanel {
   display: flex;
   grid-column: 1 / -1;
   flex-direction: column;
-  margin-block-start: auto;
   gap: 12px;
+  margin-block-start: auto;
 }
 
 .emptyState {
   display: grid;
   place-items: center;
-  min-height: 140px;
+  min-block-size: 140px;
   padding: 24px;
 }
 
 .loadingState {
   display: flex;
+  gap: 12px;
   align-items: center;
   justify-content: center;
-  min-height: 180px;
-  gap: 12px;
+  min-block-size: 180px;
 }
 
 .textarea {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-block-size: 0;
 
   :global(.g-text-area__content) {
     flex-direction: column;

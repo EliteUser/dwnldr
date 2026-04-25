@@ -1,7 +1,7 @@
-import type { FileData } from '../types';
-
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+
+import type { FileData } from '../types';
 
 type AppState = {
   directoryName: string | null;

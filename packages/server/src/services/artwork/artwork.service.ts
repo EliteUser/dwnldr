@@ -1,5 +1,3 @@
-import type { UploadedArtwork } from './artwork.types.js';
-
 import path from 'node:path';
 import sharp from 'sharp';
 
@@ -11,6 +9,7 @@ import {
   MAX_ARTWORK_SIZE,
   MIN_ARTWORK_DIMENSION,
 } from './artwork.constants.js';
+import type { UploadedArtwork } from './artwork.types.js';
 import { getArtworkExtension, throwInvalidArtwork } from './artwork.utils.js';
 
 export const assertUploadedArtwork = async (artwork: UploadedArtwork) => {

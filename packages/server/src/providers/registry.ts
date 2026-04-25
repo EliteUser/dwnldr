@@ -1,8 +1,7 @@
-import type { ProviderKey, SourceInfo } from '../types.js';
-import type { MusicProvider, MusicProviderFeature } from './types.js';
-
 import { HttpError } from '../errors/http-error.js';
+import type { ProviderKey, SourceInfo } from '../types.js';
 import { soundcloudProvider } from './soundcloud/index.js';
+import type { MusicProvider, MusicProviderFeature } from './types.js';
 import { youtubeProvider } from './youtube/index.js';
 
 export const providers = [soundcloudProvider, youtubeProvider] as const satisfies readonly MusicProvider[];

@@ -4,7 +4,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { HttpError } from '../../errors/http-error.js';
+import type { HttpError } from '../../errors/http-error.js';
 import { assertUploadedArtwork, saveNormalizedArtwork } from './artwork.service.js';
 
 let tempFolder: string;

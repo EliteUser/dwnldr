@@ -1,6 +1,5 @@
-import type { ProviderAdapter } from '../types';
-
 import { createDefaultTrackName } from '../common';
+import type { ProviderAdapter } from '../types';
 
 export const youtubeProvider: ProviderAdapter = {
   key: 'youtube',

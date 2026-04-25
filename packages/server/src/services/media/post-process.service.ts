@@ -11,15 +11,20 @@ type PostProcessTrackOptions = {
   folder: string;
   lyrics?: string;
   name: string;
+  signal?: AbortSignal;
   trackPath: string;
 };
 
 export const postProcessTrack = async (options: PostProcessTrackOptions) => {
-  const { folder, trackPath, coverPath, name, album, lyrics } = options;
+  const { folder, trackPath, coverPath, name, album, lyrics, signal } = options;
   const rawTrackName = name.trim();
   const sanitizedTrackName = sanitizeFilename(rawTrackName);
 
-  const convertedTrackPath = await convertToMp3(trackPath);
+  signal?.throwIfAborted();
+
+  const convertedTrackPath = await convertToMp3(trackPath, {
+    signal,
+  });
   const finalTrackPath = path.join(folder, `${sanitizedTrackName}.mp3`);
 
   if (convertedTrackPath !== finalTrackPath) {
@@ -35,6 +40,8 @@ export const postProcessTrack = async (options: PostProcessTrackOptions) => {
       await renameFile(coverPath, finalCoverPath);
     }
   }
+
+  signal?.throwIfAborted();
 
   await updateTrackMeta({
     album: album?.trim(),

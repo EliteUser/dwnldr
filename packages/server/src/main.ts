@@ -1,7 +1,6 @@
+import fs from 'node:fs/promises';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-
-import fs from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 import { createApp } from './app.js';

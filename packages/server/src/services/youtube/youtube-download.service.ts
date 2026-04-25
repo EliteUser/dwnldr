@@ -1,10 +1,8 @@
-import type { ProviderDownloadOptions } from '../../providers/types.js';
-import type { PlaylistInfo, VideoInfo } from 'ytdlp-nodejs';
-
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { PlaylistInfo, VideoInfo } from 'ytdlp-nodejs';
 
-import { getErrorMessage } from '../../errors/error-utils.js';
+import { getErrorMessage, isAbortError } from '../../errors/error-utils.js';
 import { HttpError } from '../../errors/http-error.js';
 import {
   isYtDlpSignatureError,
@@ -14,29 +12,52 @@ import {
 } from '../../errors/youtube-errors.js';
 import { logTimedOperation } from '../../lib/logger.js';
 import { createYtDlp } from '../../lib/ytdlp.js';
+import type { ProviderDownloadOptions } from '../../providers/types.js';
 import { sanitizeFilename } from '../../utils/sanitize.utils.js';
 import { resolveArtworkPath } from '../artwork/artwork.service.js';
 import { postProcessTrack } from '../media/post-process.service.js';
 import { saveThumbnailFromUrl } from '../media/thumbnail.service.js';
 
-const getYoutubeThumbnail = async (info: VideoInfo, folder: string): Promise<string | undefined> => {
+const getYoutubeThumbnail = async (
+  info: VideoInfo,
+  folder: string,
+  options: {
+    signal?: AbortSignal;
+    useProviderArtwork: boolean;
+  },
+): Promise<string | undefined> => {
+  if (!options.useProviderArtwork) {
+    return undefined;
+  }
+
   if (info._type !== 'video') {
     return undefined;
   }
 
   if (!info.thumbnail) {
-    throw new Error('No thumbnail found for video');
+    return undefined;
   }
 
-  return saveThumbnailFromUrl(info.thumbnail, path.join(folder, 'cover.png'));
+  try {
+    return await saveThumbnailFromUrl(info.thumbnail, path.join(folder, 'cover.png'), options.signal);
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+
+    return undefined;
+  }
 };
 
 export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => {
   const { folder, track } = options;
   const { url, name, album, lyrics } = track;
+  const { signal } = options;
   const ytdlp = createYtDlp();
 
   try {
+    signal?.throwIfAborted();
+
     await fs.mkdir(folder, { recursive: true });
 
     const info = (await logTimedOperation(
@@ -67,6 +88,8 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
       },
       () => ytdlp.getInfoAsync(url),
     )) as PlaylistInfo | VideoInfo;
+
+    signal?.throwIfAborted();
 
     if (info._type === 'playlist') {
       throw new HttpError(400, 'Playlists are not supported', {
@@ -122,7 +145,10 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
           return downloadTargetPath;
         },
       ),
-      getYoutubeThumbnail(info, path.resolve(folder)),
+      getYoutubeThumbnail(info, path.resolve(folder), {
+        signal,
+        useProviderArtwork: !track.artwork,
+      }),
     ]);
 
     const processedTrack = await postProcessTrack({
@@ -131,6 +157,7 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
       folder,
       lyrics: lyrics?.trim(),
       name: trackName,
+      signal,
       trackPath,
     });
 

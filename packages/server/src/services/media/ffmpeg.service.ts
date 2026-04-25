@@ -3,21 +3,24 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { getErrorMessage, isEnospcError } from '../../errors/error-utils.js';
+import { getErrorMessage, isAbortError, isEnospcError } from '../../errors/error-utils.js';
 import { HttpError } from '../../errors/http-error.js';
 import { getLogger, logTimedOperation } from '../../lib/logger.js';
 import { renameFile } from '../../utils/common.utils.js';
 
 const resolvedFfmpegPath = (ffmpegPath as unknown as string | null) ?? undefined;
 
-const runFfmpeg = async (args: string[]): Promise<void> => {
+const runFfmpeg = async (args: string[], signal?: AbortSignal): Promise<void> => {
   await new Promise<void>((resolve, reject) => {
     if (!resolvedFfmpegPath) {
       reject(new Error('FFmpeg binary is not available'));
       return;
     }
 
+    signal?.throwIfAborted();
+
     const ffmpeg = spawn(resolvedFfmpegPath, args, {
+      signal,
       stdio: ['ignore', 'ignore', 'pipe'],
     });
 
@@ -39,23 +42,26 @@ const runFfmpeg = async (args: string[]): Promise<void> => {
   });
 };
 
-const normalizeMp4 = async (inputPath: string): Promise<string> => {
+const normalizeMp4 = async (inputPath: string, signal?: AbortSignal): Promise<string> => {
   const fixedPath = `${inputPath}.fixed.m4a`;
 
-  await runFfmpeg([
-    '-y',
-    '-fflags',
-    '+genpts',
-    '-i',
-    inputPath,
-    '-map_metadata',
-    '0',
-    '-c',
-    'copy',
-    '-movflags',
-    '+faststart',
-    fixedPath,
-  ]);
+  await runFfmpeg(
+    [
+      '-y',
+      '-fflags',
+      '+genpts',
+      '-i',
+      inputPath,
+      '-map_metadata',
+      '0',
+      '-c',
+      'copy',
+      '-movflags',
+      '+faststart',
+      fixedPath,
+    ],
+    signal,
+  );
 
   return fixedPath;
 };
@@ -76,11 +82,19 @@ const getFfmpegParams = (sourcePath: string, outputPath: string) => [
   outputPath,
 ];
 
-export const convertToMp3 = async (inputPath: string): Promise<string> => {
+export const convertToMp3 = async (
+  inputPath: string,
+  options: {
+    signal?: AbortSignal;
+  } = {},
+): Promise<string> => {
   const parsedPath = path.parse(inputPath);
+  const { signal } = options;
   const logger = getLogger({
     inputPath,
   });
+
+  signal?.throwIfAborted();
 
   if (parsedPath.ext.toLowerCase() === '.mp3') {
     return inputPath;
@@ -105,11 +119,15 @@ export const convertToMp3 = async (inputPath: string): Promise<string> => {
           outputPath,
         },
       },
-      () => runFfmpeg(getFfmpegParams(sourcePath, tempPath)),
+      () => runFfmpeg(getFfmpegParams(sourcePath, tempPath), signal),
     );
   } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+
     try {
-      sourcePath = await normalizeMp4(inputPath);
+      sourcePath = await normalizeMp4(inputPath, signal);
       await logTimedOperation(
         {
           startEvt: 'download.conversion.started',
@@ -123,7 +141,7 @@ export const convertToMp3 = async (inputPath: string): Promise<string> => {
             outputPath,
           },
         },
-        () => runFfmpeg(getFfmpegParams(sourcePath, tempPath)),
+        () => runFfmpeg(getFfmpegParams(sourcePath, tempPath), signal),
       );
       await fs.unlink(sourcePath);
     } catch (nestedError) {

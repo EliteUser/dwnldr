@@ -1,13 +1,11 @@
-import type { ArtworkDownloadPayload } from '../../types';
-
 import { ArrowShapeDownToLine } from '@gravity-ui/icons';
 import { Button, Disclosure, Icon, Loader, Progress, Text, TextArea, TextInput } from '@gravity-ui/uikit';
 import { memo, useEffect, useState } from 'react';
 
 import { useGetProviderTrackQuery } from '../../api/api';
-import { ArtworkEditor } from '../../components/artwork-editor';
-import { DOWNLOAD_NOTIFICATION_NAME } from '../../utils/notify/notify.constants';
-import { getApiErrorFromQueryError, useNotify } from '../../utils/notify/notify.utils';
+import { Artwork } from '../../components/artwork';
+import type { ArtworkDownloadPayload } from '../../types';
+import { getApiErrorFromQueryError, useNotify, DOWNLOAD_NOTIFICATION_NAME } from '../../utils';
 import { useDownload } from './use-download';
 
 import styles from './download.module.scss';
@@ -27,7 +25,6 @@ export const Download = memo<DownloadProps>(function Download(props) {
   const [album, setAlbum] = useState('');
   const [lyrics, setLyrics] = useState('');
   const [artwork, setArtwork] = useState<ArtworkDownloadPayload>();
-  const [isProviderArtworkReady, setIsProviderArtworkReady] = useState(true);
 
   const notify = useNotify();
   const { cancel, download, inProgress, isProgressKnown, progress } = useDownload();
@@ -86,42 +83,10 @@ export const Download = memo<DownloadProps>(function Download(props) {
   const providerArtworkUrl = track?.artwork?.url ?? track?.artwork_url;
 
   const isMetadataLoading =
-    hasUrl &&
-    (trimmedUrl !== debouncedUrl ||
-      isFetching ||
-      (Boolean(provider) && !track && !metadataError) ||
-      Boolean(track && providerArtworkUrl && !isProviderArtworkReady));
+    hasUrl && (trimmedUrl !== debouncedUrl || isFetching || (Boolean(provider) && !track && !metadataError));
 
   const isEditorReady = hasUrl && !isMetadataLoading && Boolean(track);
   const canDownload = !inProgress && isEditorReady && Boolean(name);
-
-  useEffect(() => {
-    if (!providerArtworkUrl) {
-      setIsProviderArtworkReady(true);
-      return;
-    }
-
-    let isCurrent = true;
-    const image = new Image();
-
-    image.onload = () => {
-      if (isCurrent) {
-        setIsProviderArtworkReady(true);
-      }
-    };
-    image.onerror = () => {
-      if (isCurrent) {
-        setIsProviderArtworkReady(true);
-      }
-    };
-
-    setIsProviderArtworkReady(false);
-    image.src = providerArtworkUrl;
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [providerArtworkUrl]);
 
   return (
     <div className={styles.download}>
@@ -151,9 +116,6 @@ export const Download = memo<DownloadProps>(function Download(props) {
       {isMetadataLoading ? (
         <section className={styles.loadingState}>
           <Loader size='m' />
-          <Text variant='body-2' color='secondary'>
-            Preparing track details and artwork
-          </Text>
         </section>
       ) : isEditorReady ? (
         <div className={styles.editorLayout}>
@@ -205,7 +167,7 @@ export const Download = memo<DownloadProps>(function Download(props) {
           >
             <Disclosure.Details>
               <div className={styles.artwork}>
-                <ArtworkEditor
+                <Artwork
                   disabled={inProgress}
                   onArtworkChange={setArtwork}
                   providerArtworkUrl={providerArtworkUrl}

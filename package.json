@@ -9,10 +9,12 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "oxlint . --deny-warnings",
     "lint:fix": "oxlint . --fix",
+    "lint:styles": "pnpm --filter ./packages/client lint:styles",
+    "lint:styles:fix": "pnpm --filter ./packages/client lint:styles:fix",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "test": "pnpm -r test",
-    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm lint && pnpm lint:styles && pnpm format:check && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
     "concurrently": "9.2.1",

@@ -1,6 +1,5 @@
-import type { VideoInfo } from 'ytdlp-nodejs';
-
 import { describe, expect, it } from 'vitest';
+import type { VideoInfo } from 'ytdlp-nodejs';
 
 import { getYouTubeTrackData } from './track-metadata.service.js';
 

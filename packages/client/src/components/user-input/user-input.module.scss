@@ -2,15 +2,15 @@ $avatarSize: 44px;
 
 .input {
   display: flex;
-  align-items: center;
   column-gap: 8px;
+  align-items: center;
 }
 
 .avatar {
-  width: $avatarSize;
-  height: $avatarSize;
-  min-width: $avatarSize;
-  min-height: $avatarSize;
-  max-width: $avatarSize;
-  max-height: $avatarSize;
+  inline-size: $avatarSize;
+  min-inline-size: $avatarSize;
+  max-inline-size: $avatarSize;
+  block-size: $avatarSize;
+  min-block-size: $avatarSize;
+  max-block-size: $avatarSize;
 }
