@@ -1,13 +1,13 @@
-import { Heart, ArrowShapeDownToLine, MusicNote } from '@gravity-ui/icons';
+import { ArrowShapeDownToLine, Gear, Heart, MusicNote } from '@gravity-ui/icons';
 import { TabList, Tab, Icon, TabPanel, TabProvider } from '@gravity-ui/uikit';
 import { memo, useCallback, useEffect, useState } from 'react';
 
-import { Download, Likes } from './components';
+import { Download, Likes, Settings } from './components';
 
 import styles from './app.module.scss';
 
 const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
-const ENABLED_TABS = ['likes', 'download'] as const;
+const ENABLED_TABS = ['likes', 'download', 'settings'] as const;
 type ActiveTab = (typeof ENABLED_TABS)[number];
 
 const DEFAULT_TAB: ActiveTab = 'likes';
@@ -59,6 +59,10 @@ export const App = memo(() => {
             <Download selectedUrl={selectedUrl} />
           </TabPanel>
 
+          <TabPanel className={styles.tabPanel} value='settings'>
+            <Settings />
+          </TabPanel>
+
           <TabPanel className={styles.tabPanel} value='metadata'>
             Meta Panel
           </TabPanel>
@@ -80,6 +84,10 @@ export const App = memo(() => {
 
           <Tab className={styles.tab} value='metadata' icon={<Icon size={16} data={MusicNote} />} disabled>
             Meta
+          </Tab>
+
+          <Tab className={styles.tab} value='settings' icon={<Icon size={16} data={Gear} />}>
+            Settings
           </Tab>
         </TabList>
       </TabProvider>

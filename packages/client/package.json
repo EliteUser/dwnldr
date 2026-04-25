@@ -7,8 +7,8 @@
     "dev": "vite --host",
     "build": "vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint:styles": "stylelint \"src/**/*.scss\"",
-    "lint:styles:fix": "stylelint \"src/**/*.scss\" --fix",
+    "stylelint": "stylelint \"src/**/*.scss\"",
+    "stylelint:fix": "stylelint \"src/**/*.scss\" --fix",
     "test": "vitest run",
     "preview": "vite preview"
   },

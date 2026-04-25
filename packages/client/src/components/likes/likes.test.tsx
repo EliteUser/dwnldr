@@ -12,31 +12,12 @@ const notifyInfoMock = vi.fn();
 const notifySuccessMock = vi.fn();
 const refetchMock = vi.fn();
 const syncFolderMock = vi.fn(async () => ({ status: 'success', directoryName: 'Music', fileCount: 1 }));
-const selectFolderMock = vi.fn(async () => ({ status: 'success', directoryName: 'Music', fileCount: 1 }));
 
 vi.mock('@gravity-ui/uikit', () => ({
   Button: ({ children, disabled, onClick }: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) => (
     <button disabled={disabled} onClick={onClick}>
       {children}
     </button>
-  ),
-  DropdownMenu: ({
-    items,
-    renderSwitcher,
-  }: {
-    items: Array<{ action?: () => void; hidden?: boolean; text: ReactNode }>;
-    renderSwitcher: (props: Record<string, never>) => ReactNode;
-  }) => (
-    <div>
-      {renderSwitcher({})}
-      {items
-        .filter((item) => !item.hidden)
-        .map((item) => (
-          <div key={typeof item.text === 'string' ? item.text : 'item'}>
-            <button onClick={item.action}>{item.text}</button>
-          </div>
-        ))}
-    </div>
   ),
   Icon: () => null,
   Loader: () => <div>Loading</div>,
@@ -46,9 +27,6 @@ vi.mock('@gravity-ui/uikit', () => ({
 
 vi.mock('@gravity-ui/icons', () => ({
   ArrowRotateRight: {},
-  FolderArrowUpIn: {},
-  FolderOpen: {},
-  Gear: {},
 }));
 
 vi.mock('../../api/api', () => ({
@@ -56,7 +34,6 @@ vi.mock('../../api/api', () => ({
 }));
 
 vi.mock('../../store/folder.actions', () => ({
-  selectFolder: () => selectFolderMock(),
   syncFolder: () => syncFolderMock(),
 }));
 
@@ -77,10 +54,6 @@ vi.mock('../../utils/notify/notify.utils', () => ({
 
 vi.mock('../track-list/track-list', () => ({
   TrackList: () => <div>Track List</div>,
-}));
-
-vi.mock('../user-input/user-input', () => ({
-  UserInput: () => <div>User Input</div>,
 }));
 
 const renderLikes = (
@@ -112,7 +85,6 @@ describe('Likes', () => {
     notifySuccessMock.mockReset();
     refetchMock.mockReset();
     syncFolderMock.mockClear();
-    selectFolderMock.mockClear();
     useAppStore.setState({
       directoryName: null,
       files: [],
@@ -122,7 +94,7 @@ describe('Likes', () => {
     });
   });
 
-  it('shows a getting-started empty state when no user is configured', () => {
+  it('points account setup to Settings when no user is configured', () => {
     favoritesQueryMock.mockReturnValue({
       data: undefined,
       error: undefined,
@@ -133,7 +105,7 @@ describe('Likes', () => {
 
     renderLikes(null);
 
-    expect(screen.getByText('Enter your SoundCloud user ID to load your likes')).toBeInTheDocument();
+    expect(screen.getByText('Connect SoundCloud in Settings to load your likes')).toBeInTheDocument();
   });
 
   it('shows a retry state when loading likes fails', () => {
@@ -155,7 +127,7 @@ describe('Likes', () => {
     expect(notifyApiErrorMock).toHaveBeenCalled();
   });
 
-  it('shows folder sync status inside the dropdown instead of the main content area', () => {
+  it('renders the track list when a user and favorites are configured', () => {
     favoritesQueryMock.mockReturnValue({
       data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
       error: undefined,
@@ -170,9 +142,20 @@ describe('Likes', () => {
       lastSyncAt: '2026-04-22T09:15:00.000Z',
     });
 
-    expect(screen.getByText('Sync File System')).toBeInTheDocument();
-    expect(screen.getByText(/1 files in Music/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Last synced/i)).not.toBeInTheDocument();
     expect(screen.getByText('Track List')).toBeInTheDocument();
+  });
+
+  it('points folder setup to Settings when favorites exist without a folder', () => {
+    favoritesQueryMock.mockReturnValue({
+      data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+      refetch: refetchMock,
+    });
+
+    renderLikes('12345');
+
+    expect(screen.getByText('Pick a download location in Settings')).toBeInTheDocument();
   });
 });
