@@ -20,6 +20,10 @@
   border-radius: 8px;
   background: var(--g-color-base-generic);
 
+  &[data-dragging] {
+    border-color: var(--g-color-line-info);
+  }
+
   img {
     inline-size: 100%;
     block-size: 100%;
@@ -27,17 +31,31 @@
   }
 }
 
+.previewEmpty {
+  display: grid;
+  gap: 6px;
+  place-items: center;
+  padding: 12px;
+  color: var(--g-color-text-secondary);
+  text-align: center;
+}
+
 .summary {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-inline-size: 0;
+}
+
+.summaryTitle {
+  color: var(--g-color-text-primary);
 }
 
 .controls {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  padding-block-start: 2px;
 }
 
 .sourceControls {

@@ -151,7 +151,7 @@ export const Download = memo<DownloadProps>(function Download(props) {
                   value={lyrics}
                   onChange={(evt) => setLyrics(evt.target.value)}
                   placeholder='Lyrics (optional)'
-                  minRows={7}
+                  rows={7}
                   controlProps={{ style: { resize: 'vertical' } }}
                 />
               </div>

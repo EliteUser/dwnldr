@@ -4,6 +4,7 @@ import type { ChangeEvent } from 'react';
 import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { Crop } from 'react-image-crop';
 
+import { FileDropzone } from '../../lib';
 import { ArtworkEditor } from '../artwork-editor';
 import { ACCEPTED_ARTWORK_INPUT, ARTWORK_SOURCE_OPTIONS } from './artwork.constants';
 import type { ArtworkProps, ArtworkSourceMode } from './artwork.types';
@@ -110,15 +111,8 @@ export const Artwork = memo<ArtworkProps>((props) => {
     onArtworkChange(undefined);
   }, [onArtworkChange, providerArtworkUrl, revokePreviewUrl, revokeSourceUrl]);
 
-  const handleFileChange = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      event.target.value = '';
-
-      if (!file) {
-        return;
-      }
-
+  const handleArtworkFile = useCallback(
+    async (file: File) => {
       try {
         await openEditorWithFile(file);
       } catch (validationError) {
@@ -126,6 +120,18 @@ export const Artwork = memo<ArtworkProps>((props) => {
       }
     },
     [openEditorWithFile],
+  );
+
+  const handleFileChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+
+      if (file) {
+        void handleArtworkFile(file);
+      }
+    },
+    [handleArtworkFile],
   );
 
   const handleUrlLoad = useCallback(async () => {
@@ -169,25 +175,42 @@ export const Artwork = memo<ArtworkProps>((props) => {
   return (
     <div className={styles.artwork}>
       <div className={styles.previewRow}>
-        <div className={styles.preview}>
+        <FileDropzone
+          activeHint='Drop image to crop'
+          className={styles.preview}
+          disabled={disabled}
+          onFileDrop={handleArtworkFile}
+        >
           {visiblePreviewUrl ? (
             <img src={visiblePreviewUrl} alt='' />
           ) : (
-            <Text variant='caption-2' color='secondary'>
-              No artwork
-            </Text>
+            <div className={styles.previewEmpty}>
+              <Icon size={20} data={ArrowShapeUpFromLine} />
+              <Text variant='body-1'>Drop image here</Text>
+              <Text variant='caption-2' color='secondary'>
+                JPEG, PNG, or WebP
+              </Text>
+            </div>
           )}
-        </div>
+        </FileDropzone>
 
         <div className={styles.summary}>
-          <Text variant='body-1'>
+          <Text className={styles.summaryTitle} variant='body-1'>
             {isChanged ? 'Custom artwork' : providerArtworkUrl ? 'Default artwork' : 'No artwork'}
           </Text>
 
+          <Text variant='caption-2' color='secondary'>
+            {visiblePreviewUrl
+              ? 'Drop a new image on the preview to replace it.'
+              : 'Upload an image or paste an image URL.'}
+          </Text>
+
           <div className={styles.controls}>
-            <Button size='m' view='outlined' disabled={disabled || !visiblePreviewUrl} onClick={handleOpen}>
-              <Icon size={16} data={Pencil} /> {visiblePreviewUrl ? 'Edit' : 'Add'}
-            </Button>
+            {visiblePreviewUrl && (
+              <Button size='m' view='outlined' disabled={disabled} onClick={handleOpen}>
+                <Icon size={16} data={Pencil} /> Edit
+              </Button>
+            )}
 
             {isChanged && (
               <Button size='m' view='flat-secondary' disabled={disabled} onClick={handleReset}>

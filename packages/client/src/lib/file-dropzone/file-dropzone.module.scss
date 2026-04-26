@@ -1,0 +1,59 @@
+.dropzone {
+  position: relative;
+}
+
+.dragging {
+  outline: 2px solid var(--g-color-line-info);
+  outline-offset: 2px;
+}
+
+.hint {
+  pointer-events: none;
+  position: absolute;
+  inset-inline-start: 12px;
+  inset-inline-end: 12px;
+  inset-block-end: 10px;
+  z-index: 1;
+  padding: 3px 8px;
+  border: 1px solid var(--g-color-line-generic);
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--g-color-text-secondary);
+  text-align: center;
+  background: color-mix(in srgb, var(--g-color-base-float) 88%, transparent);
+
+  &[data-hidden] {
+    visibility: hidden;
+  }
+}
+
+.inlineHint {
+  pointer-events: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--g-color-text-secondary);
+  text-align: center;
+
+  &[data-hidden] {
+    visibility: hidden;
+  }
+}
+
+.overlay {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border: 2px dashed var(--g-color-line-info);
+  border-radius: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--g-color-text-primary);
+  text-align: center;
+  background: color-mix(in srgb, var(--g-color-base-info-heavy) 24%, rgb(0 0 0 / 72%));
+}
