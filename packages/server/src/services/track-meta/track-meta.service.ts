@@ -3,6 +3,7 @@ import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 
 import { HttpError } from '../../errors/http-error.js';
+import { logTimedOperation } from '../../lib/logger.js';
 import type { TrackProps } from '../../types.js';
 import { sanitizeFilename } from '../../utils/sanitize.utils.js';
 import { createDownloadFolder, removeFolder } from '../../utils/temp.utils.js';
@@ -102,58 +103,103 @@ const getArtworkFromTags = (tags: NodeID3.Tags): TrackMetaMetadata['artwork'] =>
 };
 
 export const inspectLocalTrack = async (audio: UploadedAudio): Promise<TrackMetaMetadata> => {
-  assertUploadedAudio(audio);
+  return await logTimedOperation(
+    {
+      startEvt: 'track_meta.inspect.started',
+      successEvt: 'track_meta.inspect.completed',
+      failureEvt: 'track_meta.inspect.failed',
+      startMessage: 'Inspecting local audio metadata',
+      successMessage: 'Inspected local audio metadata',
+      failureMessage: 'Failed to inspect local audio metadata',
+      failureLevel: 'warn',
+      bindings: {
+        mimeType: audio.mimeType,
+        originalName: audio.originalName,
+        size: audio.size,
+      },
+      getSuccessBindings: (metadata) => ({
+        hasArtwork: Boolean(metadata.artwork),
+        hasLyrics: Boolean(metadata.lyrics),
+      }),
+    },
+    async () => {
+      assertUploadedAudio(audio);
 
-  let tags: NodeID3.Tags;
+      let tags: NodeID3.Tags;
 
-  try {
-    tags = await NodeID3.Promise.read(audio.buffer);
-  } catch {
-    tags = {};
-  }
+      try {
+        tags = await NodeID3.Promise.read(audio.buffer);
+      } catch {
+        tags = {};
+      }
 
-  const fallbackName = path.basename(audio.originalName, getAudioExtension(audio.originalName));
+      const fallbackName = path.basename(audio.originalName, getAudioExtension(audio.originalName));
 
-  return {
-    album: tags.album?.trim() ?? '',
-    artwork: getArtworkFromTags(tags),
-    lyrics: getLyricsFromTags(tags),
-    name: getNameFromTags(tags, fallbackName),
-  };
+      return {
+        album: tags.album?.trim() ?? '',
+        artwork: getArtworkFromTags(tags),
+        lyrics: getLyricsFromTags(tags),
+        name: getNameFromTags(tags, fallbackName),
+      };
+    },
+  );
 };
 
 export const rewriteLocalTrack = async (options: RewriteLocalTrackOptions): Promise<DownloadResult> => {
-  const { audio, artwork, name } = options;
+  return await logTimedOperation(
+    {
+      startEvt: 'track_meta.rewrite.started',
+      successEvt: 'track_meta.rewrite.completed',
+      failureEvt: 'track_meta.rewrite.failed',
+      startMessage: 'Rewriting local audio metadata',
+      successMessage: 'Rewrote local audio metadata',
+      failureMessage: 'Failed to rewrite local audio metadata',
+      bindings: {
+        hasCustomArtwork: Boolean(options.artwork),
+        mimeType: options.audio.mimeType,
+        originalName: options.audio.originalName,
+        size: options.audio.size,
+      },
+      getSuccessBindings: (result) => ({
+        downloadFolder: result.downloadFolder,
+        fileName: result.fileName,
+        fileSize: result.fileSize,
+      }),
+    },
+    async () => {
+      const { audio, artwork, name } = options;
 
-  assertUploadedAudio(audio);
+      assertUploadedAudio(audio);
 
-  const downloadFolder = await createDownloadFolder();
-  const fileName = getOutputName(name || path.basename(audio.originalName, getAudioExtension(audio.originalName)));
-  const filePath = path.join(downloadFolder, fileName);
+      const downloadFolder = await createDownloadFolder();
+      const fileName = getOutputName(name || path.basename(audio.originalName, getAudioExtension(audio.originalName)));
+      const filePath = path.join(downloadFolder, fileName);
 
-  try {
-    await fsPromises.writeFile(filePath, audio.buffer);
+      try {
+        await fsPromises.writeFile(filePath, audio.buffer);
 
-    const coverPath = await resolveArtworkPath(artwork as UploadedArtwork | undefined, downloadFolder);
+        const coverPath = await resolveArtworkPath(artwork as UploadedArtwork | undefined, downloadFolder);
 
-    await updateTrackMeta({
-      album: options.album,
-      coverPath,
-      filePath,
-      lyrics: options.lyrics,
-      name: name || path.basename(audio.originalName, getAudioExtension(audio.originalName)),
-    });
+        await updateTrackMeta({
+          album: options.album,
+          coverPath,
+          filePath,
+          lyrics: options.lyrics,
+          name: name || path.basename(audio.originalName, getAudioExtension(audio.originalName)),
+        });
 
-    const stat = await fsPromises.stat(filePath);
+        const stat = await fsPromises.stat(filePath);
 
-    return {
-      downloadFolder,
-      fileName,
-      filePath,
-      fileSize: stat.size,
-    };
-  } catch (error) {
-    removeFolder(downloadFolder);
-    throw error;
-  }
+        return {
+          downloadFolder,
+          fileName,
+          filePath,
+          fileSize: stat.size,
+        };
+      } catch (error) {
+        removeFolder(downloadFolder);
+        throw error;
+      }
+    },
+  );
 };

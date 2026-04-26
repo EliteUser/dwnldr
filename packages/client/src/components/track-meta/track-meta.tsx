@@ -7,7 +7,9 @@ import { ApiRequestError } from '../../api/api';
 import { Artwork } from '../../components/artwork';
 import { FileDropzone } from '../../lib';
 import type { ArtworkDownloadPayload } from '../../types';
-import { getApiErrorFromQueryError, isAbortError, useNotify, DOWNLOAD_NOTIFICATION_NAME } from '../../utils';
+import { getApiErrorFromQueryError, isAbortError, useNotify, TRACK_META_NOTIFICATION_NAME } from '../../utils';
+import { ACCEPTED_AUDIO_INPUT } from './track-meta.constants';
+import { getAudioValidationMessage } from './track-meta.utils';
 import { useTrackMetaDownload } from './use-track-meta-download';
 
 import styles from './track-meta.module.scss';
@@ -21,8 +23,6 @@ type TrackMetaMetadata = {
   lyrics: string;
   name: string;
 };
-
-const ACCEPTED_AUDIO_INPUT = 'audio/mpeg,.mp3';
 
 const inspectAudioFile = async (audio: File, signal: AbortSignal) => {
   const body = new FormData();
@@ -57,9 +57,20 @@ export const TrackMeta = memo(function TrackMeta() {
   const [name, setName] = useState('');
   const [providerArtworkUrl, setProviderArtworkUrl] = useState<string>();
   const [resetKey, setResetKey] = useState('');
+  const [uploadError, setUploadError] = useState('');
 
   const handleAudioFile = useCallback(
     async (file: File) => {
+      const validationMessage = getAudioValidationMessage(file);
+
+      if (validationMessage) {
+        setUploadError(validationMessage);
+        notify.error(validationMessage, {
+          name: TRACK_META_NOTIFICATION_NAME.invalidAudio,
+        });
+        return;
+      }
+
       inspectAbortControllerRef.current?.abort();
 
       const abortController = new AbortController();
@@ -75,6 +86,7 @@ export const TrackMeta = memo(function TrackMeta() {
       setName('');
       setProviderArtworkUrl(undefined);
       setResetKey(nextResetKey);
+      setUploadError('');
       setIsInspecting(true);
 
       try {
@@ -94,7 +106,7 @@ export const TrackMeta = memo(function TrackMeta() {
         }
 
         notify.apiError(getApiErrorFromQueryError(error), {
-          name: DOWNLOAD_NOTIFICATION_NAME.metadataError,
+          name: TRACK_META_NOTIFICATION_NAME.inspectError,
         });
       } finally {
         if (inspectRequestIdRef.current === requestId) {
@@ -156,12 +168,19 @@ export const TrackMeta = memo(function TrackMeta() {
           id={inputId}
           type='file'
           accept={ACCEPTED_AUDIO_INPUT}
+          disabled={inProgress || isInspecting}
           onChange={handleAudioChange}
         />
 
-        <label className={styles.uploadButton} htmlFor={inProgress ? undefined : inputId}>
+        <label className={styles.uploadButton} htmlFor={inProgress || isInspecting ? undefined : inputId}>
           <Icon size={16} data={ArrowShapeUpFromLine} /> Upload MP3
         </label>
+
+        {uploadError && (
+          <Text className={styles.error} variant='caption-2' color='danger'>
+            {uploadError}
+          </Text>
+        )}
       </FileDropzone>
 
       {isInspecting ? (

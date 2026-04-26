@@ -52,13 +52,14 @@
 
 .input {
   position: absolute;
+  overflow: hidden;
   inline-size: 1px;
   block-size: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
 }
 
 .uploadButton {
+  cursor: pointer;
   display: inline-flex;
   gap: 8px;
   align-items: center;
@@ -68,8 +69,11 @@
   border: 1px solid var(--g-color-line-generic);
   border-radius: 8px;
   color: var(--g-color-text-primary);
-  cursor: pointer;
   background: var(--g-color-base-generic);
+}
+
+.error {
+  color: var(--g-color-text-danger);
 }
 
 .editorLayout {

@@ -50,11 +50,33 @@ export const Settings = memo(() => {
         notify.success(FOLDER_NOTIFICATION_MESSAGE.syncSuccess(result.fileCount, result.directoryName), {
           name: FOLDER_NOTIFICATION_NAME.syncSuccess,
         });
+        return;
       }
 
       if (result.status === 'error') {
         notify.error(FOLDER_NOTIFICATION_MESSAGE.syncError, {
           name: FOLDER_NOTIFICATION_NAME.syncError,
+        });
+        return;
+      }
+
+      if (result.status === 'permission-denied') {
+        notify.error(FOLDER_NOTIFICATION_MESSAGE.permissionDenied, {
+          name: FOLDER_NOTIFICATION_NAME.permissionDenied,
+        });
+        return;
+      }
+
+      if (result.status === 'missing-handle') {
+        notify.info(FOLDER_NOTIFICATION_MESSAGE.missingHandle, {
+          name: FOLDER_NOTIFICATION_NAME.missingHandle,
+        });
+        return;
+      }
+
+      if (result.status === 'unsupported') {
+        notify.error(FOLDER_NOTIFICATION_MESSAGE.fileSystemAccessError, {
+          name: FOLDER_NOTIFICATION_NAME.apiUnsupported,
         });
       }
     },
@@ -81,6 +103,13 @@ export const Settings = memo(() => {
     if (result.status === 'error') {
       notify.error(FOLDER_NOTIFICATION_MESSAGE.pickerError, {
         name: FOLDER_NOTIFICATION_NAME.pickerError,
+      });
+      return;
+    }
+
+    if (result.status === 'permission-denied') {
+      notify.error(FOLDER_NOTIFICATION_MESSAGE.permissionDenied, {
+        name: FOLDER_NOTIFICATION_NAME.permissionDenied,
       });
     }
   }, [notify]);

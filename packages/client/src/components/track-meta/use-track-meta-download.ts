@@ -6,10 +6,10 @@ import {
   getDownloadFileName,
   readResponse,
   triggerBrowserDownload,
-  DOWNLOAD_NOTIFICATION_MESSAGE,
-  DOWNLOAD_NOTIFICATION_NAME,
   FALLBACK_API_ERROR_MESSAGE,
   parseApiErrorResponse,
+  TRACK_META_NOTIFICATION_MESSAGE,
+  TRACK_META_NOTIFICATION_NAME,
   useNotify,
 } from '../../utils';
 
@@ -70,7 +70,7 @@ export const useTrackMetaDownload = () => {
 
         if (!response.ok) {
           notify.apiError(await parseApiErrorResponse(response), {
-            name: DOWNLOAD_NOTIFICATION_NAME.submitError,
+            name: TRACK_META_NOTIFICATION_NAME.submitError,
           });
           return;
         }
@@ -80,7 +80,7 @@ export const useTrackMetaDownload = () => {
 
         if (!reader) {
           notify.error(FALLBACK_API_ERROR_MESSAGE, {
-            name: DOWNLOAD_NOTIFICATION_NAME.missingBody,
+            name: TRACK_META_NOTIFICATION_NAME.missingBody,
           });
           return;
         }
@@ -103,13 +103,13 @@ export const useTrackMetaDownload = () => {
 
         triggerBrowserDownload(fileName, chunks);
 
-        notify.success(DOWNLOAD_NOTIFICATION_MESSAGE.success(name), {
-          name: DOWNLOAD_NOTIFICATION_NAME.success,
+        notify.success(TRACK_META_NOTIFICATION_MESSAGE.success(name), {
+          name: TRACK_META_NOTIFICATION_NAME.success,
         });
       } catch (error) {
         if (!isAbortError(error)) {
           notify.error(FALLBACK_API_ERROR_MESSAGE, {
-            name: DOWNLOAD_NOTIFICATION_NAME.networkError,
+            name: TRACK_META_NOTIFICATION_NAME.networkError,
           });
         }
       } finally {
@@ -123,8 +123,17 @@ export const useTrackMetaDownload = () => {
   );
 
   const cancel = useCallback(() => {
-    abortControllerRef.current?.abort();
-  }, []);
+    const abortController = abortControllerRef.current;
+
+    if (!abortController) {
+      return;
+    }
+
+    abortController.abort();
+    notify.info(TRACK_META_NOTIFICATION_MESSAGE.cancelled, {
+      name: TRACK_META_NOTIFICATION_NAME.cancelled,
+    });
+  }, [notify]);
 
   return {
     cancel,

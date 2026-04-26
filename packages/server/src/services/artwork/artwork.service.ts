@@ -2,6 +2,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 
 import { IMAGE_EXTENSIONS } from '../../constants.js';
+import { logTimedOperation } from '../../lib/logger.js';
 import {
   ALLOWED_ARTWORK_MIME_TYPES,
   ARTWORK_OUTPUT_SIZE,
@@ -70,18 +71,40 @@ export const assertUploadedArtwork = async (artwork: UploadedArtwork) => {
 };
 
 export const saveNormalizedArtwork = async (artwork: UploadedArtwork, folder: string) => {
-  await assertUploadedArtwork(artwork);
+  return await logTimedOperation(
+    {
+      startEvt: 'artwork.normalize.started',
+      successEvt: 'artwork.normalize.completed',
+      failureEvt: 'artwork.normalize.failed',
+      startMessage: 'Normalizing custom artwork',
+      successMessage: 'Normalized custom artwork',
+      failureMessage: 'Failed to normalize custom artwork',
+      failureLevel: 'warn',
+      bindings: {
+        folder,
+        mimeType: artwork.mimeType,
+        originalName: artwork.originalName,
+        size: artwork.size,
+      },
+      getSuccessBindings: (outputPath) => ({
+        outputPath,
+      }),
+    },
+    async () => {
+      await assertUploadedArtwork(artwork);
 
-  const outputPath = path.join(folder, 'custom-artwork.png');
+      const outputPath = path.join(folder, 'custom-artwork.png');
 
-  await sharp(artwork.buffer)
-    .resize(ARTWORK_OUTPUT_SIZE, ARTWORK_OUTPUT_SIZE, {
-      fit: 'cover',
-    })
-    .png()
-    .toFile(outputPath);
+      await sharp(artwork.buffer)
+        .resize(ARTWORK_OUTPUT_SIZE, ARTWORK_OUTPUT_SIZE, {
+          fit: 'cover',
+        })
+        .png()
+        .toFile(outputPath);
 
-  return outputPath;
+      return outputPath;
+    },
+  );
 };
 
 export const resolveArtworkPath = async (

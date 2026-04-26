@@ -1,15 +1,24 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAppStore } from '../../store';
+import type { FolderSyncResult } from '../../store/folder.actions';
 import { Settings } from './settings';
 
 const notifyErrorMock = vi.fn();
 const notifyInfoMock = vi.fn();
 const notifySuccessMock = vi.fn();
-const selectFolderMock = vi.fn(async () => ({ status: 'success', directoryName: 'Music', fileCount: 2 }));
-const syncFolderMock = vi.fn(async () => ({ status: 'success', directoryName: 'Music', fileCount: 2 }));
+const selectFolderMock = vi.fn<() => Promise<FolderSyncResult>>(async () => ({
+  status: 'success',
+  directoryName: 'Music',
+  fileCount: 2,
+}));
+const syncFolderMock = vi.fn<() => Promise<FolderSyncResult>>(async () => ({
+  status: 'success',
+  directoryName: 'Music',
+  fileCount: 2,
+}));
 
 vi.mock('@gravity-ui/uikit', () => ({
   Button: ({ children, disabled, onClick }: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) => (
@@ -97,6 +106,27 @@ describe('Settings', () => {
     fireEvent.click(screen.getByText('Pick Folder'));
     fireEvent.click(screen.getByRole('button', { name: 'Sync Folder' }));
 
+    expect(selectFolderMock).toHaveBeenCalledTimes(1);
+    expect(syncFolderMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('notifies when folder permission is denied', async () => {
+    selectFolderMock.mockResolvedValueOnce({ status: 'permission-denied' });
+    syncFolderMock.mockResolvedValueOnce({ status: 'permission-denied' });
+
+    render(<Settings />);
+
+    fireEvent.click(screen.getByText('Pick Folder'));
+    fireEvent.click(screen.getByRole('button', { name: 'Sync Folder' }));
+
+    await waitFor(() => {
+      expect(notifyErrorMock).toHaveBeenCalledWith(
+        'Folder permission was not granted. Pick the folder again in Settings.',
+        {
+          name: 'folder-permission-denied',
+        },
+      );
+    });
     expect(selectFolderMock).toHaveBeenCalledTimes(1);
     expect(syncFolderMock).toHaveBeenCalledTimes(1);
   });

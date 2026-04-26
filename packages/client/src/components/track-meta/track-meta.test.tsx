@@ -6,6 +6,7 @@ import type * as Utils from '../../utils';
 import { TrackMeta } from './track-meta';
 
 const notifyApiErrorMock = vi.fn();
+const notifyErrorMock = vi.fn();
 const downloadMock = vi.fn();
 
 vi.mock('@gravity-ui/uikit', () => {
@@ -66,6 +67,7 @@ vi.mock('../../utils', async (importOriginal) => {
     getApiErrorFromQueryError: (error: unknown) => error,
     useNotify: () => ({
       apiError: notifyApiErrorMock,
+      error: notifyErrorMock,
     }),
   };
 });
@@ -83,6 +85,7 @@ vi.mock('./use-track-meta-download', () => ({
 describe('TrackMeta', () => {
   beforeEach(() => {
     notifyApiErrorMock.mockReset();
+    notifyErrorMock.mockReset();
     downloadMock.mockReset();
   });
 
@@ -140,5 +143,60 @@ describe('TrackMeta', () => {
       expect(screen.getByPlaceholderText('Track name')).toHaveValue('Second Artist - Second Track');
     });
     expect(notifyApiErrorMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported audio files before inspection', async () => {
+    const fetchMock = vi.fn();
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<TrackMeta />);
+
+    fireEvent.change(screen.getByLabelText('Upload MP3'), {
+      target: {
+        files: [new File(['text'], 'notes.txt', { type: 'text/plain' })],
+      },
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(notifyErrorMock).toHaveBeenCalledWith('Use an MP3 audio file.', {
+      name: 'track-meta-invalid-audio',
+    });
+    expect(screen.getByText('Use an MP3 audio file.')).toBeInTheDocument();
+  });
+
+  it('allows MP3 files when the browser does not provide a MIME type', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            album: '',
+            artwork: null,
+            lyrics: '',
+            name: 'Artist - Track',
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            status: 200,
+          },
+        ),
+      ),
+    );
+
+    render(<TrackMeta />);
+
+    fireEvent.change(screen.getByLabelText('Upload MP3'), {
+      target: {
+        files: [new File(['audio'], 'track.mp3', { type: '' })],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track');
+    });
+    expect(notifyErrorMock).not.toHaveBeenCalled();
   });
 });

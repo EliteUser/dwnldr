@@ -7,6 +7,7 @@ import { Download } from './download';
 const providerTrackQueryMock = vi.fn();
 const notifyApiErrorMock = vi.fn();
 const notifyErrorMock = vi.fn();
+const notifyInfoMock = vi.fn();
 const notifySuccessMock = vi.fn();
 
 vi.mock('@gravity-ui/uikit', () => {
@@ -99,9 +100,11 @@ vi.mock('../../api/api', () => ({
 
 vi.mock('../../utils/notify/notify.constants', () => ({
   DOWNLOAD_NOTIFICATION_MESSAGE: {
+    cancelled: 'Download canceled.',
     success: (name: string) => `Track downloaded: ${name}`,
   },
   DOWNLOAD_NOTIFICATION_NAME: {
+    cancelled: 'download-cancelled',
     metadataError: 'download-metadata-error',
     submitError: 'download-submit-error',
     missingBody: 'download-missing-body',
@@ -117,6 +120,7 @@ vi.mock('../../utils/notify/notify.utils', () => ({
   useNotify: () => ({
     apiError: notifyApiErrorMock,
     error: notifyErrorMock,
+    info: notifyInfoMock,
     success: notifySuccessMock,
   }),
 }));
@@ -131,6 +135,7 @@ describe('Download', () => {
     });
     notifyApiErrorMock.mockReset();
     notifyErrorMock.mockReset();
+    notifyInfoMock.mockReset();
     notifySuccessMock.mockReset();
   });
 
@@ -239,6 +244,9 @@ describe('Download', () => {
 
     await waitFor(() => {
       expect(requestSignal?.aborted).toBe(true);
+    });
+    expect(notifyInfoMock).toHaveBeenCalledWith('Download canceled.', {
+      name: 'download-cancelled',
     });
 
     await waitFor(() => {

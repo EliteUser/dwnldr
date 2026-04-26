@@ -1,9 +1,10 @@
 import { PersonPencil } from '@gravity-ui/icons';
 import { Avatar, Button, Icon, Loader, Text, TextInput } from '@gravity-ui/uikit';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 
 import { useGetUserQuery } from '../../api/api';
 import { useAppStore } from '../../store';
+import { getApiErrorFromQueryError, useNotify } from '../../utils';
 
 import styles from './user-input.module.scss';
 
@@ -11,11 +12,16 @@ export const UserInput = memo(() => {
   const userId = useAppStore((state) => state.userId);
   const setUserId = useAppStore((state) => state.setUserId);
   const clearUserId = useAppStore((state) => state.clearUserId);
+  const notify = useNotify();
 
   const [inputValue, setInputValue] = useState(userId || '');
   const [isEdit, setIsEdit] = useState(!userId);
 
-  const { data: user, isLoading } = useGetUserQuery(userId || '', {
+  const {
+    data: user,
+    error,
+    isLoading,
+  } = useGetUserQuery(userId || '', {
     skip: !userId,
   });
 
@@ -34,8 +40,25 @@ export const UserInput = memo(() => {
     setIsEdit(true);
   }, [clearUserId]);
 
+  useEffect(() => {
+    if (error) {
+      notify.apiError(getApiErrorFromQueryError(error), {
+        name: 'settings-user-fetch-error',
+      });
+    }
+  }, [error, notify]);
+
   return isLoading ? (
     <Loader size='l' />
+  ) : !isEdit && error ? (
+    <div className={styles.input}>
+      <Text variant='body-2' color='danger'>
+        Could not load SoundCloud user.
+      </Text>
+      <Button view='outlined' size='m' onClick={onChangeUserClick}>
+        Change user
+      </Button>
+    </div>
   ) : isEdit ? (
     <div className={styles.input}>
       <TextInput

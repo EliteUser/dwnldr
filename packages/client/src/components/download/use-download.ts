@@ -134,8 +134,17 @@ export const useDownload = () => {
   );
 
   const cancel = useCallback(() => {
-    abortControllerRef.current?.abort();
-  }, []);
+    const abortController = abortControllerRef.current;
+
+    if (!abortController) {
+      return;
+    }
+
+    abortController.abort();
+    notify.info(DOWNLOAD_NOTIFICATION_MESSAGE.cancelled, {
+      name: DOWNLOAD_NOTIFICATION_NAME.cancelled,
+    });
+  }, [notify]);
 
   return {
     cancel,

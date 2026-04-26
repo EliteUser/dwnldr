@@ -52,6 +52,13 @@ export const Likes = memo<LikesProps>((props) => {
       notify.error(FOLDER_NOTIFICATION_MESSAGE.syncError, {
         name: FOLDER_NOTIFICATION_NAME.syncError,
       });
+      return;
+    }
+
+    if (result.status === 'permission-denied') {
+      notify.error(FOLDER_NOTIFICATION_MESSAGE.permissionDenied, {
+        name: FOLDER_NOTIFICATION_NAME.permissionDenied,
+      });
     }
   }, [notify]);
 
