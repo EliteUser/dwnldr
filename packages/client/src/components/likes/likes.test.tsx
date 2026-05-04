@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAppStore } from '../../store';
@@ -16,22 +15,6 @@ const syncFolderMock = vi.fn<() => Promise<FolderSyncResult>>(async () => ({
   status: 'success',
   directoryName: 'Music',
   fileCount: 1,
-}));
-
-vi.mock('@gravity-ui/uikit', () => ({
-  Button: ({ children, disabled, onClick }: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) => (
-    <button disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  ),
-  Icon: () => null,
-  Loader: () => <div>Loading</div>,
-  Progress: () => <div>Progress</div>,
-  Text: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock('@gravity-ui/icons', () => ({
-  ArrowRotateRight: {},
 }));
 
 vi.mock('../../api/api', () => ({
@@ -78,7 +61,7 @@ const renderLikes = (
     userId,
   });
 
-  return render(<Likes onDownloadClick={() => undefined} onFavoritesCountChange={() => undefined} />);
+  return render(<Likes onDownloadClick={() => undefined} />);
 };
 
 describe('Likes', () => {
@@ -148,6 +131,7 @@ describe('Likes', () => {
     });
 
     expect(screen.getByText('Track List')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
   it('points folder setup to Settings when favorites exist without a folder', () => {

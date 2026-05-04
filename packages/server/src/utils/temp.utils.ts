@@ -55,8 +55,23 @@ export const removeFolder = (folderPath: string) => {
     return false;
   }
 
-  fs.rmSync(resolvedTargetPath, { recursive: true, force: true });
-  return true;
+  try {
+    fs.rmSync(resolvedTargetPath, { recursive: true, force: true });
+    return true;
+  } catch (error) {
+    getLogger({
+      folderPath: resolvedTargetPath,
+      tempRoot,
+    }).error(
+      {
+        evt: 'download.cleanup.failed',
+        ...(error instanceof Error ? { err: error } : { error: String(error) }),
+      },
+      'Failed to clean up download folder',
+    );
+
+    return false;
+  }
 };
 
 export const sweepStaleDownloadFolders = async (maxAgeMs: number) => {

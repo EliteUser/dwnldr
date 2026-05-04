@@ -1,19 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
-
-vi.mock('@gravity-ui/uikit', () => ({
-  useToaster: () => ({
-    add: () => undefined,
-  }),
-}));
-
-vi.mock('@gravity-ui/uikit/toaster-singleton', () => ({
-  toaster: {
-    add: () => undefined,
-  },
-}));
+import { notifications } from '@mantine/notifications';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { API_ERROR_MESSAGE } from './notify.constants';
-import { getApiErrorFromQueryError, getApiErrorMessage } from './notify.utils';
+import { getApiErrorFromQueryError, getApiErrorMessage, notify } from './notify.utils';
+
+const notificationsMock = vi.mocked(notifications);
+
+beforeEach(() => {
+  notificationsMock.show.mockClear();
+  notificationsMock.update.mockClear();
+});
 
 describe('getApiErrorMessage', () => {
   it('maps known API codes to user-facing messages', () => {
@@ -55,5 +51,41 @@ describe('getApiErrorFromQueryError', () => {
       code: 'UPSTREAM_FAILURE',
       error: 'SoundCloud did not respond. Try again later.',
     });
+  });
+});
+
+describe('notify', () => {
+  it('updates an existing notification when requested', () => {
+    notify.info('Syncing Music', {
+      autoClose: false,
+      loading: true,
+      name: 'folder-sync-started',
+      withCloseButton: false,
+    });
+    notify.success('2 files found in Music', {
+      name: 'folder-sync-started',
+      update: true,
+    });
+
+    expect(notificationsMock.show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoClose: false,
+        color: 'blue',
+        id: 'folder-sync-started',
+        loading: true,
+        message: 'Syncing Music',
+        withCloseButton: false,
+      }),
+    );
+    expect(notificationsMock.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoClose: 4000,
+        color: 'green',
+        id: 'folder-sync-started',
+        loading: false,
+        message: '2 files found in Music',
+        withCloseButton: true,
+      }),
+    );
   });
 });

@@ -8,6 +8,8 @@ import { streamFileToResponse } from '../../services/download/download.service.j
 import { inspectLocalTrack, rewriteLocalTrack } from '../../services/track-meta/track-meta.service.js';
 
 const MAX_AUDIO_SIZE = 150 * 1024 * 1024;
+const MAX_MULTIPART_FIELD_SIZE = 64 * 1024;
+const MAX_MULTIPART_FIELD_COUNT = 4;
 
 const metaBodySchema = z.object({
   name: z.string().trim().min(1),
@@ -74,6 +76,9 @@ const uploadStorage: multer.StorageEngine = {
 const upload = multer({
   storage: uploadStorage,
   limits: {
+    fieldSize: MAX_MULTIPART_FIELD_SIZE,
+    fields: MAX_MULTIPART_FIELD_COUNT,
+    fileSize: MAX_AUDIO_SIZE,
     files: 2,
   },
 });

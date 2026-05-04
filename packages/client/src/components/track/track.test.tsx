@@ -1,25 +1,9 @@
 import { render, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { Track } from './track';
 
 import styles from './track.module.scss';
-
-vi.mock('@gravity-ui/uikit', () => ({
-  Avatar: ({ className }: { className?: string }) => <div className={className} />,
-  Button: ({ children, className, onClick }: { children?: ReactNode; className?: string; onClick?: () => void }) => (
-    <button className={className} onClick={onClick}>
-      {children}
-    </button>
-  ),
-  Icon: () => null,
-  Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
-}));
-
-vi.mock('@gravity-ui/icons', () => ({
-  ArrowDownToLine: {},
-}));
 
 describe('Track', () => {
   it('clears the downloaded state when the synced file list becomes empty', async () => {

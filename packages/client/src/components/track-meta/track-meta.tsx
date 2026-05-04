@@ -1,53 +1,22 @@
-import { ArrowShapeDownToLine, ArrowShapeUpFromLine } from '@gravity-ui/icons';
-import { Button, Disclosure, Icon, Loader, Progress, Text, TextArea, TextInput } from '@gravity-ui/uikit';
-import type { ChangeEvent } from 'react';
-import { memo, useCallback, useId, useRef, useState } from 'react';
+import { Accordion, Button, CloseButton, Group, Loader, Text } from '@mantine/core';
+import { Dropzone } from '@mantine/dropzone';
+import { IconCancel, IconDownload, IconMusic, IconUpload } from '@tabler/icons-react';
+import { memo, useCallback, useRef, useState } from 'react';
 
-import { ApiRequestError } from '../../api/api';
 import { Artwork } from '../../components/artwork';
-import { FileDropzone } from '../../lib';
+import { MetadataFields } from '../../components/metadata-fields';
 import type { ArtworkDownloadPayload } from '../../types';
-import { getApiErrorFromQueryError, isAbortError, useNotify, TRACK_META_NOTIFICATION_NAME } from '../../utils';
-import { ACCEPTED_AUDIO_INPUT } from './track-meta.constants';
-import { getAudioValidationMessage } from './track-meta.utils';
+import { getApiErrorFromQueryError, isAbortError, TRACK_META_NOTIFICATION_NAME, useNotify } from '../../utils';
+import { getAudioValidationMessage, inspectAudioFile } from './track-meta.utils';
 import { useTrackMetaDownload } from './use-track-meta-download';
 
 import styles from './track-meta.module.scss';
 
-type TrackMetaMetadata = {
-  album: string;
-  artwork: {
-    dataUrl: string;
-    mimeType: string;
-  } | null;
-  lyrics: string;
-  name: string;
-};
-
-const inspectAudioFile = async (audio: File, signal: AbortSignal) => {
-  const body = new FormData();
-
-  body.set('audio', audio);
-
-  const response = await fetch('/api/meta/inspect', {
-    method: 'POST',
-    body,
-    signal,
-  });
-
-  if (!response.ok) {
-    throw new ApiRequestError(await response.json(), response.status);
-  }
-
-  return (await response.json()) as TrackMetaMetadata;
-};
-
-export const TrackMeta = memo(function TrackMeta() {
-  const inputId = useId();
+export const TrackMeta = memo(() => {
   const inspectAbortControllerRef = useRef<AbortController | null>(null);
   const inspectRequestIdRef = useRef(0);
   const notify = useNotify();
-  const { cancel, download, inProgress, isProgressKnown, progress } = useTrackMetaDownload();
+  const { cancel, download, inProgress } = useTrackMetaDownload();
 
   const [album, setAlbum] = useState('');
   const [artwork, setArtwork] = useState<ArtworkDownloadPayload>();
@@ -118,10 +87,9 @@ export const TrackMeta = memo(function TrackMeta() {
     [notify],
   );
 
-  const handleAudioChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      event.target.value = '';
+  const handleAudioDrop = useCallback(
+    (files: File[]) => {
+      const file = files[0];
 
       if (file) {
         void handleAudioFile(file);
@@ -130,128 +98,157 @@ export const TrackMeta = memo(function TrackMeta() {
     [handleAudioFile],
   );
 
+  const handleAudioReject = useCallback(() => {
+    const validationMessage = 'Use an MP3 audio file.';
+
+    setUploadError(validationMessage);
+    notify.error(validationMessage, {
+      name: TRACK_META_NOTIFICATION_NAME.invalidAudio,
+    });
+  }, [notify]);
+
+  const handleRemoveAudio = useCallback(() => {
+    inspectAbortControllerRef.current?.abort();
+    inspectAbortControllerRef.current = null;
+    inspectRequestIdRef.current += 1;
+    setAudio(undefined);
+    setAlbum('');
+    setArtwork(undefined);
+    setLyrics('');
+    setName('');
+    setProviderArtworkUrl(undefined);
+    setResetKey('');
+    setUploadError('');
+    setIsInspecting(false);
+  }, []);
+
   const canDownload = Boolean(audio) && Boolean(name) && !inProgress && !isInspecting;
 
   return (
     <div className={styles['track-meta']}>
-      <FileDropzone
-        activeHint='Drop MP3 to inspect'
-        className={styles.sourcePanel}
-        disabled={inProgress || isInspecting}
-        idleHint='or drag an MP3 file here'
-        idleHintView='inline'
-        onFileDrop={handleAudioFile}
-      >
-        <div className={styles.sectionHeader}>
-          <div>
-            <Text variant='subheader-2'>Audio File</Text>
+      {!audio && (
+        <Dropzone
+          aria-label='Upload MP3'
+          accept={{
+            'audio/mpeg': ['.mp3'],
+            'audio/mp3': ['.mp3'],
+            'application/octet-stream': ['.mp3'],
+          }}
+          className={styles.sourcePanel}
+          disabled={inProgress || isInspecting}
+          maxFiles={1}
+          multiple={false}
+          onDrop={handleAudioDrop}
+          onReject={handleAudioReject}
+        >
+          <Group justify='center' gap='md' mih={96} style={{ pointerEvents: 'none' }}>
+            <Dropzone.Accept>
+              <IconUpload size={48} stroke={2} />
+            </Dropzone.Accept>
+            <Dropzone.Reject>
+              <IconCancel size={48} stroke={2} />
+            </Dropzone.Reject>
+            <Dropzone.Idle>
+              <IconMusic size={48} stroke={2} />
+            </Dropzone.Idle>
 
-            {audio && (
-              <Text variant='caption-2' color='secondary'>
-                {audio.name}
-              </Text>
-            )}
-          </div>
-
-          {isInspecting && (
-            <div className={styles.status}>
-              <Loader size='s' />
-              <Text variant='caption-2' color='secondary'>
-                Reading
+            <div className={styles.dropzonePrompt}>
+              <Text fw={600}>Drop MP3 here or click to select</Text>
+              <Text size='sm' c='dimmed'>
+                MP3 files only.
               </Text>
             </div>
+          </Group>
+
+          {uploadError && (
+            <Text size='sm' c='red'>
+              {uploadError}
+            </Text>
           )}
-        </div>
+        </Dropzone>
+      )}
 
-        <input
-          className={styles.input}
-          id={inputId}
-          type='file'
-          accept={ACCEPTED_AUDIO_INPUT}
-          disabled={inProgress || isInspecting}
-          onChange={handleAudioChange}
-        />
+      {audio && (
+        <section className={styles.selectedFilePanel}>
+          <div className={styles.selectedFileInfo}>
+            <IconMusic size={24} stroke={2} />
 
-        <label className={styles.uploadButton} htmlFor={inProgress || isInspecting ? undefined : inputId}>
-          <Icon size={16} data={ArrowShapeUpFromLine} /> Upload MP3
-        </label>
+            <div>
+              <Text fw={600}>Selected file</Text>
+              <Text size='sm' c='dimmed'>
+                {audio.name}
+              </Text>
+            </div>
+          </div>
 
-        {uploadError && (
-          <Text className={styles.error} variant='caption-2' color='danger'>
-            {uploadError}
-          </Text>
-        )}
-      </FileDropzone>
+          <CloseButton
+            aria-label='Remove selected audio file'
+            disabled={inProgress}
+            size='lg'
+            onClick={handleRemoveAudio}
+          />
+        </section>
+      )}
 
       {isInspecting ? (
         <section className={styles.loadingState}>
-          <Loader size='m' />
+          <Loader size='md' />
         </section>
       ) : audio ? (
         <div className={styles.editorLayout}>
-          <Disclosure
-            className={styles.metadataPanel}
-            defaultExpanded
-            keepMounted
-            size='l'
-            summary={<Text variant='subheader-2'>Metadata</Text>}
+          <Accordion
+            className={styles.panel}
+            defaultValue='metadata'
+            variant='unstyled'
+            chevronPosition='left'
+            chevronIconSize={24}
           >
-            <Disclosure.Details>
-              <div className={styles.fields}>
-                <TextInput
-                  size='xl'
-                  hasClear
-                  value={name}
-                  onChange={(evt) => setName(evt.target.value)}
-                  placeholder='Track name'
+            <Accordion.Item value='metadata'>
+              <Accordion.Control>
+                <Text fw={600}>Metadata</Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <MetadataFields
+                  album={album}
+                  lyrics={lyrics}
+                  name={name}
+                  onAlbumChange={setAlbum}
+                  onLyricsChange={setLyrics}
+                  onNameChange={setName}
                 />
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
 
-                <TextInput
-                  size='xl'
-                  hasClear
-                  value={album}
-                  onChange={(evt) => setAlbum(evt.target.value)}
-                  placeholder='Album (optional)'
-                />
-
-                <TextArea
-                  className={styles.textarea}
-                  size='xl'
-                  hasClear
-                  value={lyrics}
-                  onChange={(evt) => setLyrics(evt.target.value)}
-                  placeholder='Lyrics (optional)'
-                  rows={7}
-                  controlProps={{ style: { resize: 'vertical' } }}
-                />
-              </div>
-            </Disclosure.Details>
-          </Disclosure>
-
-          <Disclosure
-            className={styles.sidePanel}
-            defaultExpanded
-            keepMounted
-            size='l'
-            summary={<Text variant='subheader-2'>Cover Image</Text>}
+          <Accordion
+            className={styles.panel}
+            defaultValue='cover'
+            variant='unstyled'
+            chevronPosition='left'
+            chevronIconSize={24}
           >
-            <Disclosure.Details>
-              <div className={styles.artwork}>
+            <Accordion.Item value='cover'>
+              <Accordion.Control>
+                <Text fw={600}>Cover Image</Text>
+              </Accordion.Control>
+              <Accordion.Panel>
                 <Artwork
                   disabled={inProgress}
                   onArtworkChange={setArtwork}
                   providerArtworkUrl={providerArtworkUrl}
                   resetKey={resetKey}
                 />
-              </div>
-            </Disclosure.Details>
-          </Disclosure>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
 
           <section className={styles.submitPanel}>
             <Button
-              size='xl'
-              view='action'
-              width='max'
+              size='lg'
+              variant='gradient'
+              fullWidth
+              leftSection={<IconDownload size={24} />}
+              gradient={{ from: 'violet', to: 'cyan', deg: 220 }}
               loading={inProgress}
               disabled={!canDownload}
               onClick={() =>
@@ -265,13 +262,12 @@ export const TrackMeta = memo(function TrackMeta() {
                 })
               }
             >
-              <Icon size={16} data={ArrowShapeDownToLine} /> Download
+              Download
             </Button>
 
             {inProgress && (
               <div className={styles.actions}>
-                <Progress size='xs' theme='info' value={progress} loading={!isProgressKnown} />
-                <Button size='xl' view='outlined' onClick={cancel}>
+                <Button size='lg' variant='outline' onClick={cancel}>
                   Cancel
                 </Button>
               </div>
@@ -280,11 +276,11 @@ export const TrackMeta = memo(function TrackMeta() {
         </div>
       ) : (
         <section className={styles.emptyState}>
-          <Text variant='body-2' color='secondary'>
-            Upload an MP3 to start.
-          </Text>
+          <Text c='dimmed'>Upload an MP3 to start.</Text>
         </section>
       )}
     </div>
   );
 });
+
+TrackMeta.displayName = 'TrackMeta';

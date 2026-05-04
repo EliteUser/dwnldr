@@ -34,6 +34,27 @@ describe('API validation', () => {
     expect(response.body.code).toBe('INVALID_INPUT');
   });
 
+  it('rejects invalid JSON bodies as client errors', async () => {
+    const response = await request(app).post('/api/download').type('json').send('{');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Invalid request body.');
+    expect(response.body.code).toBe('INVALID_INPUT');
+  });
+
+  it('rejects oversized JSON bodies as client errors', async () => {
+    const response = await request(app)
+      .post('/api/download')
+      .send({
+        url: 'https://soundcloud.com/artist/track',
+        lyrics: 'x'.repeat(70 * 1024),
+      });
+
+    expect(response.status).toBe(413);
+    expect(response.body.error).toBe('Request body is too large.');
+    expect(response.body.code).toBe('INVALID_INPUT');
+  });
+
   it('rejects unsupported source URLs early', async () => {
     const [soundCloudResponse, youTubeResponse, genericTrackResponse, downloadResponse] = await Promise.all([
       request(app).get('/api/soundcloud/tracks').query({

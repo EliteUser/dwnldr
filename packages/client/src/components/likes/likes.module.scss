@@ -6,20 +6,21 @@
   padding: 16px;
 }
 
+.titleGroup {
+  display: flex;
+  column-gap: 10px;
+  align-items: center;
+  min-inline-size: 0;
+}
+
 .likes {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
+  inline-size: 100%;
+  min-inline-size: 0;
   block-size: 100%;
   max-block-size: 100%;
-}
-
-.notice {
-  margin: 0 16px 16px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--g-color-base-warning-heavy) 30%, transparent);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--g-color-base-warning-light) 20%, transparent);
 }
 
 .emptyState {
@@ -28,22 +29,35 @@
   row-gap: 12px;
   margin: 0 16px 16px;
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--g-color-private-blue-350-solid) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mantine-color-blue-6) 45%, transparent);
   border-radius: 16px;
-  background: color-mix(in srgb, var(--g-color-private-blue-100-solid) 24%, transparent);
+  background: color-mix(in srgb, var(--mantine-color-blue-9) 24%, transparent);
 }
 
-.loader {
+.loadingState {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
   align-items: center;
   justify-content: center;
-  max-block-size: 64px;
 }
 
-.progress {
-  position: fixed;
-  inset-block: 0;
-  inset-inline: 0;
+.listShell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-block-size: 0;
+}
+
+.refreshOverlay {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-start-start-radius: 16px;
+  border-start-end-radius: 16px;
+  background: rgba(17, 17, 19, 0.68);
+  backdrop-filter: blur(4px);
 }

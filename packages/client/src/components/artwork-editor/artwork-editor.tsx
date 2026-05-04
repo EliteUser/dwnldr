@@ -1,4 +1,4 @@
-import { Button, Sheet, Text } from '@gravity-ui/uikit';
+import { Button, CloseButton, Drawer, Flex, Text } from '@mantine/core';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { PixelCrop } from 'react-image-crop';
 import ReactCrop, { convertToPixelCrop, type Crop } from 'react-image-crop';
@@ -121,17 +121,30 @@ export const ArtworkEditor = memo<ArtworkEditorProps>((props) => {
   }, [completedCrop, crop, onApply]);
 
   return (
-    <Sheet
+    <Drawer
       id='download-artwork-editor'
-      title='Edit artwork'
-      visible={visible}
+      aria-label='Edit artwork'
+      opened={visible}
       onClose={onClose}
-      alwaysFullHeight
-      contentClassName={styles.sheetContent}
+      position='bottom'
+      size='75dvh'
+      offset={8}
+      radius={8}
+      withCloseButton={false}
+      classNames={{ body: styles.sheetContent, content: styles.sheetPanel }}
+      styles={{ body: { overflow: 'hidden' }, content: { overflow: 'hidden' } }}
     >
       <div className={styles.sheet}>
+        <div className={styles.sheetHeader}>
+          <Text size='lg' fw={600}>
+            Edit artwork
+          </Text>
+
+          <CloseButton aria-label='Close artwork editor' size='lg' onClick={onClose} />
+        </div>
+
         {error && (
-          <Text className={styles.error} variant='caption-2' color='danger'>
+          <Text className={styles.error} size='sm' c='red'>
             {error}
           </Text>
         )}
@@ -173,24 +186,22 @@ export const ArtworkEditor = memo<ArtworkEditorProps>((props) => {
             </ReactCrop>
           ) : (
             <div className={styles.emptyCrop}>
-              <Text variant='body-2' color='secondary'>
-                Select artwork to start editing.
-              </Text>
+              <Text c='dimmed'>Select artwork to start editing.</Text>
             </div>
           )}
         </div>
 
-        <div className={styles.sheetActions}>
-          <Button size='xl' view='outlined' onClick={onClose}>
+        <Flex columnGap='sm'>
+          <Button size='sm' variant='outline' fullWidth onClick={onClose}>
             Cancel
           </Button>
 
-          <Button size='xl' view='action' disabled={!draftUrl || disabled} onClick={handleApply}>
+          <Button size='sm' disabled={!draftUrl || disabled} fullWidth onClick={handleApply}>
             Apply
           </Button>
-        </div>
+        </Flex>
       </div>
-    </Sheet>
+    </Drawer>
   );
 });
 

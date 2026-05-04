@@ -15,6 +15,7 @@ body {
   overflow: hidden;
   margin: 0;
   padding: 0;
+  background: #111113;
 }
 
 #root {
@@ -27,8 +28,13 @@ body {
   max-block-size: 100dvh;
 }
 
-.appToaster {
-  inset-block-end: calc(48px + env(safe-area-inset-bottom, 0px));
+.appNotifications {
+  pointer-events: none;
+  inset-block-end: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+.appNotifications [role='alert'] {
+  pointer-events: auto;
 }
 
 *::-webkit-scrollbar {

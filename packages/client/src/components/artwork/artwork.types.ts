@@ -6,5 +6,3 @@ export type ArtworkProps = {
   providerArtworkUrl?: string | null;
   resetKey: string;
 };
-
-export type ArtworkSourceMode = 'file' | 'url';

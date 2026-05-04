@@ -1,13 +1,11 @@
-import { ArrowRotateLeft, ArrowShapeUpFromLine, Link, Pencil } from '@gravity-ui/icons';
-import { Button, Icon, SegmentedRadioGroup, Text, TextInput } from '@gravity-ui/uikit';
-import type { ChangeEvent } from 'react';
-import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { ActionIcon, Badge, Button, Group, Text, TextInput } from '@mantine/core';
+import { Dropzone } from '@mantine/dropzone';
+import { IconCancel, IconCrop, IconLink, IconPhoto, IconPhotoOff, IconRotate, IconUpload } from '@tabler/icons-react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { Crop } from 'react-image-crop';
 
-import { FileDropzone } from '../../lib';
 import { ArtworkEditor } from '../artwork-editor';
-import { ACCEPTED_ARTWORK_INPUT, ARTWORK_SOURCE_OPTIONS } from './artwork.constants';
-import type { ArtworkProps, ArtworkSourceMode } from './artwork.types';
+import type { ArtworkProps } from './artwork.types';
 import { loadRemoteArtworkFile, validateArtworkFile } from './artwork.utils';
 
 import styles from './artwork.module.scss';
@@ -15,7 +13,6 @@ import styles from './artwork.module.scss';
 export const Artwork = memo<ArtworkProps>((props) => {
   const { disabled, providerArtworkUrl, resetKey, onArtworkChange } = props;
 
-  const inputId = useId();
   const sourceUrlRef = useRef<string | undefined>(undefined);
 
   const [draftUrl, setDraftUrl] = useState<string>();
@@ -25,12 +22,12 @@ export const Artwork = memo<ArtworkProps>((props) => {
   const [isUrlLoading, setIsUrlLoading] = useState(false);
   const [originalUrl, setOriginalUrl] = useState<string>();
   const [previewUrl, setPreviewUrl] = useState<string>();
-  const [sourceMode, setSourceMode] = useState<ArtworkSourceMode>('file');
   const [urlInput, setUrlInput] = useState('');
 
   const isChanged = Boolean(previewUrl);
   const trimmedUrlInput = urlInput.trim();
   const visiblePreviewUrl = previewUrl ?? providerArtworkUrl ?? undefined;
+  const artworkStatus = isChanged ? 'Custom' : providerArtworkUrl ? 'Default' : 'No artwork';
 
   const revokeSourceUrl = useCallback(() => {
     if (sourceUrlRef.current) {
@@ -75,7 +72,6 @@ export const Artwork = memo<ArtworkProps>((props) => {
     setError('');
     setIsEditorOpen(false);
     setIsUrlLoading(false);
-    setSourceMode('file');
     setUrlInput('');
     onArtworkChange(undefined);
   }, [onArtworkChange, providerArtworkUrl, resetKey, revokePreviewUrl, revokeSourceUrl]);
@@ -122,10 +118,9 @@ export const Artwork = memo<ArtworkProps>((props) => {
     [openEditorWithFile],
   );
 
-  const handleFileChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      event.target.value = '';
+  const handleArtworkDrop = useCallback(
+    (files: File[]) => {
+      const file = files[0];
 
       if (file) {
         void handleArtworkFile(file);
@@ -133,6 +128,10 @@ export const Artwork = memo<ArtworkProps>((props) => {
     },
     [handleArtworkFile],
   );
+
+  const handleArtworkReject = useCallback(() => {
+    setError('Use a JPG, PNG, or WEBP image.');
+  }, []);
 
   const handleUrlLoad = useCallback(async () => {
     if (!trimmedUrlInput) {
@@ -174,106 +173,127 @@ export const Artwork = memo<ArtworkProps>((props) => {
 
   return (
     <div className={styles.artwork}>
-      <div className={styles.previewRow}>
-        <FileDropzone
-          activeHint='Drop image to crop'
-          className={styles.preview}
-          disabled={disabled}
-          onFileDrop={handleArtworkFile}
-        >
-          {visiblePreviewUrl ? (
-            <img src={visiblePreviewUrl} alt='' />
-          ) : (
-            <div className={styles.previewEmpty}>
-              <Icon size={20} data={ArrowShapeUpFromLine} />
-              <Text variant='body-1'>Drop image here</Text>
-              <Text variant='caption-2' color='secondary'>
-                JPEG, PNG, or WebP
-              </Text>
-            </div>
-          )}
-        </FileDropzone>
-
-        <div className={styles.summary}>
-          <Text className={styles.summaryTitle} variant='body-1'>
-            {isChanged ? 'Custom artwork' : providerArtworkUrl ? 'Default artwork' : 'No artwork'}
-          </Text>
-
-          <Text variant='caption-2' color='secondary'>
-            {visiblePreviewUrl
-              ? 'Drop a new image on the preview to replace it.'
-              : 'Upload an image or paste an image URL.'}
-          </Text>
+      <div className={styles.wrapper}>
+        <div className={styles.header}>
+          <Badge size='sm' color={isChanged ? 'indigo' : providerArtworkUrl ? 'gray' : 'violet'}>
+            {artworkStatus}
+          </Badge>
 
           <div className={styles.controls}>
-            {visiblePreviewUrl && (
-              <Button size='m' view='outlined' disabled={disabled} onClick={handleOpen}>
-                <Icon size={16} data={Pencil} /> Edit
-              </Button>
+            {isChanged && (
+              <ActionIcon
+                aria-label='Reset artwork'
+                title='Reset artwork'
+                size='md'
+                variant='subtle'
+                disabled={disabled}
+                onClick={handleReset}
+              >
+                <IconRotate size={16} />
+              </ActionIcon>
             )}
 
-            {isChanged && (
-              <Button size='m' view='flat-secondary' disabled={disabled} onClick={handleReset}>
-                <Icon size={16} data={ArrowRotateLeft} /> Reset
-              </Button>
+            {visiblePreviewUrl && (
+              <ActionIcon
+                aria-label='Crop artwork'
+                title='Crop artwork'
+                size='md'
+                variant='outline'
+                disabled={disabled}
+                onClick={handleOpen}
+              >
+                <IconCrop size={16} />
+              </ActionIcon>
             )}
           </div>
         </div>
+
+        <div className={styles.preview}>
+          {visiblePreviewUrl ? (
+            <img src={visiblePreviewUrl} alt='Artwork preview' />
+          ) : (
+            <div className={styles.previewEmpty}>
+              <IconPhotoOff size={24} stroke={2} />
+              <Text size='sm' c='dimmed'>
+                No artwork selected
+              </Text>
+            </div>
+          )}
+        </div>
       </div>
 
+      <Dropzone
+        aria-label='Upload image'
+        accept={{
+          'image/jpeg': ['.jpg', '.jpeg'],
+          'image/png': ['.png'],
+          'image/webp': ['.webp'],
+        }}
+        className={styles.dropzone}
+        disabled={disabled}
+        maxFiles={1}
+        multiple={false}
+        onDrop={handleArtworkDrop}
+        onReject={handleArtworkReject}
+      >
+        <Group justify='center' gap='md' style={{ pointerEvents: 'none' }}>
+          <Dropzone.Accept>
+            <IconUpload size={24} stroke={2} />
+          </Dropzone.Accept>
+          <Dropzone.Reject>
+            <IconCancel size={24} stroke={2} />
+          </Dropzone.Reject>
+          <Dropzone.Idle>
+            <IconPhoto size={24} stroke={2} />
+          </Dropzone.Idle>
+
+          <div className={styles.dropzonePrompt}>
+            <Text>Drop image here or click to select</Text>
+
+            <Text size='xs' c='dimmed'>
+              JPG, PNG, or WEBP.
+            </Text>
+          </div>
+        </Group>
+      </Dropzone>
+
       <div className={styles.sourceControls}>
-        <SegmentedRadioGroup
-          size='m'
-          value={sourceMode}
-          options={ARTWORK_SOURCE_OPTIONS}
-          disabled={disabled || isUrlLoading}
-          onUpdate={setSourceMode}
-        />
+        <div className={styles.divider}>
+          <span />
+          <Text size='sm' c='dimmed'>
+            or
+          </Text>
+          <span />
+        </div>
 
-        {sourceMode === 'file' ? (
-          <div>
-            <input
-              className={styles.input}
-              id={inputId}
-              type='file'
-              accept={ACCEPTED_ARTWORK_INPUT}
-              onChange={(event) => void handleFileChange(event)}
-            />
+        <div className={styles.urlControls}>
+          <TextInput
+            size='md'
+            value={urlInput}
+            disabled={disabled || isUrlLoading}
+            leftSection={<IconLink size={16} />}
+            onChange={(event) => setUrlInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                void handleUrlLoad();
+              }
+            }}
+            placeholder='https://example.com/image.jpg'
+          />
 
-            <label className={styles.uploadButton} htmlFor={disabled ? undefined : inputId}>
-              <Icon size={16} data={ArrowShapeUpFromLine} /> Upload image
-            </label>
-          </div>
-        ) : (
-          <div className={styles.urlControls}>
-            <TextInput
-              size='m'
-              hasClear
-              value={urlInput}
-              disabled={disabled || isUrlLoading}
-              onChange={(event) => setUrlInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  void handleUrlLoad();
-                }
-              }}
-              placeholder='Image URL'
-            />
-
-            <Button
-              size='m'
-              view='outlined'
-              loading={isUrlLoading}
-              disabled={disabled || !trimmedUrlInput}
-              onClick={() => void handleUrlLoad()}
-            >
-              <Icon size={16} data={Link} /> Load
-            </Button>
-          </div>
-        )}
+          <Button
+            size='md'
+            variant='outline'
+            loading={isUrlLoading}
+            disabled={disabled || !trimmedUrlInput}
+            onClick={() => void handleUrlLoad()}
+          >
+            Load URL
+          </Button>
+        </div>
 
         {error && (
-          <Text className={styles.error} variant='caption-2' color='danger'>
+          <Text className={styles.error} size='sm' c='red'>
             {error}
           </Text>
         )}

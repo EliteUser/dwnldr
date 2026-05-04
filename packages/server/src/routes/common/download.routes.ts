@@ -4,9 +4,11 @@ import { z } from 'zod';
 
 import { HttpError } from '../../errors/http-error.js';
 import { requireProviderByUrl } from '../../providers/index.js';
+import { MAX_ARTWORK_SIZE } from '../../services/artwork/artwork.constants.js';
 import { downloadTrack, streamFileToResponse } from '../../services/download/download.service.js';
 
-const MAX_ARTWORK_SIZE = 8 * 1024 * 1024;
+const MAX_MULTIPART_FIELD_SIZE = 64 * 1024;
+const MAX_MULTIPART_FIELD_COUNT = 5;
 
 const downloadBodySchema = z.object({
   url: z.string().trim().url(),
@@ -20,6 +22,8 @@ export const downloadRouter = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
+    fieldSize: MAX_MULTIPART_FIELD_SIZE,
+    fields: MAX_MULTIPART_FIELD_COUNT,
     fileSize: MAX_ARTWORK_SIZE,
     files: 1,
   },

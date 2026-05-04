@@ -1,5 +1,4 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Download } from './download';
@@ -10,88 +9,8 @@ const notifyErrorMock = vi.fn();
 const notifyInfoMock = vi.fn();
 const notifySuccessMock = vi.fn();
 
-vi.mock('@gravity-ui/uikit', () => {
-  const DisclosureMock = ({ children, summary }: { children?: ReactNode; summary?: ReactNode }) => (
-    <section>
-      <div>{summary}</div>
-      <div>{children}</div>
-    </section>
-  );
-  DisclosureMock.Details = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
-
-  return {
-    Button: ({
-      children,
-      disabled,
-      onClick,
-      ...props
-    }: {
-      children?: ReactNode;
-      disabled?: boolean;
-      onClick?: () => void;
-    }) => (
-      <button disabled={disabled} onClick={onClick} {...props}>
-        {children}
-      </button>
-    ),
-    Disclosure: DisclosureMock,
-    Icon: () => null,
-    Loader: () => <div>Loading</div>,
-    Progress: ({ value }: { value?: number }) => <div>{value ?? 0}</div>,
-    SegmentedRadioGroup: ({
-      disabled,
-      onUpdate,
-      options,
-      value,
-    }: {
-      disabled?: boolean;
-      onUpdate?: (value: string) => void;
-      options?: Array<{ content?: ReactNode; value: string }>;
-      value?: string;
-    }) => (
-      <div>
-        {options?.map((option) => (
-          <button
-            disabled={disabled}
-            key={option.value}
-            type='button'
-            aria-pressed={option.value === value}
-            onClick={() => onUpdate?.(option.value)}
-          >
-            {option.content}
-          </button>
-        ))}
-      </div>
-    ),
-    Sheet: ({ children, visible }: { children?: ReactNode; visible?: boolean }) =>
-      visible ? <div>{children}</div> : null,
-    Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
-    TextArea: ({
-      onChange,
-      placeholder,
-      value,
-    }: {
-      onChange?: (event: { target: { value: string } }) => void;
-      placeholder?: string;
-      value?: string;
-    }) => <textarea placeholder={placeholder} value={value} onChange={(event) => onChange?.(event as never)} />,
-    TextInput: ({
-      onChange,
-      placeholder,
-      value,
-    }: {
-      onChange?: (event: { target: { value: string } }) => void;
-      placeholder?: string;
-      value?: string;
-    }) => <input placeholder={placeholder} value={value} onChange={(event) => onChange?.(event as never)} />,
-  };
-});
-
-vi.mock('@gravity-ui/icons', () => ({
-  ArrowRotateLeft: {},
-  ArrowShapeDownToLine: {},
-  ArrowShapeUpFromLine: {},
-  Pencil: {},
+vi.mock('../../components/artwork', () => ({
+  Artwork: () => <div>Artwork</div>,
 }));
 
 vi.mock('../../api/api', () => ({

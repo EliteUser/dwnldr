@@ -1,0 +1,40 @@
+.app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  inline-size: 100%;
+  block-size: 100dvh;
+  min-block-size: 0;
+  max-block-size: inherit;
+}
+
+.tabs {
+  flex-direction: column;
+  flex-grow: 1;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.tabPanel {
+  display: flex;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.tabList {
+  border-start-start-radius: 16px;
+  border-start-end-radius: 16px;
+  background-color: #1e2335;
+}
+
+.tab {
+  min-block-size: 48px;
+
+  &[data-active] {
+    color: var(--mantine-color-blue-4);
+    background: rgba(0, 0, 0, 0.1);
+  }
+}

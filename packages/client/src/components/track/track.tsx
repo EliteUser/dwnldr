@@ -1,5 +1,5 @@
-import { ArrowDownToLine } from '@gravity-ui/icons';
-import { Avatar, Button, Icon, Text } from '@gravity-ui/uikit';
+import { ActionIcon, Avatar, Text } from '@mantine/core';
+import { IconDownload } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { memo, useCallback } from 'react';
 
@@ -32,25 +32,28 @@ export const Track = memo<TrackProps>(function Track(props) {
   return (
     <div className={trackClassNames}>
       <div className={styles.cover}>
-        <Avatar className={styles.image} size='xl' imgUrl={coverUrl ?? ''} />
+        <Avatar className={styles.image} radius='md' size={48} src={coverUrl ?? ''} />
       </div>
 
       <div className={styles.wrapper}>
-        <Text variant='body-1'>{title}</Text>
+        <Text className={styles.title} size='sm'>
+          {title}
+        </Text>
 
-        <Text variant='caption-2' color='secondary'>
+        <Text size='xs' c='dimmed'>
           {getDuration(duration)}
         </Text>
       </div>
 
-      <Button
+      <ActionIcon
         className={styles.button}
-        view='outlined-action'
-        onClick={handleDownloadClick}
         aria-label={`Download ${title}`}
+        variant='outline'
+        size='lg'
+        onClick={handleDownloadClick}
       >
-        <Icon size={16} data={ArrowDownToLine} />
-      </Button>
+        <IconDownload size={16} />
+      </ActionIcon>
     </div>
   );
 });

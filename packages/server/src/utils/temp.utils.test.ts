@@ -1,6 +1,7 @@
+import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { env } from '../config/env.js';
 import { removeFolder, sweepStaleDownloadFolders } from './temp.utils.js';
@@ -15,6 +16,7 @@ const createDirectory = async (folderName: string) => {
 };
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(
     createdPaths.splice(0).map((directoryPath) => fs.rm(directoryPath, { recursive: true, force: true })),
   );
@@ -28,6 +30,17 @@ describe('removeFolder', () => {
 
     expect(removeFolder(outsideDirectory)).toBe(false);
     await expect(fs.stat(outsideDirectory)).resolves.toBeDefined();
+  });
+
+  it('logs and reports cleanup failures without throwing', async () => {
+    const directory = await createDirectory('track_cleanup-failure');
+
+    vi.spyOn(fsSync, 'rmSync').mockImplementationOnce(() => {
+      throw new Error('file is locked');
+    });
+
+    expect(removeFolder(directory)).toBe(false);
+    await expect(fs.stat(directory)).resolves.toBeDefined();
   });
 });
 

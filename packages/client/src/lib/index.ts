@@ -1,1 +1,0 @@
-export { FileDropzone } from './file-dropzone';

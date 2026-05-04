@@ -4,6 +4,8 @@ $coverSize: 48px;
   display: flex;
   column-gap: 16px;
   align-items: center;
+  block-size: 64px;
+  min-block-size: 64px;
   padding: 8px;
   border-radius: 8px;
   transition: background-color 0.2s ease;
@@ -31,6 +33,13 @@ $coverSize: 48px;
   display: flex;
   flex-direction: column;
   row-gap: 2px;
+  min-inline-size: 0;
+}
+
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cover {
@@ -63,5 +72,6 @@ $coverSize: 48px;
 }
 
 .button {
+  flex-shrink: 0;
   margin-inline-start: auto;
 }

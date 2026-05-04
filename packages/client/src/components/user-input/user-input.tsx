@@ -1,5 +1,5 @@
-import { PersonPencil } from '@gravity-ui/icons';
-import { Avatar, Button, Icon, Loader, Text, TextInput } from '@gravity-ui/uikit';
+import { ActionIcon, Avatar, Button, Loader, Text, TextInput } from '@mantine/core';
+import { IconUserEdit } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 
 import { useGetUserQuery } from '../../api/api';
@@ -9,10 +9,11 @@ import { getApiErrorFromQueryError, useNotify } from '../../utils';
 import styles from './user-input.module.scss';
 
 export const UserInput = memo(() => {
+  const notify = useNotify();
+
   const userId = useAppStore((state) => state.userId);
   const setUserId = useAppStore((state) => state.setUserId);
   const clearUserId = useAppStore((state) => state.clearUserId);
-  const notify = useNotify();
 
   const [inputValue, setInputValue] = useState(userId || '');
   const [isEdit, setIsEdit] = useState(!userId);
@@ -49,13 +50,11 @@ export const UserInput = memo(() => {
   }, [error, notify]);
 
   return isLoading ? (
-    <Loader size='l' />
+    <Loader size='lg' />
   ) : !isEdit && error ? (
     <div className={styles.input}>
-      <Text variant='body-2' color='danger'>
-        Could not load SoundCloud user.
-      </Text>
-      <Button view='outlined' size='m' onClick={onChangeUserClick}>
+      <Text c='red'>Could not load SoundCloud user.</Text>
+      <Button variant='outline' size='sm' onClick={onChangeUserClick}>
         Change user
       </Button>
     </div>
@@ -64,20 +63,20 @@ export const UserInput = memo(() => {
       <TextInput
         value={inputValue}
         onChange={(evt) => setInputValue(evt.target.value)}
-        size='xl'
+        size='lg'
         placeholder='SoundCloud user ID'
       />
-      <Button onClick={onSyncButtonClick} view='action' size='xl' disabled={!inputValue}>
+      <Button onClick={onSyncButtonClick} size='lg' disabled={!inputValue}>
         Sync
       </Button>
     </div>
   ) : (
     <div className={styles.input}>
-      <Avatar className={styles.avatar} text={full_name || 'User Name'} size='l' imgUrl={avatar_url} />
-      <Text variant='header-1'>{full_name}</Text>
-      <Button view='outlined' size='m' onClick={onChangeUserClick} aria-label='Change SoundCloud user'>
-        <Icon data={PersonPencil} size={18} />
-      </Button>
+      <Avatar name={full_name || 'User Name'} size='md' src={avatar_url} />
+      <Text fw={600}>{full_name}</Text>
+      <ActionIcon variant='outline' onClick={onChangeUserClick} aria-label='Change SoundCloud user'>
+        <IconUserEdit size={16} />
+      </ActionIcon>
     </div>
   );
 });

@@ -1,5 +1,5 @@
-import { Magnifier } from '@gravity-ui/icons';
-import { Icon, Text, TextInput } from '@gravity-ui/uikit';
+import { Text, TextInput } from '@mantine/core';
+import { IconSearch } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useMemo, useRef, useState } from 'react';
 
@@ -54,14 +54,12 @@ export const TrackList = memo<TrackListProps>((props) => {
   return (
     <div className={styles.wrapper}>
       <TextInput
-        className={styles.search}
-        size='l'
+        size='md'
         placeholder='Search'
-        hasClear
         value={filter}
-        endContent={
+        leftSection={
           <div className={styles.searchIcon}>
-            <Icon size={16} data={Magnifier} />
+            <IconSearch size={16} />
           </div>
         }
         onChange={(evt) => setFilter(evt.target.value)}
@@ -98,7 +96,7 @@ export const TrackList = memo<TrackListProps>((props) => {
           </div>
         </div>
       ) : (
-        <Text variant='body-2'>Nothing found</Text>
+        <Text>Nothing found</Text>
       )}
     </div>
   );

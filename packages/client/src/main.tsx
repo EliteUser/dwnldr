@@ -1,25 +1,30 @@
-import { ThemeProvider, ToasterComponent, ToasterProvider } from '@gravity-ui/uikit';
-import { toaster } from '@gravity-ui/uikit/toaster-singleton';
+import { MantineProvider } from '@mantine/core';
+import { Notifications } from '@mantine/notifications';
 import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 
 import { AppQueryProvider } from './api/query-provider';
-import { App } from './app';
+import { App } from './components';
+import { theme } from './theme';
 
-import '@gravity-ui/uikit/styles/fonts.css';
-import '@gravity-ui/uikit/styles/styles.css';
-import './theme.scss';
+import '@mantine/core/styles.css';
+import '@mantine/dropzone/styles.css';
+import '@mantine/notifications/styles.css';
 import './index.scss';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppQueryProvider>
-      <ThemeProvider theme='dark'>
-        <ToasterProvider toaster={toaster}>
-          <App />
-          <ToasterComponent className='appToaster' mobile />
-        </ToasterProvider>
-      </ThemeProvider>
+      <MantineProvider theme={theme} forceColorScheme='dark' defaultColorScheme='dark'>
+        <App />
+        <Notifications className='appNotifications' position='bottom-right' />
+      </MantineProvider>
     </AppQueryProvider>
   </StrictMode>,
 );
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js');
+  });
+}

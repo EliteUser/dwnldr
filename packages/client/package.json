@@ -13,8 +13,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@gravity-ui/icons": "2.18.0",
-    "@gravity-ui/uikit": "7.37.0",
+    "@mantine/core": "9.1.0",
+    "@mantine/dropzone": "9.1.0",
+    "@mantine/hooks": "9.1.0",
+    "@mantine/notifications": "9.1.0",
+    "@tabler/icons-react": "3.41.1",
     "@tanstack/react-query": "5.100.1",
     "@tanstack/react-virtual": "3.13.24",
     "clsx": "2.1.1",

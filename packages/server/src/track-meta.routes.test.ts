@@ -137,9 +137,28 @@ describe('track meta routes', () => {
         contentType: 'image/png',
       });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(413);
     expect(response.body).toMatchObject({
       code: 'INVALID_INPUT',
+      error: 'Uploaded content is too large.',
+    });
+    expect(rewriteLocalTrackMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects multipart fields above the upload limit before rewriting the track', async () => {
+    const response = await request(createApp())
+      .post('/api/meta/download')
+      .field('name', 'Artist - Track')
+      .field('lyrics', 'x'.repeat(64 * 1024 + 1))
+      .attach('audio', Buffer.from([1, 2, 3]), {
+        filename: 'track.mp3',
+        contentType: 'audio/mpeg',
+      });
+
+    expect(response.status).toBe(413);
+    expect(response.body).toMatchObject({
+      code: 'INVALID_INPUT',
+      error: 'Uploaded content is too large.',
     });
     expect(rewriteLocalTrackMock).not.toHaveBeenCalled();
   });

@@ -96,7 +96,7 @@ describe('download route', () => {
     expect(downloadTrackMock).not.toHaveBeenCalled();
   });
 
-  it('rejects artwork files above the upload limit as invalid input', async () => {
+  it('rejects artwork files above the upload limit before downloading the track', async () => {
     const response = await request(createApp())
       .post('/api/download')
       .field('url', 'https://www.youtube.com/watch?v=abc123')
@@ -106,9 +106,24 @@ describe('download route', () => {
         contentType: 'image/png',
       });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(413);
     expect(response.body).toMatchObject({
       code: 'INVALID_INPUT',
+      error: 'Uploaded content is too large.',
+    });
+    expect(downloadTrackMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects multipart fields above the upload limit before downloading the track', async () => {
+    const response = await request(createApp())
+      .post('/api/download')
+      .field('url', 'https://www.youtube.com/watch?v=abc123')
+      .field('lyrics', 'x'.repeat(64 * 1024 + 1));
+
+    expect(response.status).toBe(413);
+    expect(response.body).toMatchObject({
+      code: 'INVALID_INPUT',
+      error: 'Uploaded content is too large.',
     });
     expect(downloadTrackMock).not.toHaveBeenCalled();
   });

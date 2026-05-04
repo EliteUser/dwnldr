@@ -1,28 +1,43 @@
 .artwork {
   display: flex;
   flex-direction: column;
-  row-gap: 12px;
+  row-gap: 16px;
 }
 
-.previewRow {
-  display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
-  gap: 14px;
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  row-gap: 8px;
+  align-self: center;
+  inline-size: min(100%, 280px);
+}
+
+.header {
+  display: flex;
+  column-gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-inline-size: 0;
+  min-block-size: 30px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .preview {
+  position: relative;
   overflow: hidden;
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  inline-size: 112px;
-  border: 1px solid var(--g-color-line-generic);
+  inline-size: 100%;
+  border: 1px solid var(--mantine-color-default-border);
   border-radius: 8px;
-  background: var(--g-color-base-generic);
-
-  &[data-dragging] {
-    border-color: var(--g-color-line-info);
-  }
+  background: var(--mantine-color-default);
 
   img {
     inline-size: 100%;
@@ -33,81 +48,50 @@
 
 .previewEmpty {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   place-items: center;
-  padding: 12px;
-  color: var(--g-color-text-secondary);
+  color: var(--mantine-color-dimmed);
   text-align: center;
 }
 
-.summary {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-inline-size: 0;
+.dropzone {
+  border-radius: 8px;
 }
 
-.summaryTitle {
-  color: var(--g-color-text-primary);
-}
-
-.controls {
-  display: flex;
-  flex-wrap: wrap;
+.dropzonePrompt {
+  display: grid;
   gap: 8px;
-  padding-block-start: 2px;
+  place-items: center;
+  inline-size: 100%;
+  color: var(--mantine-color-dimmed);
+  text-align: center;
 }
 
 .sourceControls {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
+  gap: 14px;
 }
 
-.input {
-  position: absolute;
-  overflow: hidden;
-  inline-size: 1px;
-  block-size: 1px;
-  white-space: nowrap;
-  clip-path: inset(50%);
-}
-
-.uploadButton {
-  cursor: pointer;
-  display: inline-flex;
-  column-gap: 6px;
+.divider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: 16px;
   align-items: center;
-  min-block-size: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--g-color-line-generic);
-  border-radius: 6px;
-  font: inherit;
-  color: var(--g-color-text-primary);
+
+  span {
+    block-size: 1px;
+    background: var(--mantine-color-default-border);
+  }
 }
 
 .urlControls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  inline-size: min(100%, 520px);
+  gap: 12px;
+  inline-size: 100%;
 }
 
 .error {
   max-inline-size: 520px;
-}
-
-@media (max-width: 560px) {
-  .previewRow {
-    grid-template-columns: 88px minmax(0, 1fr);
-  }
-
-  .preview {
-    inline-size: 88px;
-  }
-
-  .urlControls {
-    grid-template-columns: 1fr;
-  }
 }

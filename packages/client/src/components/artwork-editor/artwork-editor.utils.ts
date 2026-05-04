@@ -39,7 +39,6 @@ export const getCropAreaSize = (element: HTMLDivElement | null): ImageSize | und
   const height = Math.min(
     Math.max(element.clientHeight - verticalPadding, 0) || window.innerHeight * CROP_VIEWPORT_HEIGHT_RATIO,
     MAX_CROP_HEIGHT,
-    window.innerHeight * CROP_VIEWPORT_HEIGHT_RATIO,
   );
 
   if (!width || !height) {

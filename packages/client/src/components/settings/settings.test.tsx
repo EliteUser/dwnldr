@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAppStore } from '../../store';
@@ -18,33 +17,6 @@ const syncFolderMock = vi.fn<() => Promise<FolderSyncResult>>(async () => ({
   status: 'success',
   directoryName: 'Music',
   fileCount: 2,
-}));
-
-vi.mock('@gravity-ui/uikit', () => ({
-  Button: ({ children, disabled, onClick }: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) => (
-    <button disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  ),
-  Disclosure: Object.assign(
-    ({ children, summary }: { children?: ReactNode; defaultExpanded?: boolean; summary?: ReactNode }) => (
-      <section>
-        <header>{summary}</header>
-        {children}
-      </section>
-    ),
-    {
-      Details: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-    },
-  ),
-  Icon: () => null,
-  Progress: () => <div>Progress</div>,
-  Text: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock('@gravity-ui/icons', () => ({
-  FolderArrowUpIn: {},
-  FolderOpen: {},
 }));
 
 vi.mock('../../store/folder.actions', () => ({
@@ -108,6 +80,26 @@ describe('Settings', () => {
 
     expect(selectFolderMock).toHaveBeenCalledTimes(1);
     expect(syncFolderMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates the in-progress folder sync notification when syncing finishes', async () => {
+    render(<Settings />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sync Folder' }));
+
+    expect(notifyInfoMock).toHaveBeenCalledWith('Syncing Music', {
+      autoClose: false,
+      loading: true,
+      name: 'folder-sync-started',
+      withCloseButton: false,
+    });
+
+    await waitFor(() => {
+      expect(notifySuccessMock).toHaveBeenCalledWith('2 files found in Music', {
+        name: 'folder-sync-started',
+        update: true,
+      });
+    });
   });
 
   it('notifies when folder permission is denied', async () => {

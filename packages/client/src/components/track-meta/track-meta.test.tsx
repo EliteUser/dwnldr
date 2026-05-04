@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as Utils from '../../utils';
@@ -8,52 +7,6 @@ import { TrackMeta } from './track-meta';
 const notifyApiErrorMock = vi.fn();
 const notifyErrorMock = vi.fn();
 const downloadMock = vi.fn();
-
-vi.mock('@gravity-ui/uikit', () => {
-  const DisclosureMock = ({ children, summary }: { children?: ReactNode; summary?: ReactNode }) => (
-    <section>
-      <div>{summary}</div>
-      <div>{children}</div>
-    </section>
-  );
-  DisclosureMock.Details = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
-
-  return {
-    Button: ({ children, disabled, onClick }: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) => (
-      <button disabled={disabled} onClick={onClick}>
-        {children}
-      </button>
-    ),
-    Disclosure: DisclosureMock,
-    Icon: () => null,
-    Loader: () => <div>Loading</div>,
-    Progress: ({ value }: { value?: number }) => <div>{value ?? 0}</div>,
-    Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
-    TextArea: ({
-      onChange,
-      placeholder,
-      value,
-    }: {
-      onChange?: (event: { target: { value: string } }) => void;
-      placeholder?: string;
-      value?: string;
-    }) => <textarea placeholder={placeholder} value={value} onChange={(event) => onChange?.(event as never)} />,
-    TextInput: ({
-      onChange,
-      placeholder,
-      value,
-    }: {
-      onChange?: (event: { target: { value: string } }) => void;
-      placeholder?: string;
-      value?: string;
-    }) => <input placeholder={placeholder} value={value} onChange={(event) => onChange?.(event as never)} />,
-  };
-});
-
-vi.mock('@gravity-ui/icons', () => ({
-  ArrowShapeDownToLine: {},
-  ArrowShapeUpFromLine: {},
-}));
 
 vi.mock('../../components/artwork', () => ({
   Artwork: () => <div>Artwork</div>,
@@ -133,7 +86,14 @@ describe('TrackMeta', () => {
         files: [new File(['first'], 'first.mp3', { type: 'audio/mpeg' })],
       },
     });
-    fireEvent.change(audioInput, {
+
+    await waitFor(() => {
+      expect(screen.getByText('first.mp3')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('Remove selected audio file'));
+
+    fireEvent.change(screen.getByLabelText('Upload MP3'), {
       target: {
         files: [new File(['second'], 'second.mp3', { type: 'audio/mpeg' })],
       },
@@ -198,5 +158,46 @@ describe('TrackMeta', () => {
       expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track');
     });
     expect(notifyErrorMock).not.toHaveBeenCalled();
+  });
+
+  it('removes the selected audio file and clears inspected metadata', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            album: '',
+            artwork: null,
+            lyrics: '',
+            name: 'Artist - Track',
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            status: 200,
+          },
+        ),
+      ),
+    );
+
+    render(<TrackMeta />);
+
+    fireEvent.change(screen.getByLabelText('Upload MP3'), {
+      target: {
+        files: [new File(['audio'], 'track.mp3', { type: 'audio/mpeg' })],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('track.mp3')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track');
+    });
+
+    fireEvent.click(screen.getByLabelText('Remove selected audio file'));
+
+    expect(screen.queryByText('track.mp3')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Track name')).not.toBeInTheDocument();
+    expect(screen.getByText('Upload an MP3 to start.')).toBeInTheDocument();
   });
 });

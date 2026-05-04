@@ -1,6 +1,6 @@
-import { ArrowRotateRight } from '@gravity-ui/icons';
-import { Button, Icon, Loader, Progress, Text } from '@gravity-ui/uikit';
-import { memo, useCallback, useEffect, useMemo } from 'react';
+import { ActionIcon, Badge, Button, Loader, Text, Title } from '@mantine/core';
+import { IconRefresh } from '@tabler/icons-react';
+import { memo, useCallback, useEffect } from 'react';
 
 import { useGetFavoritesQuery } from '../../api/api';
 import { useAppStore } from '../../store';
@@ -18,14 +18,12 @@ import styles from './likes.module.scss';
 
 type LikesProps = {
   onDownloadClick: (url: string) => void;
-  onFavoritesCountChange: (count: number) => void;
 };
 
 export const Likes = memo<LikesProps>((props) => {
-  const { onDownloadClick, onFavoritesCountChange } = props;
+  const { onDownloadClick } = props;
 
   const userId = useAppStore((state) => state.userId);
-  const isSyncInProgress = useAppStore((state) => state.isFolderSyncInProgress);
   const folder = useAppStore((state) => state.directoryName);
   const notify = useNotify();
 
@@ -42,8 +40,8 @@ export const Likes = memo<LikesProps>((props) => {
   const hasFolder = !!folder;
   const hasFavorites = !!favorites?.length;
   const supportsFileSystemAccess = canUseFileSystemAccess();
-
-  const syncButtonLabel = useMemo(() => (isFetching ? 'Refreshing' : 'Refresh'), [isFetching]);
+  const isInitialLoading = !!userId && (isLoading || (isFetching && !favorites));
+  const isRefreshingList = isFetching && !isInitialLoading && hasFavorites;
 
   const runSyncFolder = useCallback(async () => {
     const result = await syncFolder();
@@ -71,10 +69,6 @@ export const Likes = memo<LikesProps>((props) => {
   }, [folder, runSyncFolder, supportsFileSystemAccess]);
 
   useEffect(() => {
-    onFavoritesCountChange(favorites?.length ?? 0);
-  }, [favorites?.length, onFavoritesCountChange]);
-
-  useEffect(() => {
     if (favoritesError) {
       notify.apiError(getApiErrorFromQueryError(favoritesError), {
         name: 'likes-fetch-error',
@@ -84,64 +78,75 @@ export const Likes = memo<LikesProps>((props) => {
 
   return (
     <div className={styles.likes}>
-      {isSyncInProgress && <Progress className={styles.progress} value={100} loading theme='info' size='xs' />}
-
       <div className={styles.header}>
-        <Text variant='header-1'>Likes</Text>
+        <div className={styles.titleGroup}>
+          <Title size='h2'>Likes</Title>
 
-        <Button view='outlined' size='l' disabled={!userId || isFetching} onClick={() => refetch()}>
-          <Icon size={16} data={ArrowRotateRight} />
-          {syncButtonLabel}
-        </Button>
+          {favorites?.length ? (
+            <Badge size='md' color='indigo'>
+              {favorites.length}
+            </Badge>
+          ) : null}
+        </div>
+
+        <ActionIcon
+          aria-label='Refresh likes'
+          variant='outline'
+          size='lg'
+          disabled={!userId || isFetching}
+          onClick={() => refetch()}
+        >
+          <IconRefresh size={16} />
+        </ActionIcon>
       </div>
 
-      {(isLoading || isFetching) && (
-        <div className={styles.loader}>
-          <Loader size='l' />
+      {isInitialLoading && true && (
+        <div className={styles.loadingState}>
+          <Loader size='lg' />
         </div>
       )}
 
-      {!isLoading && !userId && (
+      {!isInitialLoading && !userId && (
         <div className={styles.emptyState}>
-          <Text variant='subheader-2'>Connect SoundCloud in Settings to load your likes</Text>
-          <Text variant='body-2' color='secondary'>
-            The Services section stores the SoundCloud account used for this list.
-          </Text>
+          <Text fw={600}>Connect SoundCloud in Settings to load your likes</Text>
+          <Text c='dimmed'>The Services section stores the SoundCloud account used for this list.</Text>
         </div>
       )}
 
-      {!isLoading && !!userId && favoritesError && (
+      {!isInitialLoading && !!userId && favoritesError && (
         <div className={styles.emptyState}>
-          <Text variant='subheader-2'>Failed to load your likes</Text>
-          <Text variant='body-2' color='secondary'>
-            The request did not complete successfully. Retry after checking the notification.
-          </Text>
-          <Button view='action' size='l' onClick={() => refetch()}>
+          <Text fw={600}>Failed to load your likes</Text>
+          <Text c='dimmed'>The request did not complete successfully. Retry after checking the notification.</Text>
+          <Button size='md' onClick={() => refetch()}>
             Retry
           </Button>
         </div>
       )}
 
-      {!isLoading && !!userId && !favoritesError && hasFavorites && !hasFolder && supportsFileSystemAccess && (
+      {!isInitialLoading && !!userId && !favoritesError && hasFavorites && !hasFolder && supportsFileSystemAccess && (
         <div className={styles.emptyState}>
-          <Text variant='subheader-2'>Pick a download location in Settings</Text>
-          <Text variant='body-2' color='secondary'>
-            Folder sync compares cloud tracks against filenames in your local library.
-          </Text>
+          <Text fw={600}>Pick a download location in Settings</Text>
+          <Text c='dimmed'>Folder sync compares cloud tracks against filenames in your local library.</Text>
         </div>
       )}
 
-      {!isLoading && !!userId && !favoritesError && !hasFavorites && (
+      {!isInitialLoading && !!userId && !favoritesError && !hasFavorites && (
         <div className={styles.emptyState}>
-          <Text variant='subheader-2'>No liked tracks found</Text>
-          <Text variant='body-2' color='secondary'>
-            This SoundCloud account does not have any favorites available right now.
-          </Text>
+          <Text fw={600}>No liked tracks found</Text>
+          <Text c='dimmed'>This SoundCloud account does not have any favorites available right now.</Text>
         </div>
       )}
 
-      {!isLoading && !!userId && !favoritesError && hasFavorites && (
-        <TrackList tracks={favorites} onDownloadClick={onDownloadClick} />
+      {!isInitialLoading && !!userId && !favoritesError && hasFavorites && (
+        <div className={styles.listShell}>
+          <TrackList tracks={favorites} onDownloadClick={onDownloadClick} />
+
+          {isRefreshingList && (
+            <div className={styles.refreshOverlay}>
+              <Loader size='lg' />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

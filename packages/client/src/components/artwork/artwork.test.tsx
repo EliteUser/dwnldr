@@ -1,71 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Artwork } from './artwork';
 import type * as ArtworkUtils from './artwork.utils';
 
 const validateArtworkFileMock = vi.hoisted(() => vi.fn());
-
-vi.mock('@gravity-ui/uikit', () => ({
-  Button: ({ children, disabled, onClick }: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) => (
-    <button disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  ),
-  Icon: () => null,
-  SegmentedRadioGroup: ({
-    disabled,
-    onUpdate,
-    options,
-    value,
-  }: {
-    disabled?: boolean;
-    onUpdate?: (value: string) => void;
-    options?: Array<{ content?: ReactNode; value: string }>;
-    value?: string;
-  }) => (
-    <div>
-      {options?.map((option) => (
-        <button
-          disabled={disabled}
-          key={option.value}
-          type='button'
-          aria-pressed={option.value === value}
-          onClick={() => onUpdate?.(option.value)}
-        >
-          {option.content}
-        </button>
-      ))}
-    </div>
-  ),
-  Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
-  TextInput: ({
-    onChange,
-    onKeyDown,
-    placeholder,
-    value,
-  }: {
-    onChange?: (event: { target: { value: string } }) => void;
-    onKeyDown?: (event: { key: string }) => void;
-    placeholder?: string;
-    value?: string;
-  }) => (
-    <input
-      placeholder={placeholder}
-      value={value}
-      onChange={(event) => onChange?.(event as never)}
-      onKeyDown={(event) => onKeyDown?.(event as never)}
-    />
-  ),
-}));
-
-vi.mock('@gravity-ui/icons', () => ({
-  ArrowRotateLeft: {},
-  ArrowShapeUpFromLine: {},
-  Link: {},
-  Pencil: {},
-}));
 
 vi.mock('../artwork-editor', () => ({
   ArtworkEditor: ({
@@ -158,7 +97,7 @@ describe('Artwork', () => {
 
     expect(createObjectURLMock).toHaveBeenCalledTimes(2);
 
-    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByLabelText('Crop artwork'));
 
     await waitFor(() => {
       expect(screen.getByTestId('draft-url')).toHaveTextContent('blob:original');

@@ -67,8 +67,12 @@ export const loadRemoteArtworkFile = async (url: string) => {
 
   let response: Response;
 
+  const params = new URLSearchParams({
+    url: parsedUrl.href,
+  });
+
   try {
-    response = await fetch(parsedUrl.href);
+    response = await fetch(`/api/artwork?${params}`);
   } catch {
     throw new Error('Image URL could not be loaded. Try downloading it and uploading the file instead.');
   }

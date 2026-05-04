@@ -1,6 +1,4 @@
-import type { ToastTheme, ToasterPublicMethods } from '@gravity-ui/uikit';
-import { useToaster } from '@gravity-ui/uikit';
-import { toaster } from '@gravity-ui/uikit/toaster-singleton';
+import { notifications } from '@mantine/notifications';
 import { useMemo } from 'react';
 
 import { API_ERROR_MESSAGE, REQUEST_FAILED_MESSAGE } from './notify.constants';
@@ -21,8 +19,12 @@ export type ApiErrorResponse = {
 };
 
 type NotifyOptions = {
+  autoClose?: false | number;
+  loading?: boolean;
   name?: string;
   title?: string;
+  update?: boolean;
+  withCloseButton?: boolean;
 };
 
 let toastId = 0;
@@ -82,30 +84,37 @@ export const parseApiErrorResponse = async (response: Response): Promise<ApiErro
   }
 };
 
-const createNotifier = (api: ToasterPublicMethods) => {
-  const showToast = (theme: ToastTheme, message: string, options?: NotifyOptions) => {
-    api.add({
-      name: getToastName(options?.name),
-      title: options?.title ?? message,
-      theme,
-      autoHiding: 4000,
-      isClosable: true,
-    });
+const createNotifier = () => {
+  const showToast = (color: 'blue' | 'green' | 'red', message: string, options?: NotifyOptions) => {
+    const notification = {
+      id: getToastName(options?.name),
+      title: options?.title,
+      message,
+      color,
+      autoClose: options?.autoClose ?? 4000,
+      loading: options?.loading ?? false,
+      withCloseButton: options?.withCloseButton ?? true,
+    };
+
+    if (options?.update) {
+      notifications.update(notification);
+      return;
+    }
+
+    notifications.show(notification);
   };
 
   return {
-    error: (message: string, options?: NotifyOptions) => showToast('danger', message, options),
-    info: (message: string, options?: NotifyOptions) => showToast('info', message, options),
-    success: (message: string, options?: NotifyOptions) => showToast('success', message, options),
+    error: (message: string, options?: NotifyOptions) => showToast('red', message, options),
+    info: (message: string, options?: NotifyOptions) => showToast('blue', message, options),
+    success: (message: string, options?: NotifyOptions) => showToast('green', message, options),
     apiError: (error?: ApiErrorResponse | null, options?: NotifyOptions) =>
-      showToast('danger', getApiErrorMessage(error), options),
+      showToast('red', getApiErrorMessage(error), options),
   };
 };
 
-export const notify = createNotifier(toaster);
+export const notify = createNotifier();
 
 export const useNotify = () => {
-  const toasterApi = useToaster();
-
-  return useMemo(() => createNotifier(toasterApi), [toasterApi]);
+  return useMemo(() => createNotifier(), []);
 };
