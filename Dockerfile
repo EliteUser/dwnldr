@@ -1,4 +1,4 @@
-FROM node:22-bullseye-slim AS builder
+FROM node:24-bullseye-slim AS builder
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY . .
 RUN pnpm build
 RUN pnpm --filter ./packages/server --legacy deploy --prod /prod/server
 
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 RUN npm install -g pnpm@10.33.0 \
     && apt-get update \
@@ -37,5 +37,7 @@ RUN chmod +x /app/start.sh
 ENV NODE_ENV=production
 
 EXPOSE 80 443
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD node -e "const port = process.env.PORT ?? '3000'; fetch(\`http://127.0.0.1:${port}/health\`).then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))"
 
 CMD ["/app/start.sh"]

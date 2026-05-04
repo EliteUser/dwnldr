@@ -1,0 +1,70 @@
+.sheetPanel {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+}
+
+.sheetContent {
+  overflow: hidden;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  block-size: 100%;
+  min-block-size: 0;
+  padding: 0;
+}
+
+.sheet {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.sheetHeader {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  min-block-size: 44px;
+}
+
+.error {
+  flex: 0 0 auto;
+  max-inline-size: 520px;
+}
+
+.cropArea {
+  overflow: hidden;
+  display: grid;
+  flex: 1 1 0;
+  place-items: center;
+  min-block-size: 0;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: #54545430;
+}
+
+.crop {
+  max-inline-size: 100%;
+  max-block-size: 100%;
+
+  :global(.ReactCrop__child-wrapper) {
+    display: flex;
+    justify-content: center;
+  }
+
+  :global(.ReactCrop__child-wrapper) > img {
+    display: block;
+  }
+}
+
+.emptyCrop {
+  display: grid;
+  place-items: center;
+  min-block-size: 280px;
+  padding: 24px;
+}

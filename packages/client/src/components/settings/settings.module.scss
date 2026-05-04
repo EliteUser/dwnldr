@@ -1,0 +1,61 @@
+.settings {
+  scrollbar-gutter: stable;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  row-gap: 16px;
+  inline-size: 100%;
+  min-inline-size: 0;
+  block-size: 100%;
+  max-block-size: 100%;
+  padding: 16px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  row-gap: 16px;
+}
+
+.panel {
+  border-radius: 8px;
+  background: #18181b;
+}
+
+.sectionContent {
+  display: flex;
+  flex-direction: column;
+  row-gap: 16px;
+  align-items: flex-start;
+  padding-block-start: 0;
+}
+
+.serviceBlock {
+  display: flex;
+  flex-direction: column;
+  row-gap: 8px;
+  align-self: stretch;
+}
+
+.folderStatus {
+  display: flex;
+  flex-direction: column;
+  row-gap: 4px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  row-gap: 12px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--mantine-color-blue-6) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--mantine-color-blue-9) 24%, transparent);
+}

@@ -10,7 +10,6 @@
   "sortImports": {
     "ignoreCase": true,
     "groups": [
-      "type",
       ["builtin", "external"],
       "internal",
       ["parent", "sibling", "index"],

@@ -1,28 +1,93 @@
 .download {
+  scrollbar-gutter: stable;
+  overflow: auto;
   display: flex;
   flex-direction: column;
-  max-height: 100%;
   flex-grow: 1;
   row-gap: 16px;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 0;
   padding: 16px;
 }
 
-.label {
-  margin-inline-end: 4px;
-  height: 36px;
+.sourcePanel,
+.emptyState,
+.loadingState,
+.panel {
+  border-radius: 8px;
+  background: #18181b;
 }
 
-.textarea {
+.sourcePanel {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-
-  :global(.g-text-area__content) {
-    flex-direction: column;
-  }
+  gap: 16px;
+  inline-size: 100%;
+  padding: 16px;
 }
 
-.loader {
+.editorLayout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  flex-grow: 1;
+  gap: 16px;
+  align-items: start;
+}
+
+.submitPanel {
   display: flex;
-  padding-inline-end: 8px;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  flex-direction: column;
+  gap: 16px;
+  align-self: end;
+  margin-block-start: 0;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  row-gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 144px;
+  padding: 16px;
+}
+
+.supportedProviders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: center;
+}
+
+.provider {
+  display: inline-flex;
+  column-gap: 6px;
+  align-items: center;
+  color: var(--mantine-color-gray-3);
+}
+
+.loadingState {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 144px;
+  padding: 16px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  row-gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .editorLayout {
+    grid-template-columns: 1fr;
+  }
 }

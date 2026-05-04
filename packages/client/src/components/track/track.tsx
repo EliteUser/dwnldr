@@ -1,65 +1,59 @@
-import { ArrowDownToLine } from '@gravity-ui/icons';
-import { Avatar, Button, Icon, Text } from '@gravity-ui/uikit';
+import { ActionIcon, Avatar, Text } from '@mantine/core';
+import { IconDownload } from '@tabler/icons-react';
 import clsx from 'clsx';
-import { forwardRef, memo, useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { memo, useCallback } from 'react';
 
-import { RootState } from '../../store';
-import { getDuration, isTrackDownloaded } from '../../utils';
+import { getDuration } from '../../utils';
 
 import styles from './track.module.scss';
 
 type TrackProps = {
   title: string;
-  coverUrl: string;
+  coverUrl: string | null;
+  downloadUrl: string;
   duration: number;
-  onDownloadClick: () => void;
+  isDirectorySelected: boolean;
+  isDownloaded: boolean;
+  onDownloadClick: (url: string) => void;
 };
 
-export const Track = memo(
-  forwardRef<HTMLDivElement, TrackProps>((props, ref) => {
-    const { title, coverUrl, duration, onDownloadClick, ...rest } = props;
+export const Track = memo<TrackProps>(function Track(props) {
+  const { title, coverUrl, downloadUrl, duration, isDirectorySelected, isDownloaded, onDownloadClick } = props;
 
-    const files = useSelector((state: RootState) => state.files.files);
-    const directory = useSelector((state: RootState) => state.files.directoryName);
+  const handleDownloadClick = useCallback(() => {
+    onDownloadClick(downloadUrl);
+  }, [downloadUrl, onDownloadClick]);
 
-    const [isDownloaded, setIsDownloaded] = useState(false);
+  const trackClassNames = clsx(styles.track, {
+    [styles.downloaded]: isDownloaded,
+    [styles.directorySelected]: isDirectorySelected,
+  });
 
-    useEffect(() => {
-      const rafId = window.requestAnimationFrame(() => {
-        if (files.length) {
-          setIsDownloaded(isTrackDownloaded(files, title));
-        }
-      });
-
-      return () => {
-        cancelAnimationFrame(rafId);
-      };
-    }, [files, title]);
-
-    const trackClassNames = clsx(styles.track, {
-      [styles.downloaded]: isDownloaded,
-      [styles.directorySelected]: !!directory,
-    });
-
-    return (
-      <div ref={ref} className={trackClassNames} {...rest}>
-        <div className={styles.cover}>
-          <Avatar className={styles.image} size='xl' imgUrl={coverUrl} />
-        </div>
-
-        <div className={styles.wrapper}>
-          <Text variant='body-1'>{title}</Text>
-
-          <Text variant='caption-2' color='secondary'>
-            {getDuration(duration)}
-          </Text>
-        </div>
-
-        <Button className={styles.button} view='outlined-action' onClick={onDownloadClick}>
-          <Icon size={16} data={ArrowDownToLine} />
-        </Button>
+  return (
+    <div className={trackClassNames}>
+      <div className={styles.cover}>
+        <Avatar className={styles.image} radius='md' size={48} src={coverUrl ?? ''} />
       </div>
-    );
-  }),
-);
+
+      <div className={styles.wrapper}>
+        <Text className={styles.title} size='sm'>
+          {title}
+        </Text>
+
+        <Text size='xs' c='dimmed'>
+          {getDuration(duration)}
+        </Text>
+      </div>
+
+      <ActionIcon
+        className={styles.button}
+        aria-label={`Download ${title}`}
+        variant='outline'
+        size='lg'
+        onClick={handleDownloadClick}
+      >
+        <IconDownload size={16} />
+      </ActionIcon>
+    </div>
+  );
+});

@@ -1,6 +1,9 @@
+import type { UploadedArtwork } from './services/artwork/artwork.types.js';
+
 export type TrackProps = {
   name?: string;
   album?: string;
+  artwork?: UploadedArtwork;
   lyrics?: string;
 };
 
@@ -9,14 +12,33 @@ export type TrackOptions = TrackProps & {
 };
 
 export type TrackProcessOptions = TrackProps & {
-  folder: string;
+  coverPath?: string;
+  filePath: string;
+  name: string;
 };
 
 export type TrackMetadata = {
   id: number | string;
+  artwork: {
+    url: string | null;
+  };
   artwork_url: string | null;
   permalink_url: string;
   duration: number;
   title: string;
   user: string;
+};
+
+export type ProviderKey = 'soundcloud' | 'youtube';
+
+export type SourceInfo = {
+  provider: ProviderKey;
+  url: string;
+};
+
+export type ProviderCapabilities = {
+  collections: boolean;
+  downloads: boolean;
+  metadata: boolean;
+  users: boolean;
 };

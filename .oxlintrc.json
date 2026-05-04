@@ -6,6 +6,7 @@
   },
   "ignorePatterns": ["packages/client/dist/**", "packages/server/dist/**", "coverage/**", ".husky/_/**"],
   "rules": {
+    "@typescript-eslint/consistent-type-imports": "error",
     "eslint/no-unused-vars": [
       "error",
       {

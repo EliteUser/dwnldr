@@ -1,9 +1,13 @@
-import { ArrowShapeDownToLine } from '@gravity-ui/icons';
-import { TextInput, Button, Icon, TextArea, Label, Progress, Loader } from '@gravity-ui/uikit';
-import { useState, useEffect, memo, useCallback } from 'react';
+import { Accordion, Button, Loader, Text, TextInput } from '@mantine/core';
+import { IconBrandSoundcloud, IconBrandYoutube, IconDownload } from '@tabler/icons-react';
+import { memo, useCallback, useEffect, useState } from 'react';
 
-import { useGetSoundCloudTracksQuery, useGetYoutubeTracksQuery } from '../../api/api.slice';
-import { isYoutubeLink } from '../../utils';
+import { useGetProviderTrackQuery } from '../../api/api';
+import { Artwork } from '../../components/artwork';
+import { MetadataFields } from '../../components/metadata-fields';
+import type { ArtworkDownloadPayload } from '../../types';
+import { getApiErrorFromQueryError, useNotify, DOWNLOAD_NOTIFICATION_NAME } from '../../utils';
+import { useDownload } from './use-download';
 
 import styles from './download.module.scss';
 
@@ -11,173 +15,203 @@ type DownloadProps = {
   selectedUrl?: string;
 };
 
-export const Download = memo<DownloadProps>((props) => {
+const METADATA_DEBOUNCE_MS = 300;
+
+export const Download = memo<DownloadProps>(function Download(props) {
   const { selectedUrl } = props;
 
-  const [url, setUrl] = useState(selectedUrl || '');
+  const [urlInput, setUrlInput] = useState(selectedUrl || '');
+  const [debouncedUrl, setDebouncedUrl] = useState(selectedUrl || '');
   const [name, setName] = useState('');
   const [album, setAlbum] = useState('');
   const [lyrics, setLyrics] = useState('');
+  const [artwork, setArtwork] = useState<ArtworkDownloadPayload>();
 
-  const [progress, setProgress] = useState(0);
-  const [inProgress, setInProgress] = useState(false);
+  const notify = useNotify();
+  const { cancel, download, inProgress } = useDownload();
 
-  const isYoutube = !!url && isYoutubeLink(url);
-
-  const { data: soundCloudTrack, isFetching: isSoundCloudTrackFetching } = useGetSoundCloudTracksQuery(url, {
-    skip: !url || isYoutube,
+  const {
+    currentData: track,
+    error: metadataError,
+    isFetching,
+    provider,
+  } = useGetProviderTrackQuery(debouncedUrl, {
+    skip: !debouncedUrl,
   });
 
-  const { data: youTubeTrack, isFetching: isYouTubeTrackFetching } = useGetYoutubeTracksQuery(url, {
-    skip: !url || !isYoutube,
-  });
+  const trimmedUrl = urlInput.trim();
+  const hasUrl = Boolean(trimmedUrl);
+  const providerArtworkUrl = track?.artwork?.url ?? track?.artwork_url;
 
-  const track = soundCloudTrack || youTubeTrack;
-  const isFetching = isSoundCloudTrackFetching || isYouTubeTrackFetching;
+  const isMetadataLoading =
+    hasUrl && (trimmedUrl !== debouncedUrl || isFetching || (Boolean(provider) && !track && !metadataError));
+
+  const isEditorReady = hasUrl && !isMetadataLoading && Boolean(track);
+  const canDownload = !inProgress && isEditorReady && Boolean(name);
 
   useEffect(() => {
-    setUrl(selectedUrl || '');
+    setUrlInput(selectedUrl || '');
+    setDebouncedUrl(selectedUrl || '');
+    setName('');
+    setAlbum('');
+    setLyrics('');
+    setArtwork(undefined);
   }, [selectedUrl]);
 
   useEffect(() => {
     if (track && !isFetching) {
-      setName(`${track.user} - ${track.title}`);
+      setName(provider?.toDownloadName(track) ?? `${track.user} - ${track.title}`);
     }
-  }, [track, isFetching]);
+  }, [provider, track, isFetching]);
 
-  const handleDownload = useCallback(async () => {
-    if (!url || !name) {
-      return;
-    }
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedUrl(urlInput.trim());
+    }, METADATA_DEBOUNCE_MS);
 
-    setInProgress(true);
-
-    const body = {
-      url,
-      name,
-      ...(album && { album }),
-      ...(lyrics && { lyrics }),
+    return () => {
+      window.clearTimeout(timeoutId);
     };
+  }, [urlInput]);
 
-    try {
-      const response = await fetch('/api/download', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/octet-stream',
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to download track: ${response.statusText}`);
-      }
-
-      const totalSize = parseInt(response.headers.get('content-length') ?? '0');
-      const fileName = response.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] || `${name}.mp3`;
-
-      const reader = response.body?.getReader();
-
-      let receivedSize = 0;
-      const chunks = [];
-
-      while (true) {
-        const { done, value } = await reader!.read();
-
-        if (done) {
-          const blob = new Blob(chunks);
-          const downloadUrl = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-
-          a.href = downloadUrl;
-          a.download = fileName;
-          a.click();
-          window.URL.revokeObjectURL(downloadUrl);
-
-          break;
-        }
-
-        chunks.push(value);
-        receivedSize += value.length;
-
-        const percentage = (receivedSize / totalSize) * 100;
-
-        setProgress(percentage);
-      }
-    } catch (error) {
-      console.error('Error downloading track:', error);
-      alert('Failed to download the track');
-    } finally {
-      setInProgress(false);
-      setProgress(0);
+  useEffect(() => {
+    if (!urlInput || urlInput !== debouncedUrl) {
+      setName('');
+      setArtwork(undefined);
     }
-  }, [album, lyrics, name, url]);
+  }, [debouncedUrl, urlInput]);
+
+  useEffect(() => {
+    if (metadataError) {
+      notify.apiError(getApiErrorFromQueryError(metadataError), {
+        name: DOWNLOAD_NOTIFICATION_NAME.metadataError,
+      });
+    }
+  }, [metadataError, notify]);
+
+  const handleDownload = useCallback(() => {
+    void download({
+      album,
+      artwork,
+      lyrics,
+      name,
+      url: trimmedUrl,
+    });
+  }, [album, download, name, artwork, lyrics, trimmedUrl]);
 
   return (
     <div className={styles.download}>
-      <TextInput
-        startContent={
-          <Label className={styles.label} theme='normal' size='m'>
-            URL
-          </Label>
-        }
-        size='xl'
-        hasClear
-        value={url}
-        onChange={(evt) => setUrl(evt.target.value)}
-        placeholder='Enter track URL'
-      />
+      <section className={styles.sourcePanel}>
+        <TextInput
+          value={urlInput}
+          label='Track URL'
+          onChange={(evt) => setUrlInput(evt.target.value)}
+          placeholder='Enter track URL'
+          loading={isMetadataLoading}
+          disabled={isMetadataLoading}
+        />
+      </section>
 
-      <TextInput
-        startContent={
-          <Label className={styles.label} theme='normal' size='m'>
-            Name
-          </Label>
-        }
-        size='xl'
-        hasClear
-        value={name}
-        onChange={(evt) => setName(evt.target.value)}
-        placeholder='Track name'
-        endContent={
-          isFetching ? (
-            <div className={styles.loader}>
-              <Loader size='s' />
-            </div>
-          ) : null
-        }
-      />
+      {isMetadataLoading ? (
+        <section className={styles.loadingState}>
+          <Loader size='lg' />
+        </section>
+      ) : isEditorReady ? (
+        <div className={styles.editorLayout}>
+          <Accordion
+            className={styles.panel}
+            defaultValue='metadata'
+            variant='unstyled'
+            chevronPosition='left'
+            chevronIconSize={24}
+          >
+            <Accordion.Item value='metadata'>
+              <Accordion.Control>
+                <Text fw={600}>Metadata</Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <MetadataFields
+                  album={album}
+                  lyrics={lyrics}
+                  name={name}
+                  onAlbumChange={setAlbum}
+                  onLyricsChange={setLyrics}
+                  onNameChange={setName}
+                />
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
 
-      <TextInput
-        size='xl'
-        hasClear
-        value={album}
-        onChange={(evt) => setAlbum(evt.target.value)}
-        placeholder='Album (optional)'
-      />
+          <Accordion
+            className={styles.panel}
+            defaultValue='cover'
+            variant='unstyled'
+            chevronPosition='left'
+            chevronIconSize={24}
+          >
+            <Accordion.Item value='cover'>
+              <Accordion.Control>
+                <Text fw={600}>Cover Image</Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Artwork
+                  disabled={inProgress}
+                  onArtworkChange={setArtwork}
+                  providerArtworkUrl={providerArtworkUrl}
+                  resetKey={debouncedUrl}
+                />
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
 
-      <TextArea
-        className={styles.textarea}
-        size='xl'
-        hasClear
-        value={lyrics}
-        onChange={(evt) => setLyrics(evt.target.value)}
-        placeholder='Lyrics (optional)'
-        minRows={8}
-        controlProps={{ style: { resize: 'vertical' } }}
-      />
+          <section className={styles.submitPanel}>
+            <Button
+              size='lg'
+              variant='gradient'
+              fullWidth
+              leftSection={<IconDownload size={24} />}
+              gradient={{ from: 'violet', to: 'cyan', deg: 220 }}
+              loading={inProgress}
+              disabled={!canDownload}
+              onClick={handleDownload}
+            >
+              Download
+            </Button>
 
-      <Button
-        size='xl'
-        view='action'
-        loading={inProgress}
-        disabled={inProgress || !url || !name}
-        onClick={handleDownload}
-      >
-        <Icon size={16} data={ArrowShapeDownToLine} /> Download
-      </Button>
+            {inProgress && (
+              <div className={styles.actions}>
+                <Button size='lg' variant='outline' onClick={cancel}>
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : !hasUrl ? (
+        <section className={styles.emptyState}>
+          <Text c='dimmed' size='lg'>
+            Paste a track URL to start
+          </Text>
 
-      {inProgress && <Progress size='xs' theme='warning' value={progress} />}
+          <div className={styles.supportedProviders} aria-label='Supported providers'>
+            <span className={styles.provider}>
+              <IconBrandYoutube size={18} />
+              <Text size='sm'>YouTube</Text>
+            </span>
+
+            <span className={styles.provider}>
+              <IconBrandSoundcloud size={18} />
+              <Text size='sm'>SoundCloud</Text>
+            </span>
+          </div>
+        </section>
+      ) : (
+        <section className={styles.emptyState}>
+          <Text c='dimmed' size='lg'>
+            Track details could not be loaded.
+          </Text>
+        </section>
+      )}
     </div>
   );
 });

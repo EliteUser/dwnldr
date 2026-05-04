@@ -1,18 +1,18 @@
-import { ArrowRotateRight, FolderArrowUpIn, FolderOpen, Gear } from '@gravity-ui/icons';
-import { Button, DropdownMenu, Icon, Loader, Progress, Text } from '@gravity-ui/uikit';
-import { memo, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { ActionIcon, Badge, Button, Loader, Text, Title } from '@mantine/core';
+import { IconRefresh } from '@tabler/icons-react';
+import { memo, useCallback, useEffect } from 'react';
 
-import { useGetFavoritesQuery } from '../../api/api.slice';
-import { RootState } from '../../store';
+import { useGetFavoritesQuery } from '../../api/api';
+import { useAppStore } from '../../store';
+import { syncFolder } from '../../store/folder.actions';
 import {
   canUseFileSystemAccess,
-  FILE_SYSTEM_ACCESS_HELP_TEXT,
-  handleSelectFolder,
-  handleSyncFolder,
-} from '../../utils/folder.utils';
+  getApiErrorFromQueryError,
+  useNotify,
+  FOLDER_NOTIFICATION_MESSAGE,
+  FOLDER_NOTIFICATION_NAME,
+} from '../../utils';
 import { TrackList } from '../track-list/track-list';
-import { UserInput } from '../user-input/user-input';
 
 import styles from './likes.module.scss';
 
@@ -23,14 +23,14 @@ type LikesProps = {
 export const Likes = memo<LikesProps>((props) => {
   const { onDownloadClick } = props;
 
-  const userId = useSelector((state: RootState) => state.user.userId);
-  const isSyncInProgress = useSelector((state: RootState) => state.files.loading);
-  const folder = useSelector((state: RootState) => state.files.directoryName);
-  const musicFiles = useSelector((state: RootState) => state.files.files);
+  const userId = useAppStore((state) => state.userId);
+  const folder = useAppStore((state) => state.directoryName);
+  const notify = useNotify();
 
   const {
     refetch,
     data: favorites,
+    error: favoritesError,
     isLoading,
     isFetching,
   } = useGetFavoritesQuery(userId || '', {
@@ -40,80 +40,113 @@ export const Likes = memo<LikesProps>((props) => {
   const hasFolder = !!folder;
   const hasFavorites = !!favorites?.length;
   const supportsFileSystemAccess = canUseFileSystemAccess();
+  const isInitialLoading = !!userId && (isLoading || (isFetching && !favorites));
+  const isRefreshingList = isFetching && !isInitialLoading && hasFavorites;
+
+  const runSyncFolder = useCallback(async () => {
+    const result = await syncFolder();
+
+    if (result.status === 'error') {
+      notify.error(FOLDER_NOTIFICATION_MESSAGE.syncError, {
+        name: FOLDER_NOTIFICATION_NAME.syncError,
+      });
+      return;
+    }
+
+    if (result.status === 'permission-denied') {
+      notify.error(FOLDER_NOTIFICATION_MESSAGE.permissionDenied, {
+        name: FOLDER_NOTIFICATION_NAME.permissionDenied,
+      });
+    }
+  }, [notify]);
 
   useEffect(() => {
-    const rafId = window.requestAnimationFrame(() => {
-      void (async () => {
-        if (!isLoading) {
-          await handleSyncFolder();
-        }
-      })();
-    });
+    if (!folder || !supportsFileSystemAccess) {
+      return;
+    }
 
-    return () => {
-      cancelAnimationFrame(rafId);
-    };
-  }, [isLoading]);
+    void runSyncFolder();
+  }, [folder, runSyncFolder, supportsFileSystemAccess]);
+
+  useEffect(() => {
+    if (favoritesError) {
+      notify.apiError(getApiErrorFromQueryError(favoritesError), {
+        name: 'likes-fetch-error',
+      });
+    }
+  }, [favoritesError, notify]);
 
   return (
     <div className={styles.likes}>
-      {isSyncInProgress && <Progress className={styles.progress} value={100} loading theme='info' size='xs' />}
-
       <div className={styles.header}>
-        <UserInput />
+        <div className={styles.titleGroup}>
+          <Title size='h2'>Likes</Title>
 
-        <DropdownMenu
-          size='xl'
-          renderSwitcher={(dropdownProps) => (
-            <Button {...dropdownProps} view='outlined' size='xl'>
-              <Icon size={16} data={Gear} />
-            </Button>
-          )}
-          popupProps={{
-            placement: 'bottom-end',
-          }}
-          items={[
-            {
-              iconStart: <Icon size={16} data={ArrowRotateRight} />,
-              action: () => refetch(),
-              text: 'Sync Data',
-            },
-            {
-              iconStart: <Icon size={16} data={FolderArrowUpIn} />,
-              action: () => handleSyncFolder(),
-              text: 'Sync File System',
-              hidden: !hasFolder || !supportsFileSystemAccess,
-            },
-            {
-              iconStart: <Icon size={16} data={FolderOpen} />,
-              action: () => handleSelectFolder(),
-              text: 'Pick Music Folder',
-              disabled: !supportsFileSystemAccess,
-            },
-          ]}
-        />
+          {favorites?.length ? (
+            <Badge size='md' color='indigo'>
+              {favorites.length}
+            </Badge>
+          ) : null}
+        </div>
+
+        <ActionIcon
+          aria-label='Refresh likes'
+          variant='outline'
+          size='lg'
+          disabled={!userId || isFetching}
+          onClick={() => refetch()}
+        >
+          <IconRefresh size={16} />
+        </ActionIcon>
       </div>
 
-      {!supportsFileSystemAccess && (
-        <div className={styles.notice}>
-          <Text variant='body-2' color='complementary'>
-            {FILE_SYSTEM_ACCESS_HELP_TEXT}
-          </Text>
-          <Text variant='caption-2' color='secondary'>
-            Use HTTPS on your deployed domain. On local desktop development, `localhost` also counts as a secure
-            context.
-          </Text>
+      {isInitialLoading && true && (
+        <div className={styles.loadingState}>
+          <Loader size='lg' />
         </div>
       )}
 
-      {(isLoading || isFetching) && (
-        <div className={styles.loader}>
-          <Loader size='l' />
+      {!isInitialLoading && !userId && (
+        <div className={styles.emptyState}>
+          <Text fw={600}>Connect SoundCloud in Settings to load your likes</Text>
+          <Text c='dimmed'>The Services section stores the SoundCloud account used for this list.</Text>
         </div>
       )}
 
-      {!isLoading && userId && hasFavorites && (
-        <TrackList tracks={favorites} files={musicFiles} onDownloadClick={onDownloadClick} />
+      {!isInitialLoading && !!userId && favoritesError && (
+        <div className={styles.emptyState}>
+          <Text fw={600}>Failed to load your likes</Text>
+          <Text c='dimmed'>The request did not complete successfully. Retry after checking the notification.</Text>
+          <Button size='md' onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {!isInitialLoading && !!userId && !favoritesError && hasFavorites && !hasFolder && supportsFileSystemAccess && (
+        <div className={styles.emptyState}>
+          <Text fw={600}>Pick a download location in Settings</Text>
+          <Text c='dimmed'>Folder sync compares cloud tracks against filenames in your local library.</Text>
+        </div>
+      )}
+
+      {!isInitialLoading && !!userId && !favoritesError && !hasFavorites && (
+        <div className={styles.emptyState}>
+          <Text fw={600}>No liked tracks found</Text>
+          <Text c='dimmed'>This SoundCloud account does not have any favorites available right now.</Text>
+        </div>
+      )}
+
+      {!isInitialLoading && !!userId && !favoritesError && hasFavorites && (
+        <div className={styles.listShell}>
+          <TrackList tracks={favorites} onDownloadClick={onDownloadClick} />
+
+          {isRefreshingList && (
+            <div className={styles.refreshOverlay}>
+              <Loader size='lg' />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

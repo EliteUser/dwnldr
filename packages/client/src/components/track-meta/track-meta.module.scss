@@ -1,0 +1,107 @@
+.track-meta {
+  scrollbar-gutter: stable;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  row-gap: 16px;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 0;
+  padding: 16px;
+}
+
+.sourcePanel,
+.selectedFilePanel,
+.emptyState,
+.loadingState,
+.panel {
+  border-radius: 8px;
+  background: #18181b;
+}
+
+.sourcePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  inline-size: 100%;
+  padding: 16px;
+  border: 0 !important;
+}
+
+.dropzonePrompt {
+  display: grid;
+  gap: 4px;
+  place-items: center;
+  text-align: center;
+}
+
+.selectedFilePanel {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.selectedFileInfo {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-inline-size: 0;
+
+  > div {
+    min-inline-size: 0;
+  }
+}
+
+.editorLayout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  flex-grow: 1;
+  gap: 16px;
+  align-items: start;
+}
+
+.panel {
+  min-inline-size: 0;
+}
+
+.submitPanel {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  flex-direction: column;
+  gap: 12px;
+  align-self: end;
+  margin-block-start: 0;
+}
+
+.emptyState {
+  display: grid;
+  place-items: center;
+  min-block-size: 144px;
+  padding: 16px;
+}
+
+.loadingState {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 144px;
+  padding: 16px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  row-gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .editorLayout {
+    grid-template-columns: 1fr;
+  }
+}

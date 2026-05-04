@@ -1,0 +1,97 @@
+.artwork {
+  display: flex;
+  flex-direction: column;
+  row-gap: 16px;
+}
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  row-gap: 8px;
+  align-self: center;
+  inline-size: min(100%, 280px);
+}
+
+.header {
+  display: flex;
+  column-gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-inline-size: 0;
+  min-block-size: 30px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.preview {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  inline-size: 100%;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: 8px;
+  background: var(--mantine-color-default);
+
+  img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+}
+
+.previewEmpty {
+  display: grid;
+  gap: 8px;
+  place-items: center;
+  color: var(--mantine-color-dimmed);
+  text-align: center;
+}
+
+.dropzone {
+  border-radius: 8px;
+}
+
+.dropzonePrompt {
+  display: grid;
+  gap: 8px;
+  place-items: center;
+  inline-size: 100%;
+  color: var(--mantine-color-dimmed);
+  text-align: center;
+}
+
+.sourceControls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.divider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: center;
+
+  span {
+    block-size: 1px;
+    background: var(--mantine-color-default-border);
+  }
+}
+
+.urlControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  inline-size: 100%;
+}
+
+.error {
+  max-inline-size: 520px;
+}
