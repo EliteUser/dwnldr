@@ -1,8 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAppStore } from '../../store';
-import type { FolderSyncResult } from '../../store/folder.actions';
 import { Likes } from './likes';
 
 const favoritesQueryMock = vi.fn();
@@ -11,10 +10,10 @@ const notifyErrorMock = vi.fn();
 const notifyInfoMock = vi.fn();
 const notifySuccessMock = vi.fn();
 const refetchMock = vi.fn();
-const syncFolderMock = vi.fn<() => Promise<FolderSyncResult>>(async () => ({
-  status: 'success',
+const syncFolderMock = vi.fn(async () => ({
   directoryName: 'Music',
   fileCount: 1,
+  status: 'success' as const,
 }));
 
 vi.mock('../../api/api', () => ({
@@ -148,8 +147,7 @@ describe('Likes', () => {
     expect(screen.getByText('Pick a download location in Settings')).toBeInTheDocument();
   });
 
-  it('notifies when automatic folder sync loses permission', async () => {
-    syncFolderMock.mockResolvedValueOnce({ status: 'permission-denied' });
+  it('does not request folder sync when Likes renders with a selected folder', () => {
     favoritesQueryMock.mockReturnValue({
       data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
       error: undefined,
@@ -164,13 +162,7 @@ describe('Likes', () => {
       lastSyncAt: '2026-04-22T09:15:00.000Z',
     });
 
-    await waitFor(() => {
-      expect(notifyErrorMock).toHaveBeenCalledWith(
-        'Folder permission was not granted. Pick the folder again in Settings.',
-        {
-          name: 'folder-permission-denied',
-        },
-      );
-    });
+    expect(syncFolderMock).not.toHaveBeenCalled();
+    expect(notifyErrorMock).not.toHaveBeenCalled();
   });
 });

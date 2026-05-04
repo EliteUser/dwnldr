@@ -1,17 +1,10 @@
 import { ActionIcon, Badge, Button, Loader, Text, Title } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
-import { memo, useCallback, useEffect } from 'react';
+import { memo, useEffect } from 'react';
 
 import { useGetFavoritesQuery } from '../../api/api';
 import { useAppStore } from '../../store';
-import { syncFolder } from '../../store/folder.actions';
-import {
-  canUseFileSystemAccess,
-  getApiErrorFromQueryError,
-  useNotify,
-  FOLDER_NOTIFICATION_MESSAGE,
-  FOLDER_NOTIFICATION_NAME,
-} from '../../utils';
+import { canUseFileSystemAccess, getApiErrorFromQueryError, useNotify } from '../../utils';
 import { TrackList } from '../track-list/track-list';
 
 import styles from './likes.module.scss';
@@ -42,31 +35,6 @@ export const Likes = memo<LikesProps>((props) => {
   const supportsFileSystemAccess = canUseFileSystemAccess();
   const isInitialLoading = !!userId && (isLoading || (isFetching && !favorites));
   const isRefreshingList = isFetching && !isInitialLoading && hasFavorites;
-
-  const runSyncFolder = useCallback(async () => {
-    const result = await syncFolder();
-
-    if (result.status === 'error') {
-      notify.error(FOLDER_NOTIFICATION_MESSAGE.syncError, {
-        name: FOLDER_NOTIFICATION_NAME.syncError,
-      });
-      return;
-    }
-
-    if (result.status === 'permission-denied') {
-      notify.error(FOLDER_NOTIFICATION_MESSAGE.permissionDenied, {
-        name: FOLDER_NOTIFICATION_NAME.permissionDenied,
-      });
-    }
-  }, [notify]);
-
-  useEffect(() => {
-    if (!folder || !supportsFileSystemAccess) {
-      return;
-    }
-
-    void runSyncFolder();
-  }, [folder, runSyncFolder, supportsFileSystemAccess]);
 
   useEffect(() => {
     if (favoritesError) {
