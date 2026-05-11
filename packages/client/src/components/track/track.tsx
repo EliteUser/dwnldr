@@ -3,7 +3,7 @@ import { IconDownload } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { memo, useCallback } from 'react';
 
-import { getDuration } from '../../utils';
+import { getDuration, getProxiedImageUrl } from '../../utils';
 
 import styles from './track.module.scss';
 
@@ -19,6 +19,7 @@ type TrackProps = {
 
 export const Track = memo<TrackProps>(function Track(props) {
   const { title, coverUrl, downloadUrl, duration, isDirectorySelected, isDownloaded, onDownloadClick } = props;
+  const proxiedCoverUrl = getProxiedImageUrl(coverUrl);
 
   const handleDownloadClick = useCallback(() => {
     onDownloadClick(downloadUrl);
@@ -32,7 +33,7 @@ export const Track = memo<TrackProps>(function Track(props) {
   return (
     <div className={trackClassNames}>
       <div className={styles.cover}>
-        <Avatar className={styles.image} radius='md' size={48} src={coverUrl ?? ''} />
+        <Avatar className={styles.image} radius='md' size={48} src={proxiedCoverUrl} />
       </div>
 
       <div className={styles.wrapper}>

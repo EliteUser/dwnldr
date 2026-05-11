@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useState } from 'react';
 
 import { useGetUserQuery } from '../../api/api';
 import { useAppStore } from '../../store';
-import { getApiErrorFromQueryError, useNotify } from '../../utils';
+import { getApiErrorFromQueryError, getProxiedImageUrl, useNotify } from '../../utils';
 
 import styles from './user-input.module.scss';
 
@@ -27,6 +27,7 @@ export const UserInput = memo(() => {
   });
 
   const { avatar_url, full_name } = user || {};
+  const proxiedAvatarUrl = getProxiedImageUrl(avatar_url);
 
   const onSyncButtonClick = useCallback(() => {
     if (inputValue) {
@@ -72,7 +73,7 @@ export const UserInput = memo(() => {
     </div>
   ) : (
     <div className={styles.input}>
-      <Avatar name={full_name || 'User Name'} size='md' src={avatar_url} />
+      <Avatar name={full_name || 'User Name'} size='md' src={proxiedAvatarUrl} />
       <Text fw={600}>{full_name}</Text>
       <ActionIcon variant='outline' onClick={onChangeUserClick} aria-label='Change SoundCloud user'>
         <IconUserEdit size={16} />

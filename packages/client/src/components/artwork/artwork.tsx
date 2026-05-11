@@ -4,6 +4,7 @@ import { IconCancel, IconCrop, IconLink, IconPhoto, IconPhotoOff, IconRotate, Ic
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { Crop } from 'react-image-crop';
 
+import { getProxiedImageUrl } from '../../utils';
 import { ArtworkEditor } from '../artwork-editor';
 import type { ArtworkProps } from './artwork.types';
 import { loadRemoteArtworkFile, validateArtworkFile } from './artwork.utils';
@@ -26,7 +27,8 @@ export const Artwork = memo<ArtworkProps>((props) => {
 
   const isChanged = Boolean(previewUrl);
   const trimmedUrlInput = urlInput.trim();
-  const visiblePreviewUrl = previewUrl ?? providerArtworkUrl ?? undefined;
+  const providerPreviewUrl = getProxiedImageUrl(providerArtworkUrl);
+  const visiblePreviewUrl = previewUrl ?? providerPreviewUrl ?? undefined;
   const artworkStatus = isChanged ? 'Custom' : providerArtworkUrl ? 'Default' : 'No artwork';
 
   const revokeSourceUrl = useCallback(() => {
@@ -66,15 +68,15 @@ export const Artwork = memo<ArtworkProps>((props) => {
   useEffect(() => {
     revokePreviewUrl();
     revokeSourceUrl();
-    setDraftUrl(providerArtworkUrl ?? undefined);
+    setDraftUrl(providerPreviewUrl || undefined);
     setInitialCrop(undefined);
-    setOriginalUrl(providerArtworkUrl ?? undefined);
+    setOriginalUrl(providerPreviewUrl || undefined);
     setError('');
     setIsEditorOpen(false);
     setIsUrlLoading(false);
     setUrlInput('');
     onArtworkChange(undefined);
-  }, [onArtworkChange, providerArtworkUrl, resetKey, revokePreviewUrl, revokeSourceUrl]);
+  }, [onArtworkChange, providerPreviewUrl, resetKey, revokePreviewUrl, revokeSourceUrl]);
 
   useEffect(
     () => () => {
@@ -99,13 +101,13 @@ export const Artwork = memo<ArtworkProps>((props) => {
   const handleReset = useCallback(() => {
     revokePreviewUrl();
     revokeSourceUrl();
-    setDraftUrl(providerArtworkUrl ?? undefined);
+    setDraftUrl(providerPreviewUrl || undefined);
     setInitialCrop(undefined);
-    setOriginalUrl(providerArtworkUrl ?? undefined);
+    setOriginalUrl(providerPreviewUrl || undefined);
     setError('');
     setUrlInput('');
     onArtworkChange(undefined);
-  }, [onArtworkChange, providerArtworkUrl, revokePreviewUrl, revokeSourceUrl]);
+  }, [onArtworkChange, providerPreviewUrl, revokePreviewUrl, revokeSourceUrl]);
 
   const handleArtworkFile = useCallback(
     async (file: File) => {
