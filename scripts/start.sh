@@ -69,10 +69,73 @@ apply_letsencrypt_certificate() {
     apply_certificate_files "${cert_path}" "${key_path}"
 }
 
+letsencrypt_certificate_exists() {
+    if [ -z "${LETSENCRYPT_SUBJECT}" ]; then
+        return 1
+    fi
+
+    local cert_path="/etc/letsencrypt/live/${LETSENCRYPT_SUBJECT}/fullchain.pem"
+    local key_path="/etc/letsencrypt/live/${LETSENCRYPT_SUBJECT}/privkey.pem"
+
+    [ -f "${cert_path}" ] && [ -f "${key_path}" ]
+}
+
+renewal_config_matches_environment() {
+    local renewal_config_path="/etc/letsencrypt/renewal/${LETSENCRYPT_SUBJECT}.conf"
+
+    if [ ! -f "${renewal_config_path}" ]; then
+        return 0
+    fi
+
+    if [ "${LETSENCRYPT_STAGING:-false}" = "true" ]; then
+        grep -Eq '^server = .*acme-staging' "${renewal_config_path}"
+    else
+        ! grep -Eq '^server = .*acme-staging' "${renewal_config_path}"
+    fi
+}
+
+certificate_issuer_matches_environment() {
+    local cert_path="/etc/letsencrypt/live/${LETSENCRYPT_SUBJECT}/fullchain.pem"
+    local issuer
+
+    if [ ! -f "${cert_path}" ]; then
+        return 0
+    fi
+
+    issuer="$(openssl x509 -in "${cert_path}" -noout -issuer 2>/dev/null || true)"
+
+    if [ "${LETSENCRYPT_STAGING:-false}" = "true" ]; then
+        [[ "${issuer}" == *"STAGING"* || "${issuer}" == *"Fake"* ]]
+    else
+        [[ "${issuer}" != *"STAGING"* && "${issuer}" != *"Fake"* ]]
+    fi
+}
+
+letsencrypt_lineage_matches_environment() {
+    if [ -z "${LETSENCRYPT_SUBJECT}" ]; then
+        return 1
+    fi
+
+    renewal_config_matches_environment && certificate_issuer_matches_environment
+}
+
+delete_letsencrypt_lineage_if_environment_changed() {
+    if ! letsencrypt_certificate_exists; then
+        return 0
+    fi
+
+    if letsencrypt_lineage_matches_environment; then
+        return 0
+    fi
+
+    echo "Existing Let's Encrypt lineage for ${LETSENCRYPT_SUBJECT} was created for a different ACME environment. Recreating it."
+    certbot delete --non-interactive --cert-name "${LETSENCRYPT_SUBJECT}"
+}
+
 install_initial_certificate() {
     if [ -n "${SSL_CERT_PATH:-}" ] && [ -n "${SSL_KEY_PATH:-}" ] && [ -f "${SSL_CERT_PATH}" ] && [ -f "${SSL_KEY_PATH}" ]; then
         apply_certificate_files "${SSL_CERT_PATH}" "${SSL_KEY_PATH}"
-    elif [ "${LETSENCRYPT_ENABLED:-false}" = "true" ] && apply_letsencrypt_certificate; then
+    elif [ "${LETSENCRYPT_ENABLED:-false}" = "true" ] && letsencrypt_lineage_matches_environment && apply_letsencrypt_certificate; then
         echo "Using existing Let's Encrypt TLS certificate for ${LETSENCRYPT_SUBJECT}."
     elif [ "${LETSENCRYPT_ENABLED:-false}" = "true" ]; then
         echo "Using a temporary self-signed TLS certificate while requesting Let's Encrypt for ${LETSENCRYPT_SUBJECT}."
@@ -120,7 +183,7 @@ request_letsencrypt_certificate() {
         certbot_args+=("${account_arg}")
     done < <(certbot_account_args)
 
-    if [ -n "${SERVER_IP:-}" ] && [ "${LETSENCRYPT_SUBJECT}" = "${SERVER_IP}" ]; then
+    if [ -n "${SERVER_IP:-}" ] && [ "${LETSENCRYPT_SUBJECT}" = "${SERVER_IP}" ] && is_ip_address "${SERVER_IP}"; then
         certbot_args+=(--preferred-profile shortlived --ip-address "${SERVER_IP}")
     else
         certbot_args+=(-d "${LETSENCRYPT_SUBJECT}")
@@ -139,6 +202,8 @@ ensure_letsencrypt_certificate() {
         echo "Certbot is not installed in the container."
         return 1
     fi
+
+    delete_letsencrypt_lineage_if_environment_changed
 
     if ! apply_letsencrypt_certificate; then
         request_letsencrypt_certificate
@@ -165,6 +230,13 @@ cleanup() {
     wait "${RENEW_PID}" "${NODE_PID}" "${NGINX_PID}" 2>/dev/null || true
 }
 
+fail_after_letsencrypt_error() {
+    echo "Let's Encrypt certificate setup failed and self-signed fallback is disabled. Stopping services and sleeping before exit to avoid a tight restart loop."
+    cleanup
+    sleep "${LETSENCRYPT_FAILURE_SLEEP_SECONDS}"
+    exit 1
+}
+
 install_initial_certificate
 
 node dist/main.js &
@@ -180,9 +252,7 @@ if [ "${LETSENCRYPT_ENABLED:-false}" = "true" ]; then
         renew_letsencrypt_forever &
         RENEW_PID=$!
     elif [ "${ALLOW_SELF_SIGNED_SSL:-true}" != "true" ]; then
-        echo "Let's Encrypt certificate setup failed and self-signed fallback is disabled. Sleeping before exit to avoid a tight restart loop."
-        sleep "${LETSENCRYPT_FAILURE_SLEEP_SECONDS}"
-        exit 1
+        fail_after_letsencrypt_error
     else
         echo "Let's Encrypt certificate setup failed; continuing with the self-signed fallback."
     fi
