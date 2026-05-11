@@ -4,10 +4,9 @@
   flex-direction: column;
   flex-grow: 1;
   inline-size: 100%;
-  block-size: 100vh;
-  block-size: 100dvh;
+  block-size: 100%;
   min-block-size: 0;
-  max-block-size: inherit;
+  max-block-size: 100%;
 }
 
 .tabs {
