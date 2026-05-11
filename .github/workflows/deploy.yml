@@ -45,8 +45,20 @@ jobs:
           ssh-private-key: ${{ secrets.DWNLDR_DEPLOY_KEY }}
 
       - name: Deploy to VPS
+        env:
+          DWNLDR_DEPLOY_HOST: ${{ secrets.DWNLDR_DEPLOY_HOST || vars.DWNLDR_DEPLOY_HOST }}
+          DWNLDR_PUBLIC_IP: ${{ secrets.DWNLDR_PUBLIC_IP || vars.DWNLDR_PUBLIC_IP || secrets.DWNLDR_DEPLOY_HOST || vars.DWNLDR_DEPLOY_HOST }}
         run: |
-          ssh -o StrictHostKeyChecking=no root@213.165.55.245 '
+          if [ -z "$DWNLDR_DEPLOY_HOST" ]; then
+            echo "DWNLDR_DEPLOY_HOST is not configured. Add it as a GitHub Actions variable or secret."
+            exit 1
+          fi
+          if [ -z "$DWNLDR_PUBLIC_IP" ]; then
+            echo "DWNLDR_PUBLIC_IP is not configured. Add it as a GitHub Actions variable or secret."
+            exit 1
+          fi
+
+          ssh -o StrictHostKeyChecking=no root@"$DWNLDR_DEPLOY_HOST" '
           if [ ! -d "/usr/apps/dwnldr/.git" ]; then
             sudo git clone https://github.com/EliteUser/dwnldr.git /usr/apps/dwnldr
           fi
@@ -56,14 +68,14 @@ jobs:
           if sudo docker ps -aq -f name=^dwnldr$ | grep -q .; then
             sudo docker rm -f dwnldr
           fi
-          sudo mkdir -p /usr/apps/dwnldr/self-signed
-          SERVER_IP=$(hostname -I | awk "{print \$1}")
           sudo docker run -d \
             -p 80:80 \
             -p 443:443 \
-            -e SERVER_IP="$SERVER_IP" \
-            -v /usr/apps/dwnldr/self-signed:/var/lib/dwnldr/self-signed \
-            -v /etc/letsencrypt:/etc/letsencrypt:ro \
+            -e LETSENCRYPT_ENABLED=true \
+            -e SERVER_IP='"$DWNLDR_PUBLIC_IP"' \
+            -e ALLOW_SELF_SIGNED_SSL=false \
+            -v dwnldr-letsencrypt:/etc/letsencrypt \
+            -v dwnldr-state:/var/lib/dwnldr \
             --restart always \
             --name dwnldr \
             dwnldr

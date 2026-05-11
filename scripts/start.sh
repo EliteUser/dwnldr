@@ -9,6 +9,7 @@ SELF_SIGNED_CERT_PATH="${SELF_SIGNED_CERT_DIR}/server.crt"
 SELF_SIGNED_KEY_PATH="${SELF_SIGNED_CERT_DIR}/server.key"
 LETSENCRYPT_WEBROOT="${LETSENCRYPT_WEBROOT:-/var/www/letsencrypt}"
 LETSENCRYPT_RENEW_INTERVAL_SECONDS="${LETSENCRYPT_RENEW_INTERVAL_SECONDS:-43200}"
+LETSENCRYPT_FAILURE_SLEEP_SECONDS="${LETSENCRYPT_FAILURE_SLEEP_SECONDS:-300}"
 TLS_HOST="${SERVER_NAME:-${SERVER_IP:-localhost}}"
 LETSENCRYPT_SUBJECT="${SERVER_NAME:-${SERVER_IP:-}}"
 NODE_PID=""
@@ -179,7 +180,8 @@ if [ "${LETSENCRYPT_ENABLED:-false}" = "true" ]; then
         renew_letsencrypt_forever &
         RENEW_PID=$!
     elif [ "${ALLOW_SELF_SIGNED_SSL:-true}" != "true" ]; then
-        echo "Let's Encrypt certificate setup failed and self-signed fallback is disabled."
+        echo "Let's Encrypt certificate setup failed and self-signed fallback is disabled. Sleeping before exit to avoid a tight restart loop."
+        sleep "${LETSENCRYPT_FAILURE_SLEEP_SECONDS}"
         exit 1
     else
         echo "Let's Encrypt certificate setup failed; continuing with the self-signed fallback."
