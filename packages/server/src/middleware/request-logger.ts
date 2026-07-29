@@ -18,15 +18,20 @@ export const requestLogger: RequestHandler = (req, res, next) => {
 
     logged = true;
     const durationMs = Number((process.hrtime.bigint() - startedAt) / 1000000n);
+    const userAgent = req.get?.('user-agent') ?? req.headers?.['user-agent'];
 
     logger[options.level](
       {
         evt: options.evt,
         requestId,
+        clientIp: req.ip,
         method: req.method,
-        path: req.originalUrl,
+        path: req.originalUrl?.split('?')[0] ?? req.path,
         statusCode: res.statusCode,
         durationMs,
+        responseContentLength: res.getHeader('content-length'),
+        responseContentType: res.getHeader('content-type'),
+        ...(userAgent ? { userAgent: userAgent.slice(0, 256) } : undefined),
         ...(options.aborted ? { aborted: true } : undefined),
       },
       options.aborted ? 'Request aborted before the response finished' : 'Request completed',
@@ -34,6 +39,11 @@ export const requestLogger: RequestHandler = (req, res, next) => {
   };
 
   res.once('finish', () => {
+    if (req.path === '/health' && res.statusCode === 200) {
+      logged = true;
+      return;
+    }
+
     logRequest({
       evt: 'http.request.completed',
       level: 'info',

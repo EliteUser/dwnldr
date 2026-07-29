@@ -1,7 +1,9 @@
+import { EventEmitter } from 'node:events';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { HttpError } from './errors/http-error.js';
+import { heavyOperationGuard, resetHeavyOperationGuardForTests } from './middleware/heavy-operation-guard.js';
 
 const fetchRemoteArtworkMock = vi.fn();
 
@@ -13,6 +15,7 @@ const { createApp } = await import('./app.js');
 
 describe('artwork route', () => {
   beforeEach(() => {
+    resetHeavyOperationGuardForTests();
     fetchRemoteArtworkMock.mockResolvedValue({
       buffer: Buffer.from([1, 2, 3]),
       mimeType: 'image/png',
@@ -32,6 +35,24 @@ describe('artwork route', () => {
     expect(response.headers['content-type']).toContain('image/png');
     expect(response.body).toEqual(Buffer.from([1, 2, 3]));
     expect(fetchRemoteArtworkMock).toHaveBeenCalledWith('https://img.example.test/cover.png');
+  });
+
+  it('allows artwork requests while a media-processing operation is active', async () => {
+    const activeResponse = new EventEmitter();
+    heavyOperationGuard({} as never, activeResponse as never, vi.fn());
+
+    const responses = await Promise.all([
+      request(createApp()).get('/api/artwork').query({
+        url: 'https://img.example.test/cover-1.png',
+      }),
+      request(createApp()).get('/api/artwork').query({
+        url: 'https://img.example.test/cover-2.png',
+      }),
+    ]);
+    activeResponse.emit('finish');
+
+    expect(responses.map(({ status }) => status)).toEqual([200, 200]);
+    expect(fetchRemoteArtworkMock).toHaveBeenCalledTimes(2);
   });
 
   it('rejects missing artwork URLs before proxying', async () => {

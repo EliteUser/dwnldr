@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { HttpError } from '../../errors/http-error.js';
+import { heavyOperationGuard } from '../../middleware/heavy-operation-guard.js';
 import { getProvider, requireProviderFeature, classifySource } from '../../providers/index.js';
 
 const youTubeTrackQuerySchema = z.object({
@@ -10,7 +11,7 @@ const youTubeTrackQuerySchema = z.object({
 
 export const youtubeRouter = Router();
 
-youtubeRouter.get('/youtube/tracks', async (req, res) => {
+youtubeRouter.get('/youtube/tracks', heavyOperationGuard, async (req, res) => {
   const { url } = youTubeTrackQuerySchema.parse(req.query);
 
   if (classifySource(url) !== 'youtube') {

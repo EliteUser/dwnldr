@@ -15,7 +15,6 @@ export const Artwork = memo<ArtworkProps>((props) => {
   const { disabled, providerArtworkUrl, resetKey, onArtworkChange } = props;
 
   const sourceUrlRef = useRef<string | undefined>(undefined);
-
   const [draftUrl, setDraftUrl] = useState<string>();
   const [error, setError] = useState('');
   const [initialCrop, setInitialCrop] = useState<Crop>();
@@ -277,7 +276,11 @@ export const Artwork = memo<ArtworkProps>((props) => {
             onChange={(event) => setUrlInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
-                void handleUrlLoad();
+                event.preventDefault();
+
+                if (!isUrlLoading) {
+                  void handleUrlLoad();
+                }
               }
             }}
             placeholder='https://example.com/image.jpg'
@@ -287,7 +290,7 @@ export const Artwork = memo<ArtworkProps>((props) => {
             size='md'
             variant='outline'
             loading={isUrlLoading}
-            disabled={disabled || !trimmedUrlInput}
+            disabled={disabled || isUrlLoading || !trimmedUrlInput}
             onClick={() => void handleUrlLoad()}
           >
             Load URL

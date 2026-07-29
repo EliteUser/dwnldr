@@ -59,5 +59,7 @@ export const API_ERROR_MESSAGE: Record<ApiErrorCode, string> = {
   UPSTREAM_UNAUTHORIZED: 'Could not access this source right now. Try again later.',
   UPSTREAM_FAILURE: 'Could not reach this source right now. Try again later.',
   CONVERSION_FAILURE: 'Could not prepare the audio file.',
+  RATE_LIMITED: 'Too many requests. Wait a moment and try again.',
+  SERVER_BUSY: 'Another media operation is already running. Try again shortly.',
   INTERNAL_ERROR: FALLBACK_API_ERROR_MESSAGE,
 };

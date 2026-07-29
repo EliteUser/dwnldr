@@ -84,6 +84,38 @@ describe('Download', () => {
     expect(providerTrackQueryMock.mock.calls.some(([url]) => url === 'https://soundcloud.com/artist/track')).toBe(true);
   });
 
+  it('cancels a pending metadata update when the component unmounts', () => {
+    vi.useFakeTimers();
+
+    const { unmount } = render(<Download />);
+
+    fireEvent.change(screen.getByPlaceholderText('Enter track URL'), {
+      target: { value: 'https://soundcloud.com/artist/pending-track' },
+    });
+    unmount();
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(
+      providerTrackQueryMock.mock.calls.some(([url]) => url === 'https://soundcloud.com/artist/pending-track'),
+    ).toBe(false);
+  });
+
+  it('synchronizes a newly selected likes-track URL without waiting for the debounce delay', () => {
+    vi.useFakeTimers();
+
+    const { rerender } = render(<Download selectedUrl='https://soundcloud.com/artist/track-one' />);
+
+    providerTrackQueryMock.mockClear();
+    rerender(<Download selectedUrl='https://soundcloud.com/artist/track-two' />);
+
+    expect(providerTrackQueryMock).toHaveBeenCalledWith('https://soundcloud.com/artist/track-two', {
+      skip: false,
+    });
+  });
+
   it('clears form fields when a different likes-track URL is selected', () => {
     providerTrackQueryMock.mockReturnValue({
       currentData: {

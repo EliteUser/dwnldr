@@ -1,4 +1,5 @@
 import { Accordion, Button, Loader, Text, TextInput } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconBrandSoundcloud, IconBrandYoutube, IconDownload } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 
@@ -21,7 +22,6 @@ export const Download = memo<DownloadProps>(function Download(props) {
   const { selectedUrl } = props;
 
   const [urlInput, setUrlInput] = useState(selectedUrl || '');
-  const [debouncedUrl, setDebouncedUrl] = useState(selectedUrl || '');
   const [name, setName] = useState('');
   const [album, setAlbum] = useState('');
   const [lyrics, setLyrics] = useState('');
@@ -29,6 +29,9 @@ export const Download = memo<DownloadProps>(function Download(props) {
 
   const notify = useNotify();
   const { cancel, download, inProgress } = useDownload();
+  const trimmedUrl = urlInput.trim();
+  const [pacedUrl] = useDebouncedValue(trimmedUrl, METADATA_DEBOUNCE_MS);
+  const debouncedUrl = selectedUrl && urlInput === selectedUrl ? selectedUrl : pacedUrl;
 
   const {
     currentData: track,
@@ -39,7 +42,6 @@ export const Download = memo<DownloadProps>(function Download(props) {
     skip: !debouncedUrl,
   });
 
-  const trimmedUrl = urlInput.trim();
   const hasUrl = Boolean(trimmedUrl);
   const providerArtworkUrl = track?.artwork?.url ?? track?.artwork_url;
 
@@ -51,7 +53,6 @@ export const Download = memo<DownloadProps>(function Download(props) {
 
   useEffect(() => {
     setUrlInput(selectedUrl || '');
-    setDebouncedUrl(selectedUrl || '');
     setName('');
     setAlbum('');
     setLyrics('');
@@ -63,16 +64,6 @@ export const Download = memo<DownloadProps>(function Download(props) {
       setName(provider?.toDownloadName(track) ?? `${track.user} - ${track.title}`);
     }
   }, [provider, track, isFetching]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedUrl(urlInput.trim());
-    }, METADATA_DEBOUNCE_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [urlInput]);
 
   useEffect(() => {
     if (!urlInput || urlInput !== debouncedUrl) {

@@ -1,5 +1,8 @@
 import { HttpError } from '../../errors/http-error.js';
 import { logTimedOperation } from '../../lib/logger.js';
+import { getSafeUrlLogFields } from '../../utils/url-log.utils.js';
+import { fetchPublicHttpUrl } from '../http/public-http.service.js';
+import { cancelResponseBody, readResponseBuffer, ResponseSizeLimitError } from '../http/response-buffer.service.js';
 import { ALLOWED_ARTWORK_MIME_TYPES, MAX_ARTWORK_SIZE } from './artwork.constants.js';
 
 export type RemoteArtwork = {
@@ -19,37 +22,6 @@ const getArtworkTooLargeError = () =>
     },
   });
 
-const readArtworkBuffer = async (response: Response) => {
-  if (!response.body) {
-    return Buffer.from(await response.arrayBuffer());
-  }
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) {
-        return Buffer.concat(chunks, size);
-      }
-
-      size += value.byteLength;
-
-      if (size > MAX_ARTWORK_SIZE) {
-        await reader.cancel().catch(() => undefined);
-        throw getArtworkTooLargeError();
-      }
-
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-};
-
 export const fetchRemoteArtwork = async (url: string): Promise<RemoteArtwork> =>
   await logTimedOperation(
     {
@@ -60,9 +32,7 @@ export const fetchRemoteArtwork = async (url: string): Promise<RemoteArtwork> =>
       successMessage: 'Fetched remote artwork',
       failureMessage: 'Failed to fetch remote artwork',
       failureLevel: 'warn',
-      bindings: {
-        url,
-      },
+      bindings: getSafeUrlLogFields(url),
       getSuccessBindings: (artwork) => ({
         mimeType: artwork.mimeType,
         size: artwork.buffer.length,
@@ -88,10 +58,11 @@ export const fetchRemoteArtwork = async (url: string): Promise<RemoteArtwork> =>
       let response: Response;
 
       try {
-        response = await fetch(parsedUrl.href, {
+        response = await fetchPublicHttpUrl(parsedUrl, {
           headers: {
             Accept: 'image/jpeg,image/png,image/webp',
           },
+          maxRedirects: 3,
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
       } catch {
@@ -101,6 +72,7 @@ export const fetchRemoteArtwork = async (url: string): Promise<RemoteArtwork> =>
       }
 
       if (!response.ok) {
+        await cancelResponseBody(response);
         throw new HttpError(400, 'Image URL could not be loaded.', {
           code: 'INVALID_INPUT',
           details: {
@@ -112,6 +84,7 @@ export const fetchRemoteArtwork = async (url: string): Promise<RemoteArtwork> =>
       const mimeType = getMimeType(response.headers.get('content-type'));
 
       if (!ALLOWED_ARTWORK_MIME_TYPES.has(mimeType)) {
+        await cancelResponseBody(response);
         throw new HttpError(400, 'Image URL must return a JPEG, PNG, or WebP image.', {
           code: 'INVALID_INPUT',
           details: {
@@ -120,13 +93,17 @@ export const fetchRemoteArtwork = async (url: string): Promise<RemoteArtwork> =>
         });
       }
 
-      const contentLength = Number(response.headers.get('content-length'));
+      let buffer: Buffer;
 
-      if (Number.isFinite(contentLength) && contentLength > MAX_ARTWORK_SIZE) {
-        throw getArtworkTooLargeError();
+      try {
+        buffer = await readResponseBuffer(response, MAX_ARTWORK_SIZE);
+      } catch (error) {
+        if (error instanceof ResponseSizeLimitError) {
+          throw getArtworkTooLargeError();
+        }
+
+        throw error;
       }
-
-      const buffer = await readArtworkBuffer(response);
 
       return {
         buffer,

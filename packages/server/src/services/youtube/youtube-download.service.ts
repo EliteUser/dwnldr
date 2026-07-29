@@ -14,6 +14,7 @@ import { logTimedOperation } from '../../lib/logger.js';
 import { createYtDlp } from '../../lib/ytdlp.js';
 import type { ProviderDownloadOptions } from '../../providers/types.js';
 import { sanitizeFilename } from '../../utils/sanitize.utils.js';
+import { getSafeUrlLogFields } from '../../utils/url-log.utils.js';
 import { resolveArtworkPath } from '../artwork/artwork.service.js';
 import { postProcessTrack } from '../media/post-process.service.js';
 import { saveThumbnailFromUrl } from '../media/thumbnail.service.js';
@@ -83,7 +84,7 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
             : `Failed to fetch YouTube metadata: ${getErrorMessage(error)}`,
         bindings: {
           provider: 'youtube',
-          url,
+          ...getSafeUrlLogFields(url),
         },
       },
       () => ytdlp.getInfoAsync(url),
@@ -125,7 +126,7 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
               : `Failed to download or convert YouTube audio: ${getErrorMessage(error)}`,
           bindings: {
             provider: 'youtube',
-            url,
+            ...getSafeUrlLogFields(url),
             trackPath: downloadTargetPath,
           },
         },

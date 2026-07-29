@@ -1,7 +1,6 @@
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,8 +13,6 @@ import { createHealthRouter } from './routes/common/health.routes.js';
 
 const serverDirPath = path.dirname(fileURLToPath(import.meta.url));
 const clientDistPath = path.resolve(serverDirPath, '../../client/dist');
-const clientIndexPath = path.join(clientDistPath, 'index.html');
-
 type CreateAppOptions = {
   getReadiness?: HealthRouterOptions['getReadiness'];
 };
@@ -23,14 +20,22 @@ type CreateAppOptions = {
 export const createApp = (options: CreateAppOptions = {}) => {
   const app = express();
 
-  app.use(
-    cors({
-      origin: env.CORS_ORIGIN,
-    }),
-  );
+  app.set('trust proxy', 'loopback');
+
+  if (env.NODE_ENV !== 'production') {
+    app.use(
+      cors({
+        origin: env.CORS_ORIGIN,
+      }),
+    );
+  }
   app.use(
     helmet({
       contentSecurityPolicy: false,
+      frameguard: false,
+      referrerPolicy: false,
+      strictTransportSecurity: false,
+      xContentTypeOptions: false,
     }),
   );
   app.use(requestLogger);
@@ -39,15 +44,6 @@ export const createApp = (options: CreateAppOptions = {}) => {
   app.use(express.static(clientDistPath));
 
   app.use('/api', apiRouter);
-
-  app.get(/^\/(?!api).*/, (_req, res, next) => {
-    if (!fs.existsSync(clientIndexPath)) {
-      next();
-      return;
-    }
-
-    res.sendFile(clientIndexPath);
-  });
 
   app.use(errorHandler);
 

@@ -2,186 +2,144 @@
 
 set -euo pipefail
 
-CERT_TARGET_PATH=/etc/ssl/certs/server.crt
-KEY_TARGET_PATH=/etc/ssl/private/server.key
+CERT_TARGET_PATH="${CERT_TARGET_PATH:-/etc/ssl/certs/server.crt}"
+KEY_TARGET_PATH="${KEY_TARGET_PATH:-/etc/ssl/private/server.key}"
 SELF_SIGNED_CERT_DIR="${SELF_SIGNED_CERT_DIR:-/var/lib/dwnldr/self-signed}"
 SELF_SIGNED_CERT_PATH="${SELF_SIGNED_CERT_DIR}/server.crt"
 SELF_SIGNED_KEY_PATH="${SELF_SIGNED_CERT_DIR}/server.key"
 LETSENCRYPT_WEBROOT="${LETSENCRYPT_WEBROOT:-/var/www/letsencrypt}"
+LETSENCRYPT_CONFIG_DIR="${LETSENCRYPT_CONFIG_DIR:-/etc/letsencrypt}"
 LETSENCRYPT_RENEW_INTERVAL_SECONDS="${LETSENCRYPT_RENEW_INTERVAL_SECONDS:-43200}"
-LETSENCRYPT_FAILURE_SLEEP_SECONDS="${LETSENCRYPT_FAILURE_SLEEP_SECONDS:-300}"
-TLS_HOST="${SERVER_NAME:-${SERVER_IP:-localhost}}"
 LETSENCRYPT_SUBJECT="${SERVER_NAME:-${SERVER_IP:-}}"
+TLS_HOST="${SERVER_NAME:-${SERVER_IP:-localhost}}"
 NODE_PID=""
 NGINX_PID=""
 RENEW_PID=""
+ACTIVE_CERT_MODE=""
 
-mkdir -p /etc/ssl/private
-mkdir -p /etc/ssl/certs
-mkdir -p "${SELF_SIGNED_CERT_DIR}"
-mkdir -p "${LETSENCRYPT_WEBROOT}"
+prepare_runtime() {
+    if [[ ! "${TLS_HOST}" =~ ^[A-Za-z0-9:.-]+$ ]]; then
+        echo "Invalid TLS host value."
+        return 1
+    fi
+
+    mkdir -p /etc/nginx/sites-available /etc/ssl/certs /etc/ssl/private "${LETSENCRYPT_WEBROOT}" "${SELF_SIGNED_CERT_DIR}"
+    mkdir -p "${TEMP_DIR:-/var/lib/dwnldr/downloads}"
+    chown -R node:node "${TEMP_DIR:-/var/lib/dwnldr/downloads}"
+    export TLS_HOST
+    envsubst '${TLS_HOST}' < /etc/nginx/templates/dwnldr.conf.template > /etc/nginx/sites-available/default
+}
 
 is_ip_address() {
     [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ || "$1" == *:* ]]
 }
 
-generate_self_signed_certificate() {
-    local san_type="DNS"
+certificate_pair_is_valid() {
+    local cert_path="$1"
+    local key_path="$2"
+    local minimum_validity_seconds="${3:-0}"
+    local cert_public_key
+    local private_public_key
 
-    if is_ip_address "${TLS_HOST}"; then
-        san_type="IP"
-    fi
+    [ -f "${cert_path}" ] && [ -f "${key_path}" ] || return 1
+    openssl x509 -in "${cert_path}" -noout -checkend "${minimum_validity_seconds}" >/dev/null 2>&1 || return 1
+    openssl pkey -in "${key_path}" -noout >/dev/null 2>&1 || return 1
 
-    if [ ! -f "${SELF_SIGNED_CERT_PATH}" ] || [ ! -f "${SELF_SIGNED_KEY_PATH}" ]; then
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-            -keyout "${SELF_SIGNED_KEY_PATH}" \
-            -out "${SELF_SIGNED_CERT_PATH}" \
-            -subj "/CN=${TLS_HOST}" \
-            -addext "subjectAltName=${san_type}:${TLS_HOST}"
-    fi
+    cert_public_key="$(openssl x509 -in "${cert_path}" -pubkey -noout 2>/dev/null | openssl pkey -pubin -outform DER 2>/dev/null | sha256sum | cut -d' ' -f1)"
+    private_public_key="$(openssl pkey -in "${key_path}" -pubout -outform DER 2>/dev/null | sha256sum | cut -d' ' -f1)"
 
-    cp "${SELF_SIGNED_CERT_PATH}" "${CERT_TARGET_PATH}"
-    cp "${SELF_SIGNED_KEY_PATH}" "${KEY_TARGET_PATH}"
-    chmod 600 "${KEY_TARGET_PATH}"
+    [ -n "${cert_public_key}" ] && [ "${cert_public_key}" = "${private_public_key}" ]
+}
+
+log_active_certificate() {
+    local mode="$1"
+    local subject
+    local expiry
+
+    subject="$(openssl x509 -in "${CERT_TARGET_PATH}" -noout -subject 2>/dev/null || true)"
+    expiry="$(openssl x509 -in "${CERT_TARGET_PATH}" -noout -enddate 2>/dev/null || true)"
+    echo "TLS certificate activated: mode=${mode} ${subject} ${expiry}"
 }
 
 apply_certificate_files() {
     local cert_path="$1"
     local key_path="$2"
+    local mode="$3"
+    local cert_temp="${CERT_TARGET_PATH}.next"
+    local key_temp="${KEY_TARGET_PATH}.next"
 
-    cp "${cert_path}" "${CERT_TARGET_PATH}"
-    cp "${key_path}" "${KEY_TARGET_PATH}"
-    chmod 600 "${KEY_TARGET_PATH}"
+    certificate_pair_is_valid "${cert_path}" "${key_path}" 0 || return 1
+    install -m 644 "${cert_path}" "${cert_temp}" || return 1
+    install -m 600 "${key_path}" "${key_temp}" || return 1
+    mv -f "${cert_temp}" "${CERT_TARGET_PATH}" || return 1
+    mv -f "${key_temp}" "${KEY_TARGET_PATH}" || return 1
+    ACTIVE_CERT_MODE="${mode}"
+    log_active_certificate "${mode}"
+}
+
+generate_self_signed_certificate() {
+    local san_type="DNS"
+    local cert_temp="${SELF_SIGNED_CERT_PATH}.next"
+    local key_temp="${SELF_SIGNED_KEY_PATH}.next"
+
+    if certificate_pair_is_valid "${SELF_SIGNED_CERT_PATH}" "${SELF_SIGNED_KEY_PATH}" 2592000; then
+        return 0
+    fi
+
+    if is_ip_address "${TLS_HOST}"; then
+        san_type="IP"
+    fi
+
+    rm -f "${cert_temp}" "${key_temp}"
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout "${key_temp}" \
+        -out "${cert_temp}" \
+        -subj "/CN=${TLS_HOST}" \
+        -addext "subjectAltName=${san_type}:${TLS_HOST}" || return 1
+    chmod 600 "${key_temp}" || return 1
+    mv -f "${cert_temp}" "${SELF_SIGNED_CERT_PATH}" || return 1
+    mv -f "${key_temp}" "${SELF_SIGNED_KEY_PATH}" || return 1
+}
+
+apply_self_signed_certificate() {
+    generate_self_signed_certificate || return 1
+    apply_certificate_files "${SELF_SIGNED_CERT_PATH}" "${SELF_SIGNED_KEY_PATH}" self-signed
+}
+
+letsencrypt_paths_are_valid() {
+    [ -n "${LETSENCRYPT_SUBJECT}" ] || return 1
+    certificate_pair_is_valid \
+        "${LETSENCRYPT_CONFIG_DIR}/live/${LETSENCRYPT_SUBJECT}/fullchain.pem" \
+        "${LETSENCRYPT_CONFIG_DIR}/live/${LETSENCRYPT_SUBJECT}/privkey.pem" \
+        "${1:-0}"
 }
 
 apply_letsencrypt_certificate() {
-    if [ -z "${LETSENCRYPT_SUBJECT}" ]; then
-        return 1
-    fi
-
-    local cert_path="/etc/letsencrypt/live/${LETSENCRYPT_SUBJECT}/fullchain.pem"
-    local key_path="/etc/letsencrypt/live/${LETSENCRYPT_SUBJECT}/privkey.pem"
-
-    if [ ! -f "${cert_path}" ] || [ ! -f "${key_path}" ]; then
-        return 1
-    fi
-
-    apply_certificate_files "${cert_path}" "${key_path}"
-}
-
-letsencrypt_certificate_exists() {
-    if [ -z "${LETSENCRYPT_SUBJECT}" ]; then
-        return 1
-    fi
-
-    local cert_path="/etc/letsencrypt/live/${LETSENCRYPT_SUBJECT}/fullchain.pem"
-    local key_path="/etc/letsencrypt/live/${LETSENCRYPT_SUBJECT}/privkey.pem"
-
-    [ -f "${cert_path}" ] && [ -f "${key_path}" ]
-}
-
-renewal_config_matches_environment() {
-    local renewal_config_path="/etc/letsencrypt/renewal/${LETSENCRYPT_SUBJECT}.conf"
-
-    if [ ! -f "${renewal_config_path}" ]; then
-        return 0
-    fi
-
-    if [ "${LETSENCRYPT_STAGING:-false}" = "true" ]; then
-        grep -Eq '^server = .*acme-staging' "${renewal_config_path}"
-    else
-        ! grep -Eq '^server = .*acme-staging' "${renewal_config_path}"
-    fi
-}
-
-certificate_issuer_matches_environment() {
-    local cert_path="/etc/letsencrypt/live/${LETSENCRYPT_SUBJECT}/fullchain.pem"
-    local issuer
-
-    if [ ! -f "${cert_path}" ]; then
-        return 0
-    fi
-
-    issuer="$(openssl x509 -in "${cert_path}" -noout -issuer 2>/dev/null || true)"
-
-    if [ "${LETSENCRYPT_STAGING:-false}" = "true" ]; then
-        [[ "${issuer}" == *"STAGING"* || "${issuer}" == *"Fake"* ]]
-    else
-        [[ "${issuer}" != *"STAGING"* && "${issuer}" != *"Fake"* ]]
-    fi
-}
-
-letsencrypt_lineage_matches_environment() {
-    if [ -z "${LETSENCRYPT_SUBJECT}" ]; then
-        return 1
-    fi
-
-    renewal_config_matches_environment && certificate_issuer_matches_environment
-}
-
-delete_letsencrypt_lineage_if_environment_changed() {
-    if ! letsencrypt_certificate_exists; then
-        return 0
-    fi
-
-    if letsencrypt_lineage_matches_environment; then
-        return 0
-    fi
-
-    echo "Existing Let's Encrypt lineage for ${LETSENCRYPT_SUBJECT} was created for a different ACME environment. Recreating it."
-    certbot delete --non-interactive --cert-name "${LETSENCRYPT_SUBJECT}"
-}
-
-install_initial_certificate() {
-    if [ -n "${SSL_CERT_PATH:-}" ] && [ -n "${SSL_KEY_PATH:-}" ] && [ -f "${SSL_CERT_PATH}" ] && [ -f "${SSL_KEY_PATH}" ]; then
-        apply_certificate_files "${SSL_CERT_PATH}" "${SSL_KEY_PATH}"
-    elif [ "${LETSENCRYPT_ENABLED:-false}" = "true" ] && letsencrypt_lineage_matches_environment && apply_letsencrypt_certificate; then
-        echo "Using existing Let's Encrypt TLS certificate for ${LETSENCRYPT_SUBJECT}."
-    elif [ "${LETSENCRYPT_ENABLED:-false}" = "true" ]; then
-        echo "Using a temporary self-signed TLS certificate while requesting Let's Encrypt for ${LETSENCRYPT_SUBJECT}."
-        generate_self_signed_certificate
-    elif [ -n "${SERVER_NAME:-}" ] && apply_letsencrypt_certificate; then
-        echo "Using mounted Let's Encrypt TLS certificate for ${SERVER_NAME}."
-    elif [ "${ALLOW_SELF_SIGNED_SSL:-true}" = "true" ]; then
-        echo "Using a self-signed TLS certificate. This is not trusted on Android and may block File System Access APIs."
-        generate_self_signed_certificate
-    else
-        echo "No trusted TLS certificate was provided. Configure SSL_CERT_PATH/SSL_KEY_PATH, mount /etc/letsencrypt, or set LETSENCRYPT_ENABLED=true with SERVER_IP or SERVER_NAME."
-        exit 1
-    fi
-
-    chmod 600 "${SELF_SIGNED_KEY_PATH}" 2>/dev/null || true
-}
-
-certbot_account_args() {
-    if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
-        printf '%s\n' "--email" "${LETSENCRYPT_EMAIL}"
-    else
-        printf '%s\n' "--register-unsafely-without-email"
-    fi
+    letsencrypt_paths_are_valid 0 || return 1
+    apply_certificate_files \
+        "${LETSENCRYPT_CONFIG_DIR}/live/${LETSENCRYPT_SUBJECT}/fullchain.pem" \
+        "${LETSENCRYPT_CONFIG_DIR}/live/${LETSENCRYPT_SUBJECT}/privkey.pem" \
+        letsencrypt
 }
 
 request_letsencrypt_certificate() {
-    if [ -z "${LETSENCRYPT_SUBJECT}" ]; then
-        echo "LETSENCRYPT_ENABLED=true requires SERVER_IP for IP certificates or SERVER_NAME for domain certificates."
-        return 1
-    fi
-
     local certbot_args=(
         certonly
         --non-interactive
         --agree-tos
+        --config-dir "${LETSENCRYPT_CONFIG_DIR}"
+        --cert-name "${LETSENCRYPT_SUBJECT}"
         --webroot
         --webroot-path "${LETSENCRYPT_WEBROOT}"
     )
 
-    if [ "${LETSENCRYPT_STAGING:-false}" = "true" ]; then
-        certbot_args+=(--staging)
-    fi
+    [ -n "${LETSENCRYPT_SUBJECT}" ] || return 1
 
-    while IFS= read -r account_arg; do
-        certbot_args+=("${account_arg}")
-    done < <(certbot_account_args)
+    if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
+        certbot_args+=(--email "${LETSENCRYPT_EMAIL}")
+    else
+        certbot_args+=(--register-unsafely-without-email)
+    fi
 
     if [ -n "${SERVER_IP:-}" ] && [ "${LETSENCRYPT_SUBJECT}" = "${SERVER_IP}" ] && is_ip_address "${SERVER_IP}"; then
         certbot_args+=(--preferred-profile shortlived --ip-address "${SERVER_IP}")
@@ -192,37 +150,87 @@ request_letsencrypt_certificate() {
     certbot "${certbot_args[@]}"
 }
 
-reload_nginx_certificate() {
-    apply_letsencrypt_certificate
+reload_nginx() {
+    nginx -t || return 1
     nginx -s reload
 }
 
 ensure_letsencrypt_certificate() {
-    if ! command -v certbot >/dev/null 2>&1; then
-        echo "Certbot is not installed in the container."
+    command -v certbot >/dev/null 2>&1 || return 1
+
+    if letsencrypt_paths_are_valid 0; then
+        if ! certbot renew --non-interactive --config-dir "${LETSENCRYPT_CONFIG_DIR}" --webroot --webroot-path "${LETSENCRYPT_WEBROOT}"; then
+            echo "Let's Encrypt renewal failed; retaining the existing valid certificate and retrying later."
+        fi
+    else
+        request_letsencrypt_certificate || return 1
+    fi
+
+    apply_letsencrypt_certificate || return 1
+    reload_nginx
+}
+
+activate_fallback_certificate() {
+    if [ "${ALLOW_SELF_SIGNED_SSL:-true}" != "true" ]; then
         return 1
     fi
 
-    delete_letsencrypt_lineage_if_environment_changed
-
-    if ! apply_letsencrypt_certificate; then
-        request_letsencrypt_certificate
-    else
-        certbot renew --non-interactive --webroot --webroot-path "${LETSENCRYPT_WEBROOT}"
-    fi
-
-    reload_nginx_certificate
+    echo "Let's Encrypt is unavailable; activating the persistent self-signed fallback."
+    apply_self_signed_certificate || return 1
+    reload_nginx
 }
 
-renew_letsencrypt_forever() {
+renew_certificates_once() {
+    if [ "${LETSENCRYPT_ENABLED:-false}" != "true" ]; then
+        if apply_self_signed_certificate && reload_nginx; then
+            echo "Self-signed certificate check completed successfully."
+        else
+            echo "Self-signed certificate renewal failed."
+        fi
+    elif ensure_letsencrypt_certificate; then
+        echo "Let's Encrypt certificate check completed successfully."
+    elif activate_fallback_certificate; then
+        echo "Certificate renewal failed; the self-signed fallback remains active and issuance will be retried."
+    else
+        echo "Certificate renewal failed and self-signed fallback is disabled."
+    fi
+}
+
+certificate_renewal_is_enabled() {
+    [ "${ACTIVE_CERT_MODE}" = self-signed ] || \
+        { [ "${ACTIVE_CERT_MODE}" = letsencrypt ] && [ "${LETSENCRYPT_ENABLED:-false}" = "true" ]; }
+}
+
+renew_certificates_forever() {
     while true; do
         sleep "${LETSENCRYPT_RENEW_INTERVAL_SECONDS}"
-        if certbot renew --non-interactive --webroot --webroot-path "${LETSENCRYPT_WEBROOT}"; then
-            reload_nginx_certificate
-        else
-            echo "Let's Encrypt renewal attempt failed; will retry on the next interval."
-        fi
+        renew_certificates_once
     done
+}
+
+install_initial_certificate() {
+    if [ -n "${SSL_CERT_PATH:-}" ] && [ -n "${SSL_KEY_PATH:-}" ] && \
+        apply_certificate_files "${SSL_CERT_PATH}" "${SSL_KEY_PATH}" supplied; then
+        return 0
+    fi
+
+    if apply_letsencrypt_certificate; then
+        return 0
+    fi
+
+    if [ "${LETSENCRYPT_ENABLED:-false}" = "true" ]; then
+        echo "No existing Let's Encrypt certificate is available; installing a temporary bootstrap certificate."
+        apply_self_signed_certificate
+        return 0
+    fi
+
+    if [ "${ALLOW_SELF_SIGNED_SSL:-true}" = "true" ]; then
+        apply_self_signed_certificate
+        return 0
+    fi
+
+    echo "No valid TLS certificate is available and self-signed fallback is disabled."
+    return 1
 }
 
 cleanup() {
@@ -230,35 +238,40 @@ cleanup() {
     wait "${RENEW_PID}" "${NODE_PID}" "${NGINX_PID}" 2>/dev/null || true
 }
 
-fail_after_letsencrypt_error() {
-    echo "Let's Encrypt certificate setup failed and self-signed fallback is disabled. Stopping services and sleeping before exit to avoid a tight restart loop."
-    cleanup
-    sleep "${LETSENCRYPT_FAILURE_SLEEP_SECONDS}"
-    exit 1
+main() {
+    prepare_runtime
+    install_initial_certificate
+    nginx -t
+
+    nginx -g 'daemon off;' &
+    NGINX_PID=$!
+
+    trap cleanup EXIT INT TERM
+
+    if [ "${LETSENCRYPT_ENABLED:-false}" = "true" ] && [ "${ACTIVE_CERT_MODE}" != supplied ]; then
+        if ! ensure_letsencrypt_certificate; then
+            activate_fallback_certificate || {
+                echo "Let's Encrypt setup failed and self-signed fallback is disabled."
+                exit 1
+            }
+        fi
+    fi
+
+    setpriv --reuid=node --regid=node --init-groups node dist/main.js &
+    NODE_PID=$!
+
+    if certificate_renewal_is_enabled; then
+        renew_certificates_forever &
+        RENEW_PID=$!
+    fi
+
+    set +e
+    wait -n "${NODE_PID}" "${NGINX_PID}"
+    STATUS=$?
+    set -e
+    return "${STATUS}"
 }
 
-install_initial_certificate
-
-node dist/main.js &
-NODE_PID=$!
-
-nginx -g 'daemon off;' &
-NGINX_PID=$!
-
-trap cleanup EXIT INT TERM
-
-if [ "${LETSENCRYPT_ENABLED:-false}" = "true" ]; then
-    if ensure_letsencrypt_certificate; then
-        renew_letsencrypt_forever &
-        RENEW_PID=$!
-    elif [ "${ALLOW_SELF_SIGNED_SSL:-true}" != "true" ]; then
-        fail_after_letsencrypt_error
-    else
-        echo "Let's Encrypt certificate setup failed; continuing with the self-signed fallback."
-    fi
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    main "$@"
 fi
-
-wait -n "${NODE_PID}" "${NGINX_PID}"
-STATUS=$?
-
-exit "${STATUS}"

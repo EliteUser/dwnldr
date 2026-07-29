@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { HttpError } from '../../errors/http-error.js';
+import { heavyOperationGuard } from '../../middleware/heavy-operation-guard.js';
 import { getProvider, requireProviderFeature, classifySource } from '../../providers/index.js';
 
 const soundCloudTrackQuerySchema = z.object({
@@ -35,7 +36,7 @@ soundcloudRouter.get('/soundcloud/favorites', async (req, res) => {
   res.json(await fetchFavorites(userId, limit));
 });
 
-soundcloudRouter.get('/soundcloud/tracks', async (req, res) => {
+soundcloudRouter.get('/soundcloud/tracks', heavyOperationGuard, async (req, res) => {
   const { url } = soundCloudTrackQuerySchema.parse(req.query);
 
   if (classifySource(url) !== 'soundcloud') {

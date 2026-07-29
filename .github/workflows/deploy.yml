@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Deploy
 
 on:
   workflow_dispatch:
@@ -6,77 +6,87 @@ on:
     branches:
       - master
 
+env:
+  IMAGE_NAME: ghcr.io/eliteuser/dwnldr
+
 jobs:
-  verify:
+  deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-      - name: Checkout code
+      - name: Check out source
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
+      - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.33.0
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24.15.0
           cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Verify project
-        run: pnpm check
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm check
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: verify
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
+      - name: Build and publish image
+        run: |
+          echo "IMAGE_REF=${IMAGE_NAME}:${GITHUB_SHA}" >> "$GITHUB_ENV"
+          docker build --tag "${IMAGE_NAME}:${GITHUB_SHA}" .
+          docker push "${IMAGE_NAME}:${GITHUB_SHA}"
 
-      - name: Set up SSH
+      - name: Load deployment SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DWNLDR_DEPLOY_KEY }}
 
-      - name: Deploy to VPS
+      - name: Deploy
         env:
-          DWNLDR_DEPLOY_HOST: ${{ secrets.DWNLDR_DEPLOY_HOST || vars.DWNLDR_DEPLOY_HOST }}
-          DWNLDR_PUBLIC_IP: ${{ secrets.DWNLDR_PUBLIC_IP || vars.DWNLDR_PUBLIC_IP || secrets.DWNLDR_DEPLOY_HOST || vars.DWNLDR_DEPLOY_HOST }}
+          DEPLOY_HOST: ${{ secrets.DWNLDR_DEPLOY_HOST }}
+          SERVER_IP: ${{ secrets.DWNLDR_PUBLIC_IP || secrets.DWNLDR_DEPLOY_HOST }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -z "$DWNLDR_DEPLOY_HOST" ]; then
-            echo "DWNLDR_DEPLOY_HOST is not configured. Add it as a GitHub Actions variable or secret."
-            exit 1
-          fi
-          if [ -z "$DWNLDR_PUBLIC_IP" ]; then
-            echo "DWNLDR_PUBLIC_IP is not configured. Add it as a GitHub Actions variable or secret."
-            exit 1
+          test -n "$DEPLOY_HOST"
+          test -n "$SERVER_IP"
+
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          ssh "root@$DEPLOY_HOST" 'mkdir -p /opt/dwnldr'
+          scp compose.yaml "root@$DEPLOY_HOST:/opt/dwnldr/compose.yaml"
+
+          printf '%s' "$GHCR_TOKEN" | \
+            ssh "root@$DEPLOY_HOST" "docker login ghcr.io --username '$GITHUB_ACTOR' --password-stdin"
+
+          ssh "root@$DEPLOY_HOST" bash -s -- "$IMAGE_REF" "$SERVER_IP" <<'REMOTE'
+          set -e
+          cd /opt/dwnldr
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+
+          printf 'IMAGE_REF=%s\nSERVER_IP=%s\n' "$1" "$2" > .env
+
+          if docker inspect dwnldr >/dev/null 2>&1; then
+              project="$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' dwnldr 2>/dev/null || true)"
+              if [ "$project" != dwnldr ]; then
+                  docker rm -f dwnldr
+              fi
           fi
 
-          ssh -o StrictHostKeyChecking=no root@"$DWNLDR_DEPLOY_HOST" '
-          if [ ! -d "/usr/apps/dwnldr/.git" ]; then
-            sudo git clone https://github.com/EliteUser/dwnldr.git /usr/apps/dwnldr
-          fi
-          cd /usr/apps/dwnldr
-          sudo git pull origin master
-          sudo docker build -t dwnldr .
-          if sudo docker ps -aq -f name=^dwnldr$ | grep -q .; then
-            sudo docker rm -f dwnldr
-          fi
-          sudo docker run -d \
-            -p 80:80 \
-            -p 443:443 \
-            -e LETSENCRYPT_ENABLED=true \
-            -e SERVER_IP='"$DWNLDR_PUBLIC_IP"' \
-            -e ALLOW_SELF_SIGNED_SSL=false \
-            -v dwnldr-letsencrypt:/etc/letsencrypt \
-            -v dwnldr-state:/var/lib/dwnldr \
-            --restart always \
-            --name dwnldr \
-            dwnldr
-          '
+          docker compose pull
+          docker compose up --detach --wait --wait-timeout 90
+          REMOTE

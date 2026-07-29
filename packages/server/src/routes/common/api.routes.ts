@@ -15,3 +15,10 @@ apiRouter.use(artworkRouter);
 apiRouter.use(tracksRouter);
 apiRouter.use(downloadRouter);
 apiRouter.use(trackMetaRouter);
+
+apiRouter.use((_req, res) => {
+  res.status(404).json({
+    error: 'API route not found.',
+    code: 'NOT_FOUND',
+  });
+});

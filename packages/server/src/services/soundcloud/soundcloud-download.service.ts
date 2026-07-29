@@ -1,11 +1,15 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import type { Soundcloud } from 'soundcloud.ts';
 
 import { isAbortError } from '../../errors/error-utils.js';
+import { logTimedOperation } from '../../lib/logger.js';
 import { callSoundCloudApi } from '../../lib/soundcloud-api.js';
 import type { TrackOptions } from '../../types.js';
+import { getSafeUrlLogFields } from '../../utils/url-log.utils.js';
 import { resolveArtworkPath } from '../artwork/artwork.service.js';
 import { postProcessTrack } from '../media/post-process.service.js';
+import { saveThumbnailFromUrl } from '../media/thumbnail.service.js';
 
 type SoundCloudDownloadOptions = {
   api: Soundcloud;
@@ -14,17 +18,20 @@ type SoundCloudDownloadOptions = {
   track: TrackOptions;
 };
 
-const getSoundCloudCoverPath = async (options: SoundCloudDownloadOptions) => {
-  const { api, folder, signal, track } = options;
+const getSoundCloudCoverPath = async (
+  artworkUrl: string | undefined,
+  options: Pick<SoundCloudDownloadOptions, 'folder' | 'signal' | 'track'>,
+) => {
+  const { folder, signal, track } = options;
 
-  if (track.artwork) {
+  if (track.artwork || !artworkUrl) {
     return undefined;
   }
 
   signal?.throwIfAborted();
 
   try {
-    return await callSoundCloudApi(
+    return await logTimedOperation(
       {
         startEvt: 'sc.cover.download.started',
         successEvt: 'sc.cover.download.completed',
@@ -34,12 +41,11 @@ const getSoundCloudCoverPath = async (options: SoundCloudDownloadOptions) => {
         failureMessage: 'Failed to download SoundCloud track cover',
         bindings: {
           provider: 'soundcloud',
-          url: track.url,
+          ...getSafeUrlLogFields(artworkUrl),
           folder,
         },
-        notFoundMessage: 'Track cover not found',
       },
-      () => api.util.downloadSongCover(track.url, folder),
+      () => saveThumbnailFromUrl(artworkUrl, path.join(folder, 'cover.png'), signal),
     );
   } catch (error) {
     if (isAbortError(error)) {
@@ -68,7 +74,7 @@ export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions
       failureMessage: 'Failed to download SoundCloud track audio',
       bindings: {
         provider: 'soundcloud',
-        url,
+        ...getSafeUrlLogFields(url),
         folder,
       },
       notFoundMessage: 'Track not found',
@@ -77,8 +83,6 @@ export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions
   );
 
   signal?.throwIfAborted();
-
-  const coverPath = await getSoundCloudCoverPath(options);
 
   const trackInfo = await callSoundCloudApi(
     {
@@ -90,7 +94,7 @@ export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions
       failureMessage: 'Failed to fetch SoundCloud track details',
       bindings: {
         provider: 'soundcloud',
-        url,
+        ...getSafeUrlLogFields(url),
       },
       notFoundMessage: 'Track not found',
     },
@@ -99,6 +103,8 @@ export const downloadSoundCloudTrack = async (options: SoundCloudDownloadOptions
 
   signal?.throwIfAborted();
 
+  const artworkUrl = (trackInfo.artwork_url || trackInfo.user.avatar_url)?.replace('-large', '-t500x500');
+  const coverPath = await getSoundCloudCoverPath(artworkUrl, options);
   const trackName = (name ?? `${trackInfo.user.username} - ${trackInfo.title}`).trim();
 
   const processedTrack = await postProcessTrack({

@@ -3,6 +3,7 @@ import type { SoundcloudTrack, SoundcloudUser } from 'soundcloud.ts';
 import { HttpError } from '../../errors/http-error.js';
 import { callSoundCloudApi } from '../../lib/soundcloud-api.js';
 import { soundcloud } from '../../lib/soundcloud.js';
+import { getSafeUrlLogFields } from '../../utils/url-log.utils.js';
 import { getSoundCloudTrackData } from '../metadata/track-metadata.service.js';
 
 export const getUserById = async (userId: string): Promise<SoundcloudUser> => {
@@ -43,7 +44,7 @@ export const getSoundCloudTrackByUrl = async (url: string) => {
       failureMessage: 'Failed to fetch SoundCloud track metadata',
       bindings: {
         provider: 'soundcloud',
-        url,
+        ...getSafeUrlLogFields(url),
       },
       notFoundMessage: 'Track not found',
     },

@@ -10,6 +10,7 @@ import {
 } from '../../errors/youtube-errors.js';
 import { logTimedOperation } from '../../lib/logger.js';
 import { createYtDlp } from '../../lib/ytdlp.js';
+import { getSafeUrlLogFields } from '../../utils/url-log.utils.js';
 import { getYouTubeTrackData } from '../metadata/track-metadata.service.js';
 
 export const getYouTubeTrackByUrl = async (url: string) => {
@@ -37,7 +38,7 @@ export const getYouTubeTrackByUrl = async (url: string) => {
           : `Failed to fetch YouTube metadata: ${getErrorMessage(error)}`,
       bindings: {
         provider: 'youtube',
-        url,
+        ...getSafeUrlLogFields(url),
       },
     },
     () => ytdlp.getInfoAsync(url),

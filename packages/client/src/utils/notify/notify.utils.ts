@@ -10,6 +10,8 @@ export type ApiErrorCode =
   | 'UPSTREAM_UNAUTHORIZED'
   | 'UPSTREAM_FAILURE'
   | 'CONVERSION_FAILURE'
+  | 'RATE_LIMITED'
+  | 'SERVER_BUSY'
   | 'INTERNAL_ERROR';
 
 export type ApiErrorResponse = {
@@ -50,6 +52,10 @@ export const getApiErrorMessage = (error?: ApiErrorResponse | null) => {
       return API_ERROR_MESSAGE.UPSTREAM_FAILURE;
     case 'CONVERSION_FAILURE':
       return API_ERROR_MESSAGE.CONVERSION_FAILURE;
+    case 'RATE_LIMITED':
+      return API_ERROR_MESSAGE.RATE_LIMITED;
+    case 'SERVER_BUSY':
+      return API_ERROR_MESSAGE.SERVER_BUSY;
     case 'INVALID_INPUT':
       return error.error || API_ERROR_MESSAGE.INVALID_INPUT;
     case 'INTERNAL_ERROR':

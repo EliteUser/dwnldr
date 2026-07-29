@@ -35,7 +35,6 @@ export const Likes = memo<LikesProps>((props) => {
   const supportsFileSystemAccess = canUseFileSystemAccess();
   const isInitialLoading = !!userId && (isLoading || (isFetching && !favorites));
   const isRefreshingList = isFetching && !isInitialLoading && hasFavorites;
-
   useEffect(() => {
     if (favoritesError) {
       notify.apiError(getApiErrorFromQueryError(favoritesError), {
@@ -51,7 +50,7 @@ export const Likes = memo<LikesProps>((props) => {
           <Title size='h2'>Likes</Title>
 
           {favorites?.length ? (
-            <Badge size='md' color='indigo'>
+            <Badge size='md' color='orange'>
               {favorites.length}
             </Badge>
           ) : null}
@@ -62,13 +61,13 @@ export const Likes = memo<LikesProps>((props) => {
           variant='outline'
           size='lg'
           disabled={!userId || isFetching}
-          onClick={() => refetch()}
+          onClick={() => void refetch()}
         >
           <IconRefresh size={16} />
         </ActionIcon>
       </div>
 
-      {isInitialLoading && true && (
+      {isInitialLoading && (
         <div className={styles.loadingState}>
           <Loader size='lg' />
         </div>
@@ -85,7 +84,7 @@ export const Likes = memo<LikesProps>((props) => {
         <div className={styles.emptyState}>
           <Text fw={600}>Failed to load your likes</Text>
           <Text c='dimmed'>The request did not complete successfully. Retry after checking the notification.</Text>
-          <Button size='md' onClick={() => refetch()}>
+          <Button size='md' loading={isFetching} onClick={() => void refetch()}>
             Retry
           </Button>
         </div>

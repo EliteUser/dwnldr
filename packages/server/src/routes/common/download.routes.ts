@@ -3,6 +3,7 @@ import multer from 'multer';
 import { z } from 'zod';
 
 import { HttpError } from '../../errors/http-error.js';
+import { heavyOperationGuard } from '../../middleware/heavy-operation-guard.js';
 import { requireProviderByUrl } from '../../providers/index.js';
 import { MAX_ARTWORK_SIZE } from '../../services/artwork/artwork.constants.js';
 import { downloadTrack, streamFileToResponse } from '../../services/download/download.service.js';
@@ -29,7 +30,7 @@ const upload = multer({
   },
 });
 
-downloadRouter.post('/download', upload.single('artwork'), async (req, res) => {
+downloadRouter.post('/download', heavyOperationGuard, upload.single('artwork'), async (req, res) => {
   const track = downloadBodySchema.parse(req.body);
   const file = req.file;
   const { artworkSource: _artworkSource, ...trackOptions } = track;

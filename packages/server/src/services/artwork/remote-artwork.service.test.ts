@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { MAX_ARTWORK_SIZE } from './artwork.constants.js';
-import { fetchRemoteArtwork } from './remote-artwork.service.js';
+
+const fetchPublicHttpUrlMock = vi.fn();
+
+vi.mock('../http/public-http.service.js', () => ({
+  fetchPublicHttpUrl: fetchPublicHttpUrlMock,
+}));
+
+const { fetchRemoteArtwork } = await import('./remote-artwork.service.js');
 
 describe('remote artwork service', () => {
   afterEach(() => {
@@ -9,7 +16,7 @@ describe('remote artwork service', () => {
   });
 
   it('fetches supported image URLs with artwork accept headers', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    fetchPublicHttpUrlMock.mockResolvedValueOnce(
       new Response(new Uint8Array([1, 2, 3]), {
         headers: {
           'content-type': 'image/jpeg; charset=utf-8',
@@ -25,8 +32,8 @@ describe('remote artwork service', () => {
       buffer: Buffer.from([1, 2, 3]),
       mimeType: 'image/jpeg',
     });
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://img.example.test/cover.jpg',
+    expect(fetchPublicHttpUrlMock).toHaveBeenCalledWith(
+      new URL('https://img.example.test/cover.jpg'),
       expect.objectContaining({
         headers: {
           Accept: 'image/jpeg,image/png,image/webp',
@@ -36,7 +43,7 @@ describe('remote artwork service', () => {
   });
 
   it('rejects responses that are not artwork images', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    fetchPublicHttpUrlMock.mockResolvedValueOnce(
       new Response('nope', {
         headers: {
           'content-type': 'text/html',
@@ -51,8 +58,25 @@ describe('remote artwork service', () => {
     });
   });
 
+  it('cancels rejected upstream responses', async () => {
+    const cancel = vi.fn().mockResolvedValue(undefined);
+    fetchPublicHttpUrlMock.mockResolvedValueOnce({
+      body: {
+        cancel,
+      },
+      headers: new Headers(),
+      ok: false,
+      status: 404,
+    } as unknown as Response);
+
+    await expect(fetchRemoteArtwork('https://img.example.test/missing')).rejects.toMatchObject({
+      code: 'INVALID_INPUT',
+    });
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
   it('rejects artwork streams once they exceed the maximum size', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    fetchPublicHttpUrlMock.mockResolvedValueOnce(
       new Response(new Uint8Array(MAX_ARTWORK_SIZE + 1), {
         headers: {
           'content-type': 'image/png',

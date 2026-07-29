@@ -3,6 +3,7 @@ import multer from 'multer';
 import { z } from 'zod';
 
 import { HttpError } from '../../errors/http-error.js';
+import { heavyOperationGuard } from '../../middleware/heavy-operation-guard.js';
 import { MAX_ARTWORK_SIZE } from '../../services/artwork/artwork.constants.js';
 import { streamFileToResponse } from '../../services/download/download.service.js';
 import { inspectLocalTrack, rewriteLocalTrack } from '../../services/track-meta/track-meta.service.js';
@@ -83,7 +84,7 @@ const upload = multer({
   },
 });
 
-trackMetaRouter.post('/meta/inspect', upload.single('audio'), async (req, res) => {
+trackMetaRouter.post('/meta/inspect', heavyOperationGuard, upload.single('audio'), async (req, res) => {
   const audio = req.file;
 
   if (!audio) {
@@ -104,6 +105,7 @@ trackMetaRouter.post('/meta/inspect', upload.single('audio'), async (req, res) =
 
 trackMetaRouter.post(
   '/meta/download',
+  heavyOperationGuard,
   upload.fields([
     { name: 'audio', maxCount: 1 },
     { name: 'artwork', maxCount: 1 },

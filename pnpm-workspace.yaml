@@ -1,2 +1,13 @@
 packages:
   - packages/*
+
+overrides:
+  body-parser: 2.3.0
+  qs: 6.15.2
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - esbuild
+  - ffmpeg-static
+  - sharp
+  - ytdlp-nodejs

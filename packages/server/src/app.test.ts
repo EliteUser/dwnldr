@@ -1,10 +1,16 @@
+import { EventEmitter } from 'node:events';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApp } from './app.js';
+import { heavyOperationGuard, resetHeavyOperationGuardForTests } from './middleware/heavy-operation-guard.js';
 
 describe('API validation', () => {
   const app = createApp();
+
+  beforeEach(() => {
+    resetHeavyOperationGuardForTests();
+  });
 
   it('rejects requests without a userId', async () => {
     const response = await request(app).get('/api/soundcloud/users');
@@ -56,20 +62,18 @@ describe('API validation', () => {
   });
 
   it('rejects unsupported source URLs early', async () => {
-    const [soundCloudResponse, youTubeResponse, genericTrackResponse, downloadResponse] = await Promise.all([
-      request(app).get('/api/soundcloud/tracks').query({
-        url: 'https://example.com/track',
-      }),
-      request(app).get('/api/youtube/tracks').query({
-        url: 'https://example.com/video',
-      }),
-      request(app).get('/api/tracks').query({
-        url: 'https://example.com/video',
-      }),
-      request(app).post('/api/download').send({
-        url: 'https://example.com/audio',
-      }),
-    ]);
+    const soundCloudResponse = await request(app).get('/api/soundcloud/tracks').query({
+      url: 'https://example.com/track',
+    });
+    const youTubeResponse = await request(app).get('/api/youtube/tracks').query({
+      url: 'https://example.com/video',
+    });
+    const genericTrackResponse = await request(app).get('/api/tracks').query({
+      url: 'https://example.com/video',
+    });
+    const downloadResponse = await request(app).post('/api/download').send({
+      url: 'https://example.com/audio',
+    });
 
     expect(soundCloudResponse.status).toBe(400);
     expect(soundCloudResponse.body.error).toBe('Unsupported URL source. Use a SoundCloud link.');
@@ -86,6 +90,25 @@ describe('API validation', () => {
     expect(downloadResponse.status).toBe(400);
     expect(downloadResponse.body.error).toBe('Unsupported URL source. Use a SoundCloud or YouTube link.');
     expect(downloadResponse.body.code).toBe('UNSUPPORTED_SOURCE');
+  });
+
+  it('applies the shared media-operation guard to media-processing routes', async () => {
+    const activeResponse = new EventEmitter();
+    heavyOperationGuard({} as never, activeResponse as never, vi.fn());
+
+    const responses = await Promise.all([
+      request(app).get('/api/tracks').query({ url: 'https://example.com/track' }),
+      request(app).get('/api/soundcloud/tracks').query({ url: 'https://example.com/track' }),
+      request(app).get('/api/youtube/tracks').query({ url: 'https://example.com/track' }),
+    ]);
+
+    responses.forEach((response) => {
+      expect(response.status).toBe(503);
+      expect(response.headers['retry-after']).toBe('30');
+      expect(response.body.code).toBe('SERVER_BUSY');
+    });
+
+    activeResponse.emit('finish');
   });
 
   it('returns health status at /health', async () => {
@@ -123,5 +146,21 @@ describe('API validation', () => {
     expect(response.body.status).toBe('error');
     expect(response.body.checks.ffmpeg.ok).toBe(false);
     expect(response.body.checks.ffmpeg.details).toBe('missing');
+  });
+
+  it('returns truthful not-found responses for probes and unknown API routes', async () => {
+    const [secretProbe, phpProbe, apiProbe] = await Promise.all([
+      request(app).get('/.env'),
+      request(app).get('/vendor/phpunit/eval-stdin.php'),
+      request(app).get('/api/unknown'),
+    ]);
+
+    expect(secretProbe.status).toBe(404);
+    expect(phpProbe.status).toBe(404);
+    expect(apiProbe.status).toBe(404);
+    expect(apiProbe.body).toEqual({
+      error: 'API route not found.',
+      code: 'NOT_FOUND',
+    });
   });
 });

@@ -1,0 +1,23 @@
+name: dwnldr
+
+services:
+  app:
+    image: ${IMAGE_REF}
+    container_name: dwnldr
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      LETSENCRYPT_ENABLED: 'true'
+      SERVER_IP: ${SERVER_IP}
+      ALLOW_SELF_SIGNED_SSL: 'false'
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - state:/var/lib/dwnldr
+
+volumes:
+  letsencrypt:
+    name: dwnldr-letsencrypt
+  state:
+    name: dwnldr-state

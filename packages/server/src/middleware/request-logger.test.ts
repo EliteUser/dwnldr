@@ -9,6 +9,7 @@ class MockResponse extends EventEmitter {
   public statusCode = 200;
   public writableFinished = false;
 
+  public readonly getHeader = vi.fn();
   public readonly setHeader = vi.fn();
 }
 
@@ -22,7 +23,7 @@ describe('requestLogger', () => {
     const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => logger);
     const req = {
       method: 'GET',
-      originalUrl: '/api/download',
+      originalUrl: '/api/download?token=secret',
     } as const;
     const res = new MockResponse();
     const next = vi.fn();

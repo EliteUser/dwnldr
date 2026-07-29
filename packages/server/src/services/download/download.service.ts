@@ -10,6 +10,7 @@ import { requireProviderByUrl, requireProviderFeature } from '../../providers/in
 import type { TrackOptions } from '../../types.js';
 import { getContentDispositionHeader } from '../../utils/sanitize.utils.js';
 import { createDownloadFolder, removeFolder } from '../../utils/temp.utils.js';
+import { getSafeUrlLogFields } from '../../utils/url-log.utils.js';
 
 export type DownloadResult = {
   downloadFolder: string;
@@ -106,7 +107,7 @@ export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult
     {
       evt: 'download.provider.selected',
       provider: provider.key,
-      url: track.url,
+      ...getSafeUrlLogFields(track.url),
     },
     'Selected download provider',
   );
