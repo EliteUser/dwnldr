@@ -75,9 +75,9 @@ jobs:
 
           ssh "root@$DEPLOY_HOST" bash -s -- "$IMAGE_REF" "$SERVER_IP" <<'REMOTE'
           set -e
-          cd /opt/dwnldr
           trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
 
+          cd /opt/dwnldr
           printf 'IMAGE_REF=%s\nSERVER_IP=%s\n' "$1" "$2" > .env
 
           if docker inspect dwnldr >/dev/null 2>&1; then
@@ -87,6 +87,6 @@ jobs:
               fi
           fi
 
-          docker compose pull
-          docker compose up --detach --wait --wait-timeout 90
+          docker-compose pull
+          docker-compose up --detach
           REMOTE

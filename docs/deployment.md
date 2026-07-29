@@ -4,7 +4,9 @@ Deployments run automatically when changes are pushed to `master`, or manually f
 
 ## Requirements
 
-The VPS needs Docker Compose and root SSH access. Configure these GitHub Actions secrets:
+The VPS needs Docker, `docker-compose`, and root SSH access.
+
+Configure these GitHub Actions secrets:
 
 - `DWNLDR_DEPLOY_HOST`
 - `DWNLDR_DEPLOY_KEY`
@@ -24,6 +26,6 @@ git push origin master
 
 ```bash
 cd /opt/dwnldr
-docker compose ps
-docker compose logs --tail 100 app
+docker-compose ps
+docker-compose logs --tail 100 app
 ```
