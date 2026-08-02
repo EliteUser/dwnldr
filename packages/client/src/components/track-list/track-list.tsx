@@ -7,7 +7,7 @@ import { memo, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../../store';
 import { createDownloadedTrackMatcher } from '../../utils';
 import { Track } from '../track/track';
-import { TRACK_ROW_HEIGHT } from './track-list.constants';
+import { TRACK_LIST_OVERSCAN, TRACK_ROW_HEIGHT } from './track-list.constants';
 import type { DownloadFilter, TrackListProps } from './track-list.types';
 import { filterTracks, getNextDownloadFilter } from './track-list.utils';
 
@@ -41,7 +41,7 @@ export const TrackList = memo<TrackListProps>((props) => {
     getItemKey: (index) => filteredTracks[index]?.id ?? filteredTracks[index]?.permalink_url ?? index,
     getScrollElement: () => parentRef.current,
     estimateSize: () => TRACK_ROW_HEIGHT,
-    overscan: 6,
+    overscan: TRACK_LIST_OVERSCAN,
   });
 
   const items = virtualizer.getVirtualItems();

@@ -62,7 +62,15 @@ vi.mock('@mantine/core', () => {
         {children}
       </button>
     ),
-    Avatar: ({ className }: { className?: string }) => <div className={className} />,
+    Avatar: ({
+      className,
+      imageProps,
+      src,
+    }: {
+      className?: string;
+      imageProps?: React.ComponentProps<'img'>;
+      src?: string;
+    }) => (src ? <img className={className} src={src} {...imageProps} /> : <div className={className} />),
     Badge: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
     Button: ({
       children,
