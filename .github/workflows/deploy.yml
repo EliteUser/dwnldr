@@ -80,6 +80,14 @@ jobs:
           cd /opt/dwnldr
           printf 'IMAGE_REF=%s\nSERVER_IP=%s\n' "$1" "$2" > .env
 
+          if ! docker compose version >/dev/null 2>&1; then
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y docker-compose-plugin || apt-get install -y docker-compose-v2
+          fi
+
+          docker compose version
+
           if docker inspect dwnldr >/dev/null 2>&1; then
               project="$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' dwnldr 2>/dev/null || true)"
               if [ "$project" != dwnldr ]; then
@@ -87,6 +95,6 @@ jobs:
               fi
           fi
 
-          docker-compose pull
-          docker-compose up --detach
+          docker compose pull
+          docker compose up --detach --remove-orphans
           REMOTE
