@@ -88,6 +88,13 @@ jobs:
 
           docker compose version
 
+          for container_id in $(docker ps --all --quiet --filter label=com.docker.compose.project=dwnldr); do
+              container_name="$(docker inspect --format '{{.Name}}' "$container_id")"
+              if [ "$container_name" != /dwnldr ]; then
+                  docker rm --force "$container_id"
+              fi
+          done
+
           if docker inspect dwnldr >/dev/null 2>&1; then
               project="$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' dwnldr 2>/dev/null || true)"
               if [ "$project" != dwnldr ]; then
