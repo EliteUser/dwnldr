@@ -1,23 +1,17 @@
-import { Text, TextInput } from '@mantine/core';
+import { ActionIcon, Text, TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import clsx from 'clsx';
 import { memo, useMemo, useRef, useState } from 'react';
 
-import type { TracksResult } from '../../api/api';
 import { useAppStore } from '../../store';
 import { createDownloadedTrackMatcher } from '../../utils';
 import { Track } from '../track/track';
+import { TRACK_ROW_HEIGHT } from './track-list.constants';
+import type { DownloadFilter, TrackListProps } from './track-list.types';
+import { filterTracks, getNextDownloadFilter } from './track-list.utils';
 
 import styles from './track-list.module.scss';
-
-export type TrackListProps = {
-  tracks?: TracksResult[];
-  onDownloadClick: (url: string) => void;
-};
-
-const TRACK_ROW_HEIGHT = 64;
-
-const filterFn = (arg: string, filterValue: string) => arg.toLowerCase().includes(filterValue.toLowerCase());
 
 export const TrackList = memo<TrackListProps>((props) => {
   const { tracks, onDownloadClick } = props;
@@ -28,14 +22,16 @@ export const TrackList = memo<TrackListProps>((props) => {
   const isDownloadedTrack = useMemo(() => createDownloadedTrackMatcher(files), [files]);
 
   const [filter, setFilter] = useState('');
+  const [downloadFilter, setDownloadFilter] = useState<DownloadFilter>('all');
 
-  const filteredTracks = useMemo(() => {
-    if (!tracks?.length) {
-      return [];
-    }
+  const filteredTracks = useMemo(
+    () => filterTracks(tracks, filter, downloadFilter, isDownloadedTrack),
+    [downloadFilter, filter, isDownloadedTrack, tracks],
+  );
 
-    return tracks?.filter(({ title, user }) => filterFn(user, filter) || filterFn(title, filter));
-  }, [tracks, filter]);
+  const cycleDownloadFilter = () => {
+    setDownloadFilter(getNextDownloadFilter);
+  };
 
   /* region Virtualizer */
   const count = filteredTracks.length;
@@ -53,17 +49,29 @@ export const TrackList = memo<TrackListProps>((props) => {
 
   return (
     <div className={styles.wrapper}>
-      <TextInput
-        size='md'
-        placeholder='Search'
-        value={filter}
-        leftSection={
-          <div className={styles.searchIcon}>
-            <IconSearch size={16} />
-          </div>
-        }
-        onChange={(evt) => setFilter(evt.target.value)}
-      />
+      <div className={styles.filters}>
+        <TextInput
+          className={styles.search}
+          size='md'
+          placeholder='Search'
+          value={filter}
+          leftSection={
+            <div className={styles.searchIcon}>
+              <IconSearch size={16} />
+            </div>
+          }
+          onChange={(evt) => setFilter(evt.target.value)}
+        />
+
+        <ActionIcon className={styles.filterButton} variant='default' size='input-md' onClick={cycleDownloadFilter}>
+          <span
+            className={clsx(styles.filterDot, {
+              [styles.downloaded]: downloadFilter === 'downloaded',
+              [styles.notDownloaded]: downloadFilter === 'not-downloaded',
+            })}
+          />
+        </ActionIcon>
+      </div>
 
       {filteredTracks.length > 0 ? (
         <div ref={parentRef} className={styles.list}>

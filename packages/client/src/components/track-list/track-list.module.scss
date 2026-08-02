@@ -47,6 +47,36 @@
   inline-size: 100%;
 }
 
+.filters {
+  display: flex;
+  column-gap: 8px;
+}
+
+.search {
+  flex-grow: 1;
+}
+
+.filterButton {
+  flex-shrink: 0;
+  inline-size: 42px;
+  block-size: 42px;
+}
+
+.filterDot {
+  inline-size: 12px;
+  block-size: 12px;
+  border-radius: 50%;
+  background-color: gray;
+
+  &.downloaded {
+    background-color: yellowgreen;
+  }
+
+  &.notDownloaded {
+    background-color: crimson;
+  }
+}
+
 .searchIcon {
   display: flex;
   padding-inline-end: 8px;
