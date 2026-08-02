@@ -53,13 +53,13 @@ describe('TrackList', () => {
 
     fireEvent.click(filterButton);
 
-    expect(screen.getByText('Artist - Downloaded')).toBeInTheDocument();
-    expect(screen.queryByText('Artist - New')).not.toBeInTheDocument();
+    expect(screen.queryByText('Artist - Downloaded')).not.toBeInTheDocument();
+    expect(screen.getByText('Artist - New')).toBeInTheDocument();
 
     fireEvent.click(filterButton);
 
-    expect(screen.queryByText('Artist - Downloaded')).not.toBeInTheDocument();
-    expect(screen.getByText('Artist - New')).toBeInTheDocument();
+    expect(screen.getByText('Artist - Downloaded')).toBeInTheDocument();
+    expect(screen.queryByText('Artist - New')).not.toBeInTheDocument();
 
     fireEvent.click(filterButton);
 
