@@ -24,7 +24,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js');
-  });
+  const wasControlled = Boolean(navigator.serviceWorker.controller);
+
+  void navigator.serviceWorker
+    .getRegistrations()
+    .then(async (registrations) => {
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+
+      if (wasControlled && registrations.length > 0) {
+        window.location.reload();
+      }
+    })
+    .catch(() => undefined);
 }
