@@ -11,9 +11,11 @@ import { loadRemoteArtworkFile, validateArtworkFile } from './artwork.utils';
 
 import styles from './artwork.module.scss';
 
-export const Artwork = memo<ArtworkProps>((props) => {
-  const { disabled, providerArtworkUrl, resetKey, onArtworkChange } = props;
+const ArtworkContent = (props: Omit<ArtworkProps, 'resetKey'>) => {
+  const { disabled, providerArtworkUrl, onArtworkChange } = props;
 
+  const isMountedRef = useRef(true);
+  const operationIdRef = useRef(0);
   const sourceUrlRef = useRef<string | undefined>(undefined);
   const [draftUrl, setDraftUrl] = useState<string>();
   const [error, setError] = useState('');
@@ -38,18 +40,17 @@ export const Artwork = memo<ArtworkProps>((props) => {
   }, []);
 
   const revokePreviewUrl = useCallback(() => {
-    setPreviewUrl((url) => {
-      if (url) {
-        URL.revokeObjectURL(url);
-      }
-
-      return undefined;
-    });
+    setPreviewUrl(undefined);
   }, []);
 
   const openEditorWithFile = useCallback(
-    async (file: File) => {
+    async (file: File, operationId: number) => {
       await validateArtworkFile(file);
+
+      if (!isMountedRef.current || operationIdRef.current !== operationId) {
+        return;
+      }
+
       revokeSourceUrl();
 
       const objectUrl = URL.createObjectURL(file);
@@ -65,24 +66,22 @@ export const Artwork = memo<ArtworkProps>((props) => {
   );
 
   useEffect(() => {
-    revokePreviewUrl();
-    revokeSourceUrl();
-    setDraftUrl(providerPreviewUrl || undefined);
-    setInitialCrop(undefined);
-    setOriginalUrl(providerPreviewUrl || undefined);
-    setError('');
-    setIsEditorOpen(false);
-    setIsUrlLoading(false);
-    setUrlInput('');
-    onArtworkChange(undefined);
-  }, [onArtworkChange, providerPreviewUrl, resetKey, revokePreviewUrl, revokeSourceUrl]);
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      operationIdRef.current += 1;
+      revokeSourceUrl();
+    };
+  }, [revokeSourceUrl]);
 
   useEffect(
     () => () => {
-      revokePreviewUrl();
-      revokeSourceUrl();
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
     },
-    [revokePreviewUrl, revokeSourceUrl],
+    [previewUrl],
   );
 
   const handleOpen = useCallback(() => {
@@ -98,22 +97,29 @@ export const Artwork = memo<ArtworkProps>((props) => {
   }, [originalUrl, visiblePreviewUrl]);
 
   const handleReset = useCallback(() => {
+    operationIdRef.current += 1;
     revokePreviewUrl();
     revokeSourceUrl();
-    setDraftUrl(providerPreviewUrl || undefined);
+    setDraftUrl(undefined);
     setInitialCrop(undefined);
-    setOriginalUrl(providerPreviewUrl || undefined);
+    setOriginalUrl(undefined);
     setError('');
+    setIsUrlLoading(false);
     setUrlInput('');
     onArtworkChange(undefined);
-  }, [onArtworkChange, providerPreviewUrl, revokePreviewUrl, revokeSourceUrl]);
+  }, [onArtworkChange, revokePreviewUrl, revokeSourceUrl]);
 
   const handleArtworkFile = useCallback(
     async (file: File) => {
+      const operationId = ++operationIdRef.current;
+      setIsUrlLoading(false);
+
       try {
-        await openEditorWithFile(file);
+        await openEditorWithFile(file, operationId);
       } catch (validationError) {
-        setError(validationError instanceof Error ? validationError.message : 'Invalid artwork file.');
+        if (isMountedRef.current && operationIdRef.current === operationId) {
+          setError(validationError instanceof Error ? validationError.message : 'Invalid artwork file.');
+        }
       }
     },
     [openEditorWithFile],
@@ -140,22 +146,32 @@ export const Artwork = memo<ArtworkProps>((props) => {
       return;
     }
 
+    const operationId = ++operationIdRef.current;
+
     setIsUrlLoading(true);
     setError('');
 
     try {
       const file = await loadRemoteArtworkFile(trimmedUrlInput);
 
-      await openEditorWithFile(file);
+      await openEditorWithFile(file, operationId);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Image URL could not be loaded.');
+      if (isMountedRef.current && operationIdRef.current === operationId) {
+        setError(loadError instanceof Error ? loadError.message : 'Image URL could not be loaded.');
+      }
     } finally {
-      setIsUrlLoading(false);
+      if (isMountedRef.current && operationIdRef.current === operationId) {
+        setIsUrlLoading(false);
+      }
     }
   }, [openEditorWithFile, trimmedUrlInput]);
 
   const handleApply = useCallback(
     (file: File, crop: Crop) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+
       revokePreviewUrl();
 
       const objectUrl = URL.createObjectURL(file);
@@ -304,16 +320,21 @@ export const Artwork = memo<ArtworkProps>((props) => {
         )}
       </div>
 
-      <ArtworkEditor
-        disabled={disabled}
-        draftUrl={draftUrl}
-        initialCrop={initialCrop}
-        visible={isEditorOpen}
-        onApply={handleApply}
-        onClose={handleClose}
-      />
+      {isEditorOpen && (
+        <ArtworkEditor
+          key={draftUrl}
+          disabled={disabled}
+          draftUrl={draftUrl}
+          initialCrop={initialCrop}
+          visible
+          onApply={handleApply}
+          onClose={handleClose}
+        />
+      )}
     </div>
   );
-});
+};
+
+export const Artwork = memo<ArtworkProps>(({ resetKey, ...props }) => <ArtworkContent key={resetKey} {...props} />);
 
 Artwork.displayName = 'Artwork';

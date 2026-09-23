@@ -105,8 +105,8 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
     const [trackPath, coverPath] = await Promise.all([
       logTimedOperation(
         {
-          startEvt: 'download.conversion.started',
-          successEvt: 'download.conversion.completed',
+          startEvt: 'ytdlp.download.started',
+          successEvt: 'ytdlp.download.completed',
           failureEvt: (error) => {
             if (isYtDlpSignatureError(error)) {
               return 'ytdlp.signature.error';
@@ -116,10 +116,10 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
               return 'ytdlp.spawn.failed';
             }
 
-            return 'download.conversion.failed';
+            return 'ytdlp.download.failed';
           },
-          startMessage: 'Starting YouTube download conversion',
-          successMessage: 'Completed YouTube download conversion',
+          startMessage: 'Starting yt-dlp media download and conversion',
+          successMessage: 'Completed yt-dlp media download and conversion',
           failureMessage: (error) =>
             isYtDlpSignatureError(error)
               ? 'yt-dlp failed to extract the current YouTube signature'

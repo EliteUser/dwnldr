@@ -36,6 +36,7 @@ export const TrackList = memo<TrackListProps>((props) => {
   /* region Virtualizer */
   const count = filteredTracks.length;
 
+  // oxlint-disable-next-line react/incompatible-library -- This virtualized list does not use React Compiler.
   const virtualizer = useVirtualizer({
     count,
     getItemKey: (index) => filteredTracks[index]?.id ?? filteredTracks[index]?.permalink_url ?? index,

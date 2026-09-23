@@ -8,6 +8,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).optional(),
   TEMP_DIR: z.string().default('./tmp/downloads'),
   DOWNLOAD_TIMEOUT_MS: z.coerce.number().int().positive().default(600000),
+  YT_DLP_BINARY_PATH: z.string().min(1).optional(),
+  YT_DLP_VERSION: z.string().min(1).optional(),
 });
 
 const parsedEnvResult = envSchema.safeParse(process.env);

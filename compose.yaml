@@ -3,14 +3,13 @@ services:
     image: ${IMAGE_REF}
     container_name: dwnldr
     restart: always
-    ports:
-      - '80:80'
-      - '443:443'
+    network_mode: host
     environment:
       LETSENCRYPT_ENABLED: 'true'
       SERVER_IP: ${SERVER_IP}
       ALLOW_SELF_SIGNED_SSL: 'false'
     volumes:
+      - ./auth.htpasswd:/etc/nginx/auth.htpasswd:ro
       - letsencrypt:/etc/letsencrypt
       - state:/var/lib/dwnldr
 

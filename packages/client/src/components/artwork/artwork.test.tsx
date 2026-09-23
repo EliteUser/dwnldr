@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Artwork } from './artwork';
@@ -111,5 +111,28 @@ describe('Artwork', () => {
         height: 76,
       }),
     );
+  });
+
+  it('ignores artwork validation finishing after the track changes', async () => {
+    let finishValidation: (() => void) | undefined;
+    validateArtworkFileMock.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishValidation = resolve;
+        }),
+    );
+    const createObjectURLMock = vi.spyOn(URL, 'createObjectURL');
+    const onArtworkChange = vi.fn();
+    const { rerender } = render(<Artwork resetKey='track-one' onArtworkChange={onArtworkChange} />);
+
+    fireEvent.change(screen.getByLabelText('Upload image'), {
+      target: { files: [new File(['image'], 'cover.jpg', { type: 'image/jpeg' })] },
+    });
+    rerender(<Artwork resetKey='track-two' onArtworkChange={onArtworkChange} />);
+
+    await act(async () => finishValidation?.());
+
+    expect(createObjectURLMock).not.toHaveBeenCalled();
+    expect(onArtworkChange).not.toHaveBeenCalled();
   });
 });

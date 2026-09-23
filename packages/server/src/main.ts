@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
-import { assertYtDlpAvailable, createYtDlp, ffmpegBinaryPath } from './lib/ytdlp.js';
+import { assertYtDlpAvailable, createYtDlp, ffmpegBinaryPath, getYtDlpVersion } from './lib/ytdlp.js';
 import { setServerShuttingDown } from './services/health/health.service.js';
 import { ensureTempRoot, sweepStaleDownloadFolders } from './utils/temp.utils.js';
 
@@ -95,8 +95,9 @@ export const createGracefulShutdownHandler = (options: ShutdownHandlerOptions) =
 };
 
 export const start = async () => {
-  const ytdlp = await assertYtDlpAvailable(createYtDlp());
-  const ytDlpVersion = await ytdlp.getVersionAsync().catch(() => 'unknown');
+  const ytdlp = createYtDlp();
+  const ytDlpVersion = await getYtDlpVersion(ytdlp.binaryPath);
+  await assertYtDlpAvailable(ytdlp);
   const soundCloudVersion = await getDependencyVersion('soundcloud.ts');
   await ensureTempRoot();
   const cleanedFolderCount = await sweepStaleDownloadFolders(STALE_DOWNLOAD_MAX_AGE_MS);
@@ -108,6 +109,7 @@ export const start = async () => {
       nodeEnv: env.NODE_ENV,
       tempDir: env.TEMP_DIR,
       ffmpegPath: ffmpegBinaryPath ?? 'missing',
+      ytDlpPath: ytdlp.binaryPath,
       ytDlpVersion,
       soundCloudVersion,
       cleanedFolderCount,
@@ -143,7 +145,7 @@ export const start = async () => {
   setServerShuttingDown(false);
 
   const server = await new Promise<Server>((resolve, reject) => {
-    const nextServer = app.listen(env.PORT, () => {
+    const nextServer = app.listen(env.PORT, env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0', () => {
       logger.info(
         {
           evt: 'server.started',

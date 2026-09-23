@@ -24,6 +24,7 @@ dist
 .env.development.local
 .env.test.local
 .env.production.local
+/auth.htpasswd
 
 npm-debug.log*
 yarn-debug.log*

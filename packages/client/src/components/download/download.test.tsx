@@ -73,6 +73,8 @@ describe('Download', () => {
       target: { value: 'https://soundcloud.com/artist/track' },
     });
 
+    expect(screen.getByPlaceholderText('Enter track URL')).toBeEnabled();
+
     expect(providerTrackQueryMock.mock.calls.some(([url]) => url === 'https://soundcloud.com/artist/track')).toBe(
       false,
     );
@@ -205,6 +207,44 @@ describe('Download', () => {
     });
   });
 
+  it('keeps an active download cancellable when another track is selected', async () => {
+    providerTrackQueryMock.mockReturnValue({
+      currentData: { user: 'Artist', title: 'Track One' },
+      error: undefined,
+      isFetching: false,
+      provider: undefined,
+    });
+
+    let requestSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, options?: RequestInit) => {
+        requestSignal = options?.signal ?? undefined;
+        return new Promise((_resolve, reject) => {
+          requestSignal?.addEventListener('abort', () => {
+            reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+          });
+        });
+      }),
+    );
+
+    const { rerender } = render(<Download selectedUrl='https://soundcloud.com/artist/track-one' />);
+    await waitFor(() => expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track One'));
+    fireEvent.click(screen.getByText(/download/i));
+    await waitFor(() => expect(screen.getByText('Cancel')).toBeInTheDocument());
+
+    providerTrackQueryMock.mockReturnValue({
+      currentData: undefined,
+      error: undefined,
+      isFetching: true,
+      provider: undefined,
+    });
+    rerender(<Download selectedUrl='https://soundcloud.com/artist/track-two' />);
+
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => expect(requestSignal?.aborted).toBe(true));
+  });
+
   it('does not repopulate the name field from stale query data while a new URL is loading', async () => {
     const loadedTrackQuery = {
       currentData: {
@@ -216,19 +256,16 @@ describe('Download', () => {
       provider: undefined,
     };
 
-    providerTrackQueryMock
-      .mockReturnValueOnce(loadedTrackQuery)
-      .mockReturnValueOnce(loadedTrackQuery)
-      .mockReturnValue({
-        data: {
-          user: 'Artist',
-          title: 'Track One',
-        },
-        currentData: undefined,
-        error: undefined,
-        isFetching: true,
-        provider: undefined,
-      });
+    providerTrackQueryMock.mockReturnValueOnce(loadedTrackQuery).mockReturnValue({
+      data: {
+        user: 'Artist',
+        title: 'Track One',
+      },
+      currentData: undefined,
+      error: undefined,
+      isFetching: true,
+      provider: undefined,
+    });
 
     const { rerender } = render(<Download selectedUrl='https://soundcloud.com/artist/track-one' />);
 

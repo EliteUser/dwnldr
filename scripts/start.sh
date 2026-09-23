@@ -23,6 +23,11 @@ prepare_runtime() {
         return 1
     fi
 
+    if [ ! -s /etc/nginx/auth.htpasswd ]; then
+        echo "The nginx authentication file is missing or empty."
+        return 1
+    fi
+
     mkdir -p /etc/nginx/sites-available /etc/ssl/certs /etc/ssl/private "${LETSENCRYPT_WEBROOT}" "${SELF_SIGNED_CERT_DIR}"
     mkdir -p "${TEMP_DIR:-/var/lib/dwnldr/downloads}"
     chown -R node:node "${TEMP_DIR:-/var/lib/dwnldr/downloads}"

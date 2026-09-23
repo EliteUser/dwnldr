@@ -16,19 +16,23 @@ type DownloadProps = {
   selectedUrl?: string;
 };
 
+type DownloadFormProps = DownloadProps & {
+  downloadState: ReturnType<typeof useDownload>;
+};
+
 const METADATA_DEBOUNCE_MS = 300;
 
-export const Download = memo<DownloadProps>(function Download(props) {
-  const { selectedUrl } = props;
+const DownloadForm = (props: DownloadFormProps) => {
+  const { downloadState, selectedUrl } = props;
 
   const [urlInput, setUrlInput] = useState(selectedUrl || '');
-  const [name, setName] = useState('');
+  const [nameOverride, setNameOverride] = useState<string>();
   const [album, setAlbum] = useState('');
   const [lyrics, setLyrics] = useState('');
   const [artwork, setArtwork] = useState<ArtworkDownloadPayload>();
 
   const notify = useNotify();
-  const { cancel, download, inProgress } = useDownload();
+  const { cancel, download, inProgress } = downloadState;
   const trimmedUrl = urlInput.trim();
   const [pacedUrl] = useDebouncedValue(trimmedUrl, METADATA_DEBOUNCE_MS);
   const debouncedUrl = selectedUrl && urlInput === selectedUrl ? selectedUrl : pacedUrl;
@@ -44,33 +48,14 @@ export const Download = memo<DownloadProps>(function Download(props) {
 
   const hasUrl = Boolean(trimmedUrl);
   const providerArtworkUrl = track?.artwork?.url ?? track?.artwork_url;
+  const name =
+    nameOverride ?? (track && !isFetching ? (provider?.toDownloadName(track) ?? `${track.user} - ${track.title}`) : '');
 
   const isMetadataLoading =
     hasUrl && (trimmedUrl !== debouncedUrl || isFetching || (Boolean(provider) && !track && !metadataError));
 
   const isEditorReady = hasUrl && !isMetadataLoading && Boolean(track);
   const canDownload = !inProgress && isEditorReady && Boolean(name);
-
-  useEffect(() => {
-    setUrlInput(selectedUrl || '');
-    setName('');
-    setAlbum('');
-    setLyrics('');
-    setArtwork(undefined);
-  }, [selectedUrl]);
-
-  useEffect(() => {
-    if (track && !isFetching) {
-      setName(provider?.toDownloadName(track) ?? `${track.user} - ${track.title}`);
-    }
-  }, [provider, track, isFetching]);
-
-  useEffect(() => {
-    if (!urlInput || urlInput !== debouncedUrl) {
-      setName('');
-      setArtwork(undefined);
-    }
-  }, [debouncedUrl, urlInput]);
 
   useEffect(() => {
     if (metadataError) {
@@ -90,16 +75,23 @@ export const Download = memo<DownloadProps>(function Download(props) {
     });
   }, [album, download, name, artwork, lyrics, trimmedUrl]);
 
+  const handleUrlChange = (nextUrl: string) => {
+    setUrlInput(nextUrl);
+    setNameOverride(undefined);
+    setAlbum('');
+    setLyrics('');
+    setArtwork(undefined);
+  };
+
   return (
     <div className={styles.download}>
       <section className={styles.sourcePanel}>
         <TextInput
           value={urlInput}
           label='Track URL'
-          onChange={(evt) => setUrlInput(evt.target.value)}
+          onChange={(evt) => handleUrlChange(evt.target.value)}
           placeholder='Enter track URL'
           loading={isMetadataLoading}
-          disabled={isMetadataLoading}
         />
       </section>
 
@@ -127,7 +119,7 @@ export const Download = memo<DownloadProps>(function Download(props) {
                   name={name}
                   onAlbumChange={setAlbum}
                   onLyricsChange={setLyrics}
-                  onNameChange={setName}
+                  onNameChange={setNameOverride}
                 />
               </Accordion.Panel>
             </Accordion.Item>
@@ -146,6 +138,7 @@ export const Download = memo<DownloadProps>(function Download(props) {
               </Accordion.Control>
               <Accordion.Panel>
                 <Artwork
+                  key={debouncedUrl}
                   disabled={inProgress}
                   onArtworkChange={setArtwork}
                   providerArtworkUrl={providerArtworkUrl}
@@ -168,14 +161,6 @@ export const Download = memo<DownloadProps>(function Download(props) {
             >
               Download
             </Button>
-
-            {inProgress && (
-              <div className={styles.actions}>
-                <Button size='lg' variant='outline' onClick={cancel}>
-                  Cancel
-                </Button>
-              </div>
-            )}
           </section>
         </div>
       ) : !hasUrl ? (
@@ -203,6 +188,20 @@ export const Download = memo<DownloadProps>(function Download(props) {
           </Text>
         </section>
       )}
+
+      {inProgress && (
+        <div className={styles.actions}>
+          <Button size='lg' variant='outline' onClick={cancel}>
+            Cancel
+          </Button>
+        </div>
+      )}
     </div>
   );
+};
+
+export const Download = memo<DownloadProps>(function Download({ selectedUrl }) {
+  const downloadState = useDownload();
+
+  return <DownloadForm key={selectedUrl ?? ''} selectedUrl={selectedUrl} downloadState={downloadState} />;
 });

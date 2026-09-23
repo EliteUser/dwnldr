@@ -1,6 +1,5 @@
 import { Button, CloseButton, Drawer, Flex, Text } from '@mantine/core';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import type { PixelCrop } from 'react-image-crop';
 import ReactCrop, { convertToPixelCrop, type Crop } from 'react-image-crop';
 
 import type { ArtworkEditorProps, ImageSize } from './artwork-editor.types';
@@ -19,12 +18,21 @@ export const ArtworkEditor = memo<ArtworkEditorProps>((props) => {
 
   const cropAreaRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const applyIdRef = useRef(0);
 
   const [crop, setCrop] = useState<Crop>();
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [error, setError] = useState('');
+  const [isApplying, setIsApplying] = useState(false);
   const [imageFrame, setImageFrame] = useState<ImageSize>();
   const [naturalImageSize, setNaturalImageSize] = useState<ImageSize>();
+  const completedCrop = crop && imageFrame ? convertToPixelCrop(crop, imageFrame.width, imageFrame.height) : undefined;
+
+  useEffect(
+    () => () => {
+      applyIdRef.current += 1;
+    },
+    [],
+  );
 
   const updateImageFrame = useCallback((nextNaturalImageSize: ImageSize) => {
     const cropAreaSize = getCropAreaSize(cropAreaRef.current);
@@ -35,19 +43,6 @@ export const ArtworkEditor = memo<ArtworkEditorProps>((props) => {
 
     setImageFrame(getContainedImageSize(nextNaturalImageSize, cropAreaSize));
   }, []);
-
-  useEffect(() => {
-    if (!visible) {
-      return;
-    }
-
-    setCrop(undefined);
-    setCompletedCrop(undefined);
-    setError('');
-    setImageFrame(undefined);
-    setNaturalImageSize(undefined);
-    imageRef.current = null;
-  }, [draftUrl, visible]);
 
   useEffect(() => {
     if (!visible || !naturalImageSize) {
@@ -73,14 +68,6 @@ export const ArtworkEditor = memo<ArtworkEditorProps>((props) => {
     };
   }, [naturalImageSize, updateImageFrame, visible]);
 
-  useEffect(() => {
-    if (!crop || !imageFrame) {
-      return;
-    }
-
-    setCompletedCrop(convertToPixelCrop(crop, imageFrame.width, imageFrame.height));
-  }, [crop, imageFrame]);
-
   const handleImageLoad = useCallback(
     (event: React.SyntheticEvent<HTMLImageElement>) => {
       const image = event.currentTarget;
@@ -98,27 +85,41 @@ export const ArtworkEditor = memo<ArtworkEditorProps>((props) => {
 
       imageRef.current = image;
       setNaturalImageSize(nextNaturalImageSize);
-      setImageFrame(nextImageFrame);
+      setImageFrame(cropBounds);
       setCrop(nextCrop);
-      setCompletedCrop(convertToPixelCrop(nextCrop, cropBounds.width, cropBounds.height));
     },
     [initialCrop],
   );
 
   const handleApply = useCallback(() => {
+    if (isApplying) {
+      return;
+    }
+
     if (!completedCrop || !crop || !imageRef.current) {
       setError('Select an artwork area before applying.');
       return;
     }
 
+    const applyId = ++applyIdRef.current;
+    setIsApplying(true);
     void renderCroppedArtwork(imageRef.current, completedCrop)
       .then((file) => {
-        onApply(file, crop);
+        if (applyIdRef.current === applyId) {
+          onApply(file, crop);
+        }
       })
       .catch((renderError: unknown) => {
-        setError(renderError instanceof Error ? renderError.message : 'Could not prepare artwork.');
+        if (applyIdRef.current === applyId) {
+          setError(renderError instanceof Error ? renderError.message : 'Could not prepare artwork.');
+        }
+      })
+      .finally(() => {
+        if (applyIdRef.current === applyId) {
+          setIsApplying(false);
+        }
       });
-  }, [completedCrop, crop, onApply]);
+  }, [completedCrop, crop, isApplying, onApply]);
 
   return (
     <Drawer
@@ -167,7 +168,6 @@ export const ArtworkEditor = memo<ArtworkEditorProps>((props) => {
               minWidth={64}
               minHeight={64}
               onChange={(_, percentCrop) => setCrop(percentCrop)}
-              onComplete={(nextCrop) => setCompletedCrop(nextCrop)}
             >
               <img
                 src={draftUrl}
@@ -196,7 +196,7 @@ export const ArtworkEditor = memo<ArtworkEditorProps>((props) => {
             Cancel
           </Button>
 
-          <Button size='sm' disabled={!draftUrl || disabled} fullWidth onClick={handleApply}>
+          <Button size='sm' disabled={!draftUrl || disabled} loading={isApplying} fullWidth onClick={handleApply}>
             Apply
           </Button>
         </Flex>

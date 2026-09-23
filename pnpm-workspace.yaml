@@ -3,7 +3,7 @@ packages:
 
 overrides:
   body-parser: 2.3.0
-  qs: 6.15.2
+  qs: 6.16.0
 
 onlyBuiltDependencies:
   - '@parcel/watcher'
