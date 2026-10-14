@@ -1,17 +1,25 @@
 import type { FlexProps } from '@mantine/core';
 import { Flex, Tabs, Text } from '@mantine/core';
 import { IconDownload, IconHeart, IconMusic, IconSettings } from '@tabler/icons-react';
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 
+import { useNotify } from '../../utils';
 import { Download, Likes, Settings, TrackMeta } from '../index';
 import { ACTIVE_TAB_STORAGE_KEY } from './app.constants.ts';
-import { isActiveTab, readActiveTab } from './app.utils.ts';
+import { isActiveTab, readActiveTab, readIncomingShare, removeIncomingShareParams } from './app.utils.ts';
 
 import styles from './app.module.scss';
 
 export const App = memo(() => {
-  const [activeTab, setActiveTab] = useState(readActiveTab);
-  const [selectedUrl, setSelectedUrl] = useState<string | undefined>(undefined);
+  const [incomingShare] = useState(() =>
+    readIncomingShare(typeof window === 'undefined' ? '' : window.location.search),
+  );
+  const [activeTab, setActiveTab] = useState(() => (incomingShare.status === 'none' ? readActiveTab() : 'download'));
+  const [selectedUrl, setSelectedUrl] = useState<string | undefined>(
+    incomingShare.status === 'supported' ? incomingShare.url : undefined,
+  );
+  const shareHandledRef = useRef(false);
+  const notify = useNotify();
 
   const handleDownloadClick = useCallback((url: string) => {
     setSelectedUrl(url);
@@ -29,6 +37,21 @@ export const App = memo(() => {
       window.localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (incomingShare.status === 'none' || shareHandledRef.current) {
+      return;
+    }
+
+    shareHandledRef.current = true;
+    window.history.replaceState(window.history.state, '', removeIncomingShareParams(window.location));
+
+    if (incomingShare.status === 'unsupported') {
+      notify.error('No SoundCloud or YouTube link was shared. Paste a track URL to continue.', {
+        name: 'unsupported-shared-link',
+      });
+    }
+  }, [incomingShare, notify]);
 
   const tabFlexProps: FlexProps = {
     direction: 'column',

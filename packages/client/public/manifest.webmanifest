@@ -8,6 +8,15 @@
   "display": "standalone",
   "background_color": "#111113",
   "theme_color": "#ff5500",
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "share_title",
+      "text": "share_text",
+      "url": "share_url"
+    }
+  },
   "icons": [
     {
       "src": "/pwa-icon-192.png",
