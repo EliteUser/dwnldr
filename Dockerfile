@@ -1,8 +1,8 @@
-FROM node:24-bullseye-slim AS builder
+FROM node:24-bookworm-slim AS builder
 
 WORKDIR /app
 
-RUN npm install -g pnpm@10.33.0
+RUN npm install -g pnpm@10.34.7
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/client/package.json ./packages/client/package.json
@@ -17,8 +17,8 @@ RUN pnpm --filter ./packages/server --legacy deploy --prod /prod/server
 
 FROM node:24-bookworm-slim
 
-ARG YT_DLP_VERSION=2026.09.16.232951
-ARG YT_DLP_SHA256=f8ca14db511702a5dbfc5a527056312907ddd0914d0b4036f108d6849e17ef61
+ARG YT_DLP_VERSION=2026.10.10.233141
+ARG YT_DLP_SHA256=f40b6a9e4c5786360953911cab5d2f87507626b8fb7bfee3f8f1c2e5cf341fae
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg gettext-base nginx openssl python3 python3-venv util-linux \
@@ -46,12 +46,13 @@ COPY nginx.conf /etc/nginx/templates/dwnldr.conf.template
 COPY scripts/start.sh /app/start.sh
 
 RUN chmod +x /app/start.sh \
-    && mkdir -p /var/lib/dwnldr/downloads \
-    && chown -R node:node /var/lib/dwnldr/downloads
+    && mkdir -p /var/lib/dwnldr/downloads /var/lib/dwnldr/yt-dlp-cache \
+    && chown -R node:node /var/lib/dwnldr/downloads /var/lib/dwnldr/yt-dlp-cache
 
 ENV NODE_ENV=production \
     TEMP_DIR=/var/lib/dwnldr/downloads \
     YT_DLP_BINARY_PATH=/usr/local/bin/yt-dlp \
+    YT_DLP_CACHE_DIR=/var/lib/dwnldr/yt-dlp-cache \
     YT_DLP_VERSION=${YT_DLP_VERSION}
 
 EXPOSE 80 443

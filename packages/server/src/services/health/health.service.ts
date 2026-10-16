@@ -1,9 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { env } from '../../config/env.js';
 import { createYtDlp, ffmpegBinaryPath } from '../../lib/ytdlp.js';
-import { ensureTempRoot } from '../../utils/temp.utils.js';
 
 type ReadinessCheck = {
   details?: string;
@@ -16,6 +16,7 @@ export type ReadinessStatus = {
     server: ReadinessCheck;
     tempDir: ReadinessCheck;
     ytDlp: ReadinessCheck;
+    ytDlpCache: ReadinessCheck;
   };
   status: 'error' | 'ok';
 };
@@ -53,23 +54,23 @@ const checkBinaryPath = async (binaryPath: string | undefined, binaryName: strin
   }
 };
 
-const checkTempDirectoryWritable = async (): Promise<ReadinessCheck> => {
+const checkDirectoryWritable = async (directory: string, label: string): Promise<ReadinessCheck> => {
   try {
-    await ensureTempRoot();
+    await fs.mkdir(directory, { recursive: true });
 
-    const probePath = path.join(env.TEMP_DIR, `.ready-${process.pid}-${Date.now()}.tmp`);
+    const probePath = path.join(directory, `.ready-${randomUUID()}.tmp`);
 
     await fs.writeFile(probePath, 'ready');
     await fs.unlink(probePath);
 
     return {
       ok: true,
-      details: env.TEMP_DIR,
+      details: directory,
     };
   } catch (error) {
     return {
       ok: false,
-      details: `Temp directory is not writable: ${getCheckErrorDetails(error)}`,
+      details: `${label} directory is not writable: ${getCheckErrorDetails(error)}`,
     };
   }
 };
@@ -106,10 +107,11 @@ export const getHealthStatus = () => ({
 });
 
 export const getReadinessStatus = async (): Promise<ReadinessStatus> => {
-  const [ffmpeg, ytDlp, tempDir] = await Promise.all([
+  const [ffmpeg, ytDlp, tempDir, ytDlpCache] = await Promise.all([
     checkBinaryPath(ffmpegBinaryPath, 'ffmpeg'),
     checkYtDlpBinary(),
-    checkTempDirectoryWritable(),
+    checkDirectoryWritable(env.TEMP_DIR, 'Temp'),
+    checkDirectoryWritable(env.YT_DLP_CACHE_DIR, 'yt-dlp cache'),
   ]);
 
   const server: ReadinessCheck = shuttingDown
@@ -126,6 +128,7 @@ export const getReadinessStatus = async (): Promise<ReadinessStatus> => {
     server,
     tempDir,
     ytDlp,
+    ytDlpCache,
   };
 
   return {

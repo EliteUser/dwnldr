@@ -1,21 +1,21 @@
-import type { SoundcloudTrack } from 'soundcloud.ts';
 import type { VideoInfo } from 'ytdlp-nodejs';
 
 import type { TrackMetadata } from '../../types.js';
+import type { SoundCloudTrack } from '../soundcloud/soundcloud.schemas.js';
 
-export const getSoundCloudTrackData = (track: SoundcloudTrack): TrackMetadata => {
-  const { id, user, title, artwork_url, permalink_url, duration } = track;
+export const getSoundCloudTrackData = (track: SoundCloudTrack): TrackMetadata => {
+  const artworkUrl = track.artwork_url ?? null;
 
   return {
-    id,
-    user: user.username,
-    title,
+    id: track.id,
+    user: track.user.username,
+    title: track.title,
     artwork: {
-      url: artwork_url,
+      url: artworkUrl,
     },
-    artwork_url,
-    permalink_url,
-    duration,
+    artwork_url: artworkUrl,
+    permalink_url: track.permalink_url,
+    duration: track.duration,
   };
 };
 

@@ -23,6 +23,5 @@ export type ProviderAdapter = {
   key: ProviderKey;
   label: string;
   matchesUrl: (url: URL) => boolean;
-  trackPath: string;
   toDownloadName: (track: TrackInfo) => string;
 };

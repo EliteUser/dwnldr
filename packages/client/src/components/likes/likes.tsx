@@ -16,7 +16,7 @@ type LikesProps = {
 export const Likes = memo<LikesProps>((props) => {
   const { onDownloadClick } = props;
 
-  const userId = useAppStore((state) => state.userId);
+  const profileUrl = useAppStore((state) => state.profileUrl);
   const folder = useAppStore((state) => state.directoryName);
   const notify = useNotify();
 
@@ -26,15 +26,16 @@ export const Likes = memo<LikesProps>((props) => {
     error: favoritesError,
     isLoading,
     isFetching,
-  } = useGetFavoritesQuery(userId || '', {
-    skip: !userId,
+  } = useGetFavoritesQuery(profileUrl || '', {
+    skip: !profileUrl,
   });
 
   const hasFolder = !!folder;
+  const hasCachedFavorites = favorites !== undefined;
   const hasFavorites = !!favorites?.length;
   const supportsFileSystemAccess = canUseFileSystemAccess();
-  const isInitialLoading = !!userId && (isLoading || (isFetching && !favorites));
-  const isRefreshingList = isFetching && !isInitialLoading && hasFavorites;
+  const isInitialLoading = !!profileUrl && (isLoading || (isFetching && !hasCachedFavorites));
+  const isRefreshingList = isFetching && !isInitialLoading && hasCachedFavorites;
   useEffect(() => {
     if (favoritesError) {
       notify.apiError(getApiErrorFromQueryError(favoritesError), {
@@ -60,7 +61,7 @@ export const Likes = memo<LikesProps>((props) => {
           aria-label='Refresh likes'
           variant='outline'
           size='lg'
-          disabled={!userId || isFetching}
+          disabled={!profileUrl || isFetching}
           onClick={() => void refetch()}
         >
           <IconRefresh size={16} />
@@ -68,20 +69,21 @@ export const Likes = memo<LikesProps>((props) => {
       </div>
 
       {isInitialLoading && (
-        <div className={styles.loadingState}>
+        <div className={styles.loadingState} role='status' aria-live='polite'>
           <Loader size='lg' />
+          <Text>Loading your likes...</Text>
         </div>
       )}
 
-      {!isInitialLoading && !userId && (
+      {!isInitialLoading && !profileUrl && (
         <div className={styles.emptyState}>
-          <Text fw={600}>Connect SoundCloud in Settings to load your likes</Text>
-          <Text c='dimmed'>The Services section stores the SoundCloud account used for this list.</Text>
+          <Text fw={600}>Add your SoundCloud profile link in Settings to load your likes</Text>
+          <Text c='dimmed'>The Services section stores the profile used for this list.</Text>
         </div>
       )}
 
-      {!isInitialLoading && !!userId && favoritesError && (
-        <div className={styles.emptyState}>
+      {!isInitialLoading && !!profileUrl && favoritesError && !hasCachedFavorites && (
+        <div className={styles.emptyState} role='alert'>
           <Text fw={600}>Failed to load your likes</Text>
           <Text c='dimmed'>The request did not complete successfully. Retry after checking the notification.</Text>
           <Button size='md' loading={isFetching} onClick={() => void refetch()}>
@@ -90,21 +92,41 @@ export const Likes = memo<LikesProps>((props) => {
         </div>
       )}
 
-      {!isInitialLoading && !!userId && !favoritesError && hasFavorites && !hasFolder && supportsFileSystemAccess && (
-        <div className={styles.emptyState}>
-          <Text fw={600}>Pick a download location in Settings</Text>
-          <Text c='dimmed'>Folder sync compares cloud tracks against filenames in your local library.</Text>
+      {!isInitialLoading && !!profileUrl && favoritesError && hasCachedFavorites && (
+        <div className={styles.refreshError} role='alert'>
+          <Text>Could not refresh your likes. Showing the last loaded results.</Text>
+          <Button size='sm' loading={isFetching} onClick={() => void refetch()}>
+            Retry
+          </Button>
         </div>
       )}
 
-      {!isInitialLoading && !!userId && !favoritesError && !hasFavorites && (
+      {isRefreshingList && (
+        <Text className={styles.refreshStatus} role='status' aria-live='polite'>
+          Refreshing your likes...
+        </Text>
+      )}
+
+      {!isInitialLoading &&
+        !!profileUrl &&
+        hasCachedFavorites &&
+        hasFavorites &&
+        !hasFolder &&
+        supportsFileSystemAccess && (
+          <div className={styles.emptyState}>
+            <Text fw={600}>Pick a download location in Settings</Text>
+            <Text c='dimmed'>Folder sync compares cloud tracks against filenames in your local library.</Text>
+          </div>
+        )}
+
+      {!isInitialLoading && !!profileUrl && hasCachedFavorites && !hasFavorites && (
         <div className={styles.emptyState}>
           <Text fw={600}>No liked tracks found</Text>
           <Text c='dimmed'>This SoundCloud account does not have any favorites available right now.</Text>
         </div>
       )}
 
-      {!isInitialLoading && !!userId && !favoritesError && hasFavorites && (
+      {!isInitialLoading && !!profileUrl && hasCachedFavorites && hasFavorites && (
         <div className={styles.listShell}>
           <TrackList tracks={favorites} onDownloadClick={onDownloadClick} />
 

@@ -31,20 +31,16 @@ $coverSize: 48px;
 
 .wrapper {
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   row-gap: 2px;
   min-inline-size: 0;
 }
 
-.title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .cover {
   position: relative;
   display: flex;
+  flex-shrink: 0;
 
   &::before {
     content: '';

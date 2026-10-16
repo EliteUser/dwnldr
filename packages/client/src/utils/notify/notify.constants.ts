@@ -1,8 +1,6 @@
-import type { ApiErrorCode } from './notify.utils';
+import type { ApiErrorCode } from '../../api/api.errors';
 
 export const FALLBACK_API_ERROR_MESSAGE = 'Something went wrong. Try again.';
-export const REQUEST_FAILED_MESSAGE = 'The request failed. Try again.';
-
 export const DOWNLOAD_NOTIFICATION_NAME = {
   cancelled: 'download-cancelled',
   metadataError: 'download-metadata-error',

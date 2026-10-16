@@ -49,15 +49,31 @@ describe('TrackList', () => {
     expect(screen.getByText('Artist - Downloaded')).toBeInTheDocument();
     expect(screen.getByText('Artist - New')).toBeInTheDocument();
 
-    const filterButton = screen.getByRole('button');
+    expect(screen.getByRole('textbox', { name: 'Search tracks' })).toBeInTheDocument();
+
+    const filterButton = screen.getByRole('button', {
+      name: 'Download filter showing all tracks; activate to show tracks not downloaded.',
+    });
+    expect(filterButton).toHaveAttribute(
+      'title',
+      'Download filter showing all tracks; activate to show tracks not downloaded.',
+    );
 
     fireEvent.click(filterButton);
 
+    expect(filterButton).toHaveAttribute(
+      'aria-label',
+      'Download filter showing tracks not downloaded; activate to show downloaded tracks.',
+    );
     expect(screen.queryByText('Artist - Downloaded')).not.toBeInTheDocument();
     expect(screen.getByText('Artist - New')).toBeInTheDocument();
 
     fireEvent.click(filterButton);
 
+    expect(filterButton).toHaveAttribute(
+      'aria-label',
+      'Download filter showing downloaded tracks; activate to show all tracks.',
+    );
     expect(screen.getByText('Artist - Downloaded')).toBeInTheDocument();
     expect(screen.queryByText('Artist - New')).not.toBeInTheDocument();
 

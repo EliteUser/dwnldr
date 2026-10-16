@@ -1,7 +1,7 @@
 import type * as FsPromises from 'node:fs/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const ensureTempRootMock = vi.fn();
+const mkdirMock = vi.fn();
 const writeFileMock = vi.fn();
 const unlinkMock = vi.fn();
 const accessMock = vi.fn();
@@ -15,18 +15,16 @@ vi.mock('node:fs/promises', async () => {
     default: {
       ...actual.default,
       access: accessMock,
+      mkdir: mkdirMock,
       unlink: unlinkMock,
       writeFile: writeFileMock,
     },
     access: accessMock,
+    mkdir: mkdirMock,
     unlink: unlinkMock,
     writeFile: writeFileMock,
   };
 });
-
-vi.mock('../../utils/temp.utils.js', () => ({
-  ensureTempRoot: ensureTempRootMock,
-}));
 
 vi.mock('../../lib/ytdlp.js', () => ({
   createYtDlp: () => ({
@@ -43,7 +41,7 @@ describe('getReadinessStatus', () => {
     vi.clearAllMocks();
     resetHealthStateForTests();
     accessMock.mockResolvedValue(undefined);
-    ensureTempRootMock.mockResolvedValue(undefined);
+    mkdirMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue(undefined);
     unlinkMock.mockResolvedValue(undefined);
     checkInstallationAsyncMock.mockResolvedValue(true);
@@ -66,6 +64,7 @@ describe('getReadinessStatus', () => {
           ok: true,
           details: '/usr/bin/yt-dlp',
         },
+        ytDlpCache: { ok: true },
       },
     });
 
@@ -84,6 +83,23 @@ describe('getReadinessStatus', () => {
           ok: false,
           details: 'yt-dlp is not available in the current runtime.',
         },
+      },
+    });
+  });
+
+  it('returns an error when the engine cache is not writable', async () => {
+    const { env } = await import('../../config/env.js');
+    writeFileMock.mockImplementation(async (filePath: string) => {
+      if (filePath.startsWith(env.YT_DLP_CACHE_DIR)) {
+        throw new Error('Permission denied');
+      }
+    });
+
+    await expect(getReadinessStatus()).resolves.toMatchObject({
+      status: 'error',
+      checks: {
+        tempDir: { ok: true },
+        ytDlpCache: { ok: false, details: 'yt-dlp cache directory is not writable: Permission denied' },
       },
     });
   });

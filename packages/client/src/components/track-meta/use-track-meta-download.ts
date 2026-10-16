@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
+import { parseApiErrorResponse } from '../../api/api.errors';
 import type { ArtworkDownloadPayload } from '../../types';
 import {
   isAbortError,
@@ -7,7 +8,6 @@ import {
   readResponse,
   triggerBrowserDownload,
   FALLBACK_API_ERROR_MESSAGE,
-  parseApiErrorResponse,
   TRACK_META_NOTIFICATION_MESSAGE,
   TRACK_META_NOTIFICATION_NAME,
   useNotify,

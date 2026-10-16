@@ -1,9 +1,8 @@
-import { soundcloud } from '../../lib/soundcloud.js';
 import { downloadSoundCloudTrack } from '../../services/soundcloud/soundcloud-download.service.js';
 import {
-  getFavoritesByUserId,
+  getFavoritesByProfileUrl,
   getSoundCloudTrackByUrl,
-  getUserById,
+  getUserByProfileUrl,
 } from '../../services/soundcloud/soundcloud.service.js';
 import type { MusicProvider } from '../types.js';
 
@@ -16,15 +15,9 @@ export const soundcloudProvider: MusicProvider = {
     metadata: true,
     users: true,
   },
-  downloadTrack: ({ folder, signal, track }) =>
-    downloadSoundCloudTrack({
-      api: soundcloud,
-      folder,
-      signal,
-      track,
-    }),
-  fetchFavorites: getFavoritesByUserId,
-  getUser: getUserById,
+  downloadTrack: downloadSoundCloudTrack,
+  fetchFavorites: getFavoritesByProfileUrl,
+  getUser: getUserByProfileUrl,
   matchesUrl: (url) => url.hostname === 'soundcloud.com' || url.hostname.endsWith('.soundcloud.com'),
   resolveTrack: getSoundCloudTrackByUrl,
 };

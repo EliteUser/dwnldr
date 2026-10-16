@@ -44,7 +44,7 @@ vi.mock('../track-list/track-list', () => ({
 }));
 
 const renderLikes = (
-  userId: string | null,
+  profileUrl: string | null,
   filesState?: {
     directoryName?: string | null;
     files?: Array<{ extension: string; name: string }>;
@@ -57,7 +57,7 @@ const renderLikes = (
     files: filesState?.files ?? [],
     isFolderSyncInProgress: filesState?.isFolderSyncInProgress ?? false,
     lastSyncAt: filesState?.lastSyncAt ?? null,
-    userId,
+    profileUrl,
   });
 
   return render(<Likes onDownloadClick={() => undefined} />);
@@ -77,7 +77,7 @@ describe('Likes', () => {
       files: [],
       isFolderSyncInProgress: false,
       lastSyncAt: null,
-      userId: null,
+      profileUrl: null,
     });
   });
 
@@ -92,7 +92,7 @@ describe('Likes', () => {
 
     renderLikes(null);
 
-    expect(screen.getByText('Connect SoundCloud in Settings to load your likes')).toBeInTheDocument();
+    expect(screen.getByText('Add your SoundCloud profile link in Settings to load your likes')).toBeInTheDocument();
   });
 
   it('shows a retry state when loading likes fails', () => {
@@ -104,7 +104,7 @@ describe('Likes', () => {
       refetch: refetchMock,
     });
 
-    renderLikes('12345');
+    renderLikes('https://soundcloud.com/my-profile');
 
     expect(screen.getByText('Failed to load your likes')).toBeInTheDocument();
 
@@ -114,7 +114,72 @@ describe('Likes', () => {
     expect(notifyApiErrorMock).toHaveBeenCalled();
   });
 
-  it('renders the track list when a user and favorites are configured', () => {
+  it('announces the initial likes loading state', () => {
+    favoritesQueryMock.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isFetching: true,
+      isLoading: true,
+      refetch: refetchMock,
+    });
+
+    renderLikes('https://soundcloud.com/my-profile');
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading your likes...');
+  });
+
+  it('announces a cached list refresh without hiding the list', () => {
+    favoritesQueryMock.mockReturnValue({
+      data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
+      error: undefined,
+      isFetching: true,
+      isLoading: false,
+      refetch: refetchMock,
+    });
+
+    renderLikes('https://soundcloud.com/my-profile', { directoryName: 'Music' });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Refreshing your likes...');
+    expect(screen.getByText('Track List')).toBeInTheDocument();
+  });
+
+  it('keeps cached likes visible after a background refresh fails and retries in place', () => {
+    favoritesQueryMock.mockReturnValue({
+      data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
+      error: { code: 'UPSTREAM_FAILURE', error: 'Failed' },
+      isFetching: false,
+      isLoading: false,
+      refetch: refetchMock,
+    });
+
+    renderLikes('https://soundcloud.com/my-profile', { directoryName: 'Music' });
+
+    expect(screen.getByText('Track List')).toBeInTheDocument();
+    expect(screen.getByText('Could not refresh your likes. Showing the last loaded results.')).toBeInTheDocument();
+    expect(screen.queryByText('Failed to load your likes')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(refetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a cached empty state visible after a background refresh fails', () => {
+    favoritesQueryMock.mockReturnValue({
+      data: [],
+      error: { code: 'UPSTREAM_FAILURE', error: 'Failed' },
+      isFetching: false,
+      isLoading: false,
+      refetch: refetchMock,
+    });
+
+    renderLikes('https://soundcloud.com/my-profile');
+
+    expect(screen.getByText('No liked tracks found')).toBeInTheDocument();
+    expect(screen.getByText('Could not refresh your likes. Showing the last loaded results.')).toBeInTheDocument();
+    expect(screen.queryByText('Failed to load your likes')).not.toBeInTheDocument();
+  });
+
+  it('renders the track list when a profile and favorites are configured', () => {
     favoritesQueryMock.mockReturnValue({
       data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
       error: undefined,
@@ -123,7 +188,7 @@ describe('Likes', () => {
       refetch: refetchMock,
     });
 
-    renderLikes('12345', {
+    renderLikes('https://soundcloud.com/my-profile', {
       directoryName: 'Music',
       files: [{ extension: 'mp3', name: 'Artist - Track' }],
       lastSyncAt: '2026-04-22T09:15:00.000Z',
@@ -142,7 +207,7 @@ describe('Likes', () => {
       refetch: refetchMock,
     });
 
-    renderLikes('12345');
+    renderLikes('https://soundcloud.com/my-profile');
 
     expect(screen.getByText('Pick a download location in Settings')).toBeInTheDocument();
   });
@@ -156,7 +221,7 @@ describe('Likes', () => {
       refetch: refetchMock,
     });
 
-    renderLikes('12345', {
+    renderLikes('https://soundcloud.com/my-profile', {
       directoryName: 'Music',
       files: [{ extension: 'mp3', name: 'Artist - Track' }],
       lastSyncAt: '2026-04-22T09:15:00.000Z',

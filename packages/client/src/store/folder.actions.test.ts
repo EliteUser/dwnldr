@@ -56,7 +56,7 @@ const resetStore = () => {
     files: [],
     isFolderSyncInProgress: false,
     lastSyncAt: null,
-    userId: null,
+    profileUrl: null,
   });
 };
 

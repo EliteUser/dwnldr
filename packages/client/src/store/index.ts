@@ -1,28 +1,10 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import type { FileData } from '../types';
+import type { AppStore, PersistedAppState } from './store.types';
+import { sanitizePersistedAppState } from './store.utils';
 
-type AppState = {
-  directoryName: string | null;
-  files: FileData[];
-  isFolderSyncInProgress: boolean;
-  lastSyncAt: string | null;
-  userId: string | null;
-};
-
-type AppActions = {
-  clearFiles: () => void;
-  clearUserId: () => void;
-  resetFolder: () => void;
-  setDirectoryName: (directoryName: string | null) => void;
-  setFiles: (files: FileData[]) => void;
-  setFolderSyncInProgress: (isFolderSyncInProgress: boolean) => void;
-  setLastSyncAt: (lastSyncAt: string | null) => void;
-  setUserId: (userId: string) => void;
-};
-
-export type AppStore = AppState & AppActions;
+export type { AppStore } from './store.types';
 
 const readLegacyStorageValue = (key: string): string | null => {
   if (typeof window === 'undefined') {
@@ -36,20 +18,44 @@ const readLegacyStorageValue = (key: string): string | null => {
   }
 };
 
-const initialState: AppState = {
+const removeLegacyStorageValue = (key: string) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures; the persisted store migration still removes old fields.
+  }
+};
+
+const initialState: PersistedAppState = {
   directoryName: readLegacyStorageValue('directory'),
   files: [],
-  isFolderSyncInProgress: false,
   lastSyncAt: null,
-  userId: readLegacyStorageValue('userId'),
+  profileUrl: null,
 };
+
+const initialAppState = {
+  ...initialState,
+  isFolderSyncInProgress: false,
+};
+
+const migratePersistedState = (persistedState: unknown, version: number): PersistedAppState => {
+  removeLegacyStorageValue('userId');
+
+  return sanitizePersistedAppState(persistedState, initialState, { clearProfileUrl: version < 1 });
+};
+
+removeLegacyStorageValue('userId');
 
 export const useAppStore = create<AppStore>()(
   persist(
     (set) => ({
-      ...initialState,
+      ...initialAppState,
       clearFiles: () => set({ files: [] }),
-      clearUserId: () => set({ userId: null }),
+      clearProfileUrl: () => set({ profileUrl: null }),
       resetFolder: () =>
         set({
           directoryName: null,
@@ -60,20 +66,34 @@ export const useAppStore = create<AppStore>()(
       setFiles: (files) => set({ files }),
       setFolderSyncInProgress: (isFolderSyncInProgress) => set({ isFolderSyncInProgress }),
       setLastSyncAt: (lastSyncAt) => set({ lastSyncAt }),
-      setUserId: (userId) => set({ userId }),
+      setProfileUrl: (profileUrl) => set({ profileUrl }),
     }),
     {
       name: 'dwnldr-store',
+      merge: (persistedState, currentState) => {
+        const sanitizedState = sanitizePersistedAppState(persistedState, currentState);
+
+        return {
+          ...currentState,
+          directoryName: sanitizedState.directoryName,
+          files: sanitizedState.files,
+          lastSyncAt: sanitizedState.lastSyncAt,
+          profileUrl: sanitizedState.profileUrl,
+        };
+      },
       onRehydrateStorage: () => (state) => {
+        removeLegacyStorageValue('userId');
         state?.setFolderSyncInProgress(false);
       },
-      partialize: ({ directoryName, files, lastSyncAt, userId }) => ({
+      partialize: ({ directoryName, files, lastSyncAt, profileUrl }) => ({
         directoryName,
         files,
         lastSyncAt,
-        userId,
+        profileUrl,
       }),
       storage: createJSONStorage(() => localStorage),
+      version: 1,
+      migrate: migratePersistedState,
     },
   ),
 );

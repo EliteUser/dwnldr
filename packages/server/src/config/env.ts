@@ -9,6 +9,7 @@ const envSchema = z.object({
   TEMP_DIR: z.string().default('./tmp/downloads'),
   DOWNLOAD_TIMEOUT_MS: z.coerce.number().int().positive().default(600000),
   YT_DLP_BINARY_PATH: z.string().min(1).optional(),
+  YT_DLP_CACHE_DIR: z.string().min(1).optional(),
   YT_DLP_VERSION: z.string().min(1).optional(),
 });
 
@@ -29,4 +30,5 @@ export const env = {
   ...parsedEnv,
   LOG_LEVEL: parsedEnv.LOG_LEVEL ?? (parsedEnv.NODE_ENV === 'development' ? 'debug' : 'info'),
   TEMP_DIR: path.resolve(parsedEnv.TEMP_DIR),
+  YT_DLP_CACHE_DIR: path.resolve(parsedEnv.YT_DLP_CACHE_DIR ?? path.join(parsedEnv.TEMP_DIR, '..', 'yt-dlp-cache')),
 };

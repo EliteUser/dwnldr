@@ -31,6 +31,8 @@ prepare_runtime() {
     mkdir -p /etc/nginx/sites-available /etc/ssl/certs /etc/ssl/private "${LETSENCRYPT_WEBROOT}" "${SELF_SIGNED_CERT_DIR}"
     mkdir -p "${TEMP_DIR:-/var/lib/dwnldr/downloads}"
     chown -R node:node "${TEMP_DIR:-/var/lib/dwnldr/downloads}"
+    mkdir -p "${YT_DLP_CACHE_DIR:-/var/lib/dwnldr/yt-dlp-cache}"
+    chown -R node:node "${YT_DLP_CACHE_DIR:-/var/lib/dwnldr/yt-dlp-cache}"
     export TLS_HOST
     envsubst '${TLS_HOST}' < /etc/nginx/templates/dwnldr.conf.template > /etc/nginx/sites-available/default
 }

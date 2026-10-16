@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode, Ref } from 'react';
 import { vi } from 'vitest';
 
 import '@testing-library/jest-dom/vitest';
@@ -52,13 +52,15 @@ vi.mock('@mantine/core', () => {
       children,
       disabled,
       onClick,
+      ref,
       ...props
     }: {
       children?: ReactNode;
       disabled?: boolean;
       onClick?: () => void;
+      ref?: Ref<HTMLButtonElement>;
     }) => (
-      <button disabled={disabled} onClick={onClick} {...props}>
+      <button ref={ref} disabled={disabled} onClick={onClick} {...props}>
         {children}
       </button>
     ),
@@ -77,6 +79,7 @@ vi.mock('@mantine/core', () => {
       disabled,
       leftSection: _leftSection,
       onClick,
+      ref,
       rightSection: _rightSection,
       variant: _variant,
       ...props
@@ -85,10 +88,11 @@ vi.mock('@mantine/core', () => {
       disabled?: boolean;
       leftSection?: ReactNode;
       onClick?: () => void;
+      ref?: Ref<HTMLButtonElement>;
       rightSection?: ReactNode;
       variant?: string;
     }) => (
-      <button disabled={disabled} onClick={onClick} {...props}>
+      <button ref={ref} disabled={disabled} onClick={onClick} {...props}>
         {children}
       </button>
     ),
@@ -165,7 +169,17 @@ vi.mock('@mantine/core', () => {
       Panel: renderChildren,
       Tab: ({ children }: { children?: ReactNode }) => <button>{children}</button>,
     }),
-    Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
+    Text: ({
+      children,
+      c: _c,
+      fw: _fw,
+      size: _size,
+      ...props
+    }: ComponentProps<'span'> & {
+      c?: string;
+      fw?: number;
+      size?: string;
+    }) => <span {...props}>{children}</span>,
     Textarea: ({
       onChange,
       placeholder,
@@ -176,14 +190,43 @@ vi.mock('@mantine/core', () => {
       value?: string;
     }) => <textarea placeholder={placeholder} value={value} onChange={(event) => onChange?.(event as never)} />,
     TextInput: ({
+      'aria-label': ariaLabel,
+      autoFocus,
+      className,
+      description,
+      error,
+      label,
       onChange,
       placeholder,
+      ref,
       value,
     }: {
+      'aria-label'?: string;
+      autoFocus?: boolean;
+      className?: string;
+      description?: ReactNode;
+      error?: ReactNode;
+      label?: ReactNode;
       onChange?: (event: { target: { value: string } }) => void;
       placeholder?: string;
+      ref?: Ref<HTMLInputElement>;
       value?: string;
-    }) => <input placeholder={placeholder} value={value} onChange={(event) => onChange?.(event as never)} />,
+    }) => (
+      <label>
+        {label}
+        <input
+          aria-label={ariaLabel}
+          autoFocus={autoFocus}
+          className={className}
+          placeholder={placeholder}
+          ref={ref}
+          value={value}
+          onChange={(event) => onChange?.(event as never)}
+        />
+        {description}
+        {error ? <span role='alert'>{error}</span> : null}
+      </label>
+    ),
     Title: ({ children }: { children?: ReactNode }) => <h1>{children}</h1>,
     createTheme: (theme: unknown) => theme,
   };

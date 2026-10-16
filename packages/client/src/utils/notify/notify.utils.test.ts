@@ -70,6 +70,7 @@ describe('notify', () => {
     expect(notificationsMock.show).toHaveBeenCalledWith(
       expect.objectContaining({
         autoClose: false,
+        closeButtonProps: { 'aria-label': 'Dismiss notification' },
         color: 'blue',
         id: 'folder-sync-started',
         loading: true,
@@ -80,6 +81,7 @@ describe('notify', () => {
     expect(notificationsMock.update).toHaveBeenCalledWith(
       expect.objectContaining({
         autoClose: 4000,
+        closeButtonProps: { 'aria-label': 'Dismiss notification' },
         color: 'green',
         id: 'folder-sync-started',
         loading: false,

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
+import { parseApiErrorResponse } from '../../api/api.errors';
 import type { ArtworkDownloadPayload } from '../../types';
 import { isAbortError } from '../../utils/common/common.utils';
 import { getDownloadFileName, readResponse, triggerBrowserDownload } from '../../utils/download/download.utils';
@@ -8,7 +9,7 @@ import {
   DOWNLOAD_NOTIFICATION_NAME,
   FALLBACK_API_ERROR_MESSAGE,
 } from '../../utils/notify/notify.constants';
-import { parseApiErrorResponse, useNotify } from '../../utils/notify/notify.utils';
+import { useNotify } from '../../utils/notify/notify.utils';
 
 type DownloadInput = {
   album?: string;

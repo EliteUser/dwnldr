@@ -34,6 +34,23 @@
   background: color-mix(in srgb, var(--mantine-color-blue-9) 24%, transparent);
 }
 
+.refreshError {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 16px 12px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--mantine-color-yellow-6) 45%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--mantine-color-yellow-9) 18%, transparent);
+}
+
+.refreshStatus {
+  margin: 0 16px 12px;
+}
+
 .loadingState {
   display: flex;
   flex-direction: column;

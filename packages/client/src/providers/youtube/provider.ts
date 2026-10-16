@@ -4,7 +4,6 @@ import type { ProviderAdapter } from '../types';
 export const youtubeProvider: ProviderAdapter = {
   key: 'youtube',
   label: 'YouTube',
-  trackPath: 'youtube/tracks',
   capabilities: {
     collections: false,
     downloads: true,

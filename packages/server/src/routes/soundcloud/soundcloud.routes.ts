@@ -9,31 +9,35 @@ const soundCloudTrackQuerySchema = z.object({
   url: z.string().trim().url(),
 });
 
-const soundCloudUserQuerySchema = z.object({
-  userId: z.string().trim().min(1),
-});
+const soundCloudUserQuerySchema = z
+  .object({
+    profileUrl: z.string().trim().url(),
+  })
+  .strict();
 
-const soundCloudFavoritesQuerySchema = z.object({
-  userId: z.string().trim().min(1),
-  limit: z.coerce.number().int().positive().optional(),
-});
+const soundCloudFavoritesQuerySchema = z
+  .object({
+    profileUrl: z.string().trim().url(),
+    limit: z.coerce.number().int().positive().optional(),
+  })
+  .strict();
 
 export const soundcloudRouter = Router();
 
 soundcloudRouter.get('/soundcloud/users', async (req, res) => {
-  const { userId } = soundCloudUserQuerySchema.parse(req.query);
+  const { profileUrl } = soundCloudUserQuerySchema.parse(req.query);
   const provider = getProvider('soundcloud');
   const getUser = requireProviderFeature(provider, 'getUser');
 
-  res.json(await getUser(userId));
+  res.json(await getUser(profileUrl));
 });
 
 soundcloudRouter.get('/soundcloud/favorites', async (req, res) => {
-  const { userId, limit } = soundCloudFavoritesQuerySchema.parse(req.query);
+  const { profileUrl, limit } = soundCloudFavoritesQuerySchema.parse(req.query);
   const provider = getProvider('soundcloud');
   const fetchFavorites = requireProviderFeature(provider, 'fetchFavorites');
 
-  res.json(await fetchFavorites(userId, limit));
+  res.json(await fetchFavorites(profileUrl, limit));
 });
 
 soundcloudRouter.get('/soundcloud/tracks', heavyOperationGuard, async (req, res) => {

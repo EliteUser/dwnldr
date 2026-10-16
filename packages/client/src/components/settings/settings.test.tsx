@@ -56,7 +56,7 @@ describe('Settings', () => {
       ],
       isFolderSyncInProgress: false,
       lastSyncAt: '2026-04-22T09:15:00.000Z',
-      userId: '12345',
+      profileUrl: 'https://soundcloud.com/my-profile',
     });
   });
 

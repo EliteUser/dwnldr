@@ -17,6 +17,10 @@ vi.mock('../../api/api', () => ({
   useGetProviderTrackQuery: (...args: unknown[]) => providerTrackQueryMock(...args),
 }));
 
+vi.mock('../../api/api.errors', () => ({
+  parseApiErrorResponse: async () => ({ code: 'INTERNAL_ERROR', error: 'Failed' }),
+}));
+
 vi.mock('../../utils/notify/notify.constants', () => ({
   DOWNLOAD_NOTIFICATION_MESSAGE: {
     cancelled: 'Download canceled.',
@@ -35,7 +39,6 @@ vi.mock('../../utils/notify/notify.constants', () => ({
 
 vi.mock('../../utils/notify/notify.utils', () => ({
   getApiErrorFromQueryError: (error: unknown) => error,
-  parseApiErrorResponse: async () => ({ code: 'INTERNAL_ERROR', error: 'Failed' }),
   useNotify: () => ({
     apiError: notifyApiErrorMock,
     error: notifyErrorMock,

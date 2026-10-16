@@ -1,24 +1,9 @@
 import { notifications } from '@mantine/notifications';
 import { useMemo } from 'react';
 
-import { API_ERROR_MESSAGE, REQUEST_FAILED_MESSAGE } from './notify.constants';
-
-export type ApiErrorCode =
-  | 'INVALID_INPUT'
-  | 'UNSUPPORTED_SOURCE'
-  | 'YOUTUBE_PLAYLIST'
-  | 'UPSTREAM_UNAUTHORIZED'
-  | 'UPSTREAM_FAILURE'
-  | 'CONVERSION_FAILURE'
-  | 'RATE_LIMITED'
-  | 'SERVER_BUSY'
-  | 'INTERNAL_ERROR';
-
-export type ApiErrorResponse = {
-  code?: ApiErrorCode | string;
-  details?: unknown;
-  error?: string;
-};
+import type { ApiErrorResponse } from '../../api/api.errors';
+import { REQUEST_FAILED_MESSAGE } from '../../api/api.errors';
+import { API_ERROR_MESSAGE } from './notify.constants';
 
 type NotifyOptions = {
   autoClose?: false | number;
@@ -79,17 +64,6 @@ export const getApiErrorFromQueryError = (error?: unknown): ApiErrorResponse | n
   };
 };
 
-export const parseApiErrorResponse = async (response: Response): Promise<ApiErrorResponse> => {
-  try {
-    return (await response.json()) as ApiErrorResponse;
-  } catch {
-    return {
-      code: 'INTERNAL_ERROR',
-      error: response.statusText || REQUEST_FAILED_MESSAGE,
-    };
-  }
-};
-
 const createNotifier = () => {
   const showToast = (color: 'blue' | 'green' | 'red', message: string, options?: NotifyOptions) => {
     const notification = {
@@ -98,6 +72,7 @@ const createNotifier = () => {
       message,
       color,
       autoClose: options?.autoClose ?? 4000,
+      closeButtonProps: { 'aria-label': 'Dismiss notification' },
       loading: options?.loading ?? false,
       withCloseButton: options?.withCloseButton ?? true,
     };

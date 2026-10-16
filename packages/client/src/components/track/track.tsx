@@ -47,7 +47,7 @@ export const Track = memo<TrackProps>(function Track(props) {
       </div>
 
       <div className={styles.wrapper}>
-        <Text className={styles.title} size='sm'>
+        <Text size='sm' truncate='end' title={title}>
           {title}
         </Text>
 

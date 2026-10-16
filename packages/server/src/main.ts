@@ -13,15 +13,6 @@ import { ensureTempRoot, sweepStaleDownloadFolders } from './utils/temp.utils.js
 const STALE_DOWNLOAD_MAX_AGE_MS = 30 * 60 * 1000;
 const TEMP_SWEEP_INTERVAL_MS = 15 * 60 * 1000;
 
-const getDependencyVersion = async (dependencyName: string) => {
-  const packageJsonPath = new URL('../package.json', import.meta.url);
-  const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8')) as {
-    dependencies?: Record<string, string>;
-  };
-
-  return packageJson.dependencies?.[dependencyName] ?? 'unknown';
-};
-
 type ShutdownHandlerOptions = {
   exit?: (code: number) => void;
   forceExitAfterMs?: number;
@@ -98,8 +89,8 @@ export const start = async () => {
   const ytdlp = createYtDlp();
   const ytDlpVersion = await getYtDlpVersion(ytdlp.binaryPath);
   await assertYtDlpAvailable(ytdlp);
-  const soundCloudVersion = await getDependencyVersion('soundcloud.ts');
   await ensureTempRoot();
+  await fs.mkdir(env.YT_DLP_CACHE_DIR, { recursive: true });
   const cleanedFolderCount = await sweepStaleDownloadFolders(STALE_DOWNLOAD_MAX_AGE_MS);
 
   logger.info(
@@ -111,7 +102,7 @@ export const start = async () => {
       ffmpegPath: ffmpegBinaryPath ?? 'missing',
       ytDlpPath: ytdlp.binaryPath,
       ytDlpVersion,
-      soundCloudVersion,
+      ytDlpCacheDir: env.YT_DLP_CACHE_DIR,
       cleanedFolderCount,
     },
     'Loaded server configuration',

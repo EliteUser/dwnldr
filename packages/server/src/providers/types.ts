@@ -7,20 +7,20 @@ export type ProviderDownloadOptions = {
 };
 
 export type ProviderUser = {
-  avatar_url?: string | null;
-  full_name?: string;
-  id?: number | string;
+  avatar_url: string | null;
+  full_name: string;
+  id: number | string;
+  permalink_url: string;
 };
 
 export type MusicProvider = {
   capabilities: ProviderCapabilities;
   downloadTrack?: (options: ProviderDownloadOptions) => Promise<string>;
-  fetchFavorites?: (userId: string, limit?: number) => Promise<TrackMetadata[]>;
-  getUser?: (userId: string) => Promise<ProviderUser>;
+  fetchFavorites?: (profileUrl: string, limit?: number) => Promise<TrackMetadata[]>;
+  getUser?: (profileUrl: string) => Promise<ProviderUser>;
   key: ProviderKey;
   label: string;
   matchesUrl: (url: URL) => boolean;
-  normalizeError?: (error: unknown) => unknown;
   resolveTrack?: (url: string) => Promise<TrackMetadata>;
 };
 

@@ -1,4 +1,4 @@
-import { ApiRequestError } from '../../api/api.ts';
+import { ApiRequestError } from '../../api/api.errors';
 import { MAX_AUDIO_FILE_SIZE, SUPPORTED_AUDIO_EXTENSIONS, SUPPORTED_AUDIO_MIME_TYPES } from './track-meta.constants';
 import type { TrackMetaMetadata } from './track-meta.types.ts';
 

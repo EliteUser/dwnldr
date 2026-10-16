@@ -4,7 +4,6 @@ import type { ProviderAdapter } from '../types';
 export const soundcloudProvider: ProviderAdapter = {
   key: 'soundcloud',
   label: 'SoundCloud',
-  trackPath: 'soundcloud/tracks',
   capabilities: {
     collections: true,
     downloads: true,

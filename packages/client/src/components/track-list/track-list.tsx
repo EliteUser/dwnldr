@@ -7,7 +7,7 @@ import { memo, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../../store';
 import { createDownloadedTrackMatcher } from '../../utils';
 import { Track } from '../track/track';
-import { TRACK_LIST_OVERSCAN, TRACK_ROW_HEIGHT } from './track-list.constants';
+import { DOWNLOAD_FILTER_LABELS, TRACK_LIST_OVERSCAN, TRACK_ROW_HEIGHT } from './track-list.constants';
 import type { DownloadFilter, TrackListProps } from './track-list.types';
 import { filterTracks, getNextDownloadFilter } from './track-list.utils';
 
@@ -52,6 +52,7 @@ export const TrackList = memo<TrackListProps>((props) => {
     <div className={styles.wrapper}>
       <div className={styles.filters}>
         <TextInput
+          aria-label='Search tracks'
           className={styles.search}
           size='md'
           placeholder='Search'
@@ -64,7 +65,14 @@ export const TrackList = memo<TrackListProps>((props) => {
           onChange={(evt) => setFilter(evt.target.value)}
         />
 
-        <ActionIcon className={styles.filterButton} variant='default' size='input-md' onClick={cycleDownloadFilter}>
+        <ActionIcon
+          aria-label={`Download filter showing ${DOWNLOAD_FILTER_LABELS[downloadFilter]}; activate to show ${DOWNLOAD_FILTER_LABELS[getNextDownloadFilter(downloadFilter)]}.`}
+          className={styles.filterButton}
+          title={`Download filter showing ${DOWNLOAD_FILTER_LABELS[downloadFilter]}; activate to show ${DOWNLOAD_FILTER_LABELS[getNextDownloadFilter(downloadFilter)]}.`}
+          variant='default'
+          size='input-md'
+          onClick={cycleDownloadFilter}
+        >
           <span
             className={clsx(styles.filterDot, {
               [styles.downloaded]: downloadFilter === 'downloaded',
