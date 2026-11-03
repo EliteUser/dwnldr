@@ -1,4 +1,4 @@
-import { HttpError } from '../errors/http-error.js';
+import { HttpError } from '../errors.js';
 import { soundcloud } from './soundcloud.js';
 import type { Provider } from './types.js';
 import { youtube } from './youtube.js';

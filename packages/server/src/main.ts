@@ -1,179 +1,35 @@
 import fs from 'node:fs/promises';
-import type { Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { pathToFileURL } from 'node:url';
 
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
-import { ffmpegBinaryPath, getYtDlpVersion } from './lib/ytdlp.js';
-import { setServerShuttingDown } from './services/health/health.service.js';
-import { ensureTempRoot, sweepStaleDownloadFolders } from './utils/temp.utils.js';
+import { getYtDlpVersion } from './lib/ytdlp.js';
+import { removeLeftoverFolders } from './utils/temp.utils.js';
 
-const STALE_DOWNLOAD_MAX_AGE_MS = 30 * 60 * 1000;
-const TEMP_SWEEP_INTERVAL_MS = 15 * 60 * 1000;
+const SHUTDOWN_TIMEOUT_MS = 10_000;
 
-type ShutdownHandlerOptions = {
-  exit?: (code: number) => void;
-  forceExitAfterMs?: number;
-  server: Server;
-  tempSweepInterval: NodeJS.Timeout;
-};
-
-export const createGracefulShutdownHandler = (options: ShutdownHandlerOptions) => {
-  const { server, tempSweepInterval } = options;
-  const exit = options.exit ?? process.exit;
-  const forceExitAfterMs = options.forceExitAfterMs ?? 10_000;
-  let shuttingDown = false;
-
-  return (signal: NodeJS.Signals) => {
-    if (shuttingDown) {
-      return;
-    }
-
-    shuttingDown = true;
-    setServerShuttingDown(true);
-    clearInterval(tempSweepInterval);
-
-    logger.info(
-      {
-        evt: 'server.shutdown.started',
-        signal,
-      },
-      'Starting graceful shutdown',
-    );
-
-    const forceExitTimer = setTimeout(() => {
-      logger.error(
-        {
-          evt: 'server.shutdown.forced',
-          forceExitAfterMs,
-        },
-        'Graceful shutdown timed out',
-      );
-      server.closeAllConnections?.();
-      exit(1);
-    }, forceExitAfterMs);
-
-    forceExitTimer.unref();
-
-    server.close((error) => {
-      clearTimeout(forceExitTimer);
-
-      if (error) {
-        logger.error(
-          {
-            evt: 'server.shutdown.failed',
-            err: error,
-          },
-          'Graceful shutdown failed',
-        );
-        exit(1);
-        return;
-      }
-
-      logger.info(
-        {
-          evt: 'server.shutdown.completed',
-        },
-        'Graceful shutdown completed',
-      );
-      exit(0);
-    });
-
-    server.closeIdleConnections?.();
-  };
-};
-
-export const start = async () => {
+try {
   const ytDlpVersion = await getYtDlpVersion();
-  await ensureTempRoot();
   await fs.mkdir(env.YT_DLP_CACHE_DIR, { recursive: true });
-  const cleanedFolderCount = await sweepStaleDownloadFolders(STALE_DOWNLOAD_MAX_AGE_MS);
+  const removedFolderCount = await removeLeftoverFolders();
 
-  logger.info(
-    {
-      evt: 'server.startup',
-      port: env.PORT,
-      nodeEnv: env.NODE_ENV,
-      tempDir: env.TEMP_DIR,
-      ffmpegPath: ffmpegBinaryPath ?? 'missing',
-      ytDlpPath: env.YT_DLP_PATH,
-      ytDlpVersion,
-      ytDlpCacheDir: env.YT_DLP_CACHE_DIR,
-      cleanedFolderCount,
-    },
-    'Loaded server configuration',
-  );
-
-  const app = createApp();
-  const tempSweepInterval = setInterval(async () => {
-    try {
-      const removedCount = await sweepStaleDownloadFolders(STALE_DOWNLOAD_MAX_AGE_MS);
-
-      logger.info(
-        {
-          evt: 'download.cleanup.sweep.completed',
-          removedCount,
-        },
-        'Completed temp download sweep',
-      );
-    } catch (error) {
-      logger.error(
-        {
-          evt: 'download.cleanup.sweep.failed',
-          ...(error instanceof Error ? { err: error } : { error: String(error) }),
-        },
-        'Failed temp download sweep',
-      );
-    }
-  }, TEMP_SWEEP_INTERVAL_MS);
-
-  tempSweepInterval.unref();
-
-  setServerShuttingDown(false);
-
-  const server = await new Promise<Server>((resolve, reject) => {
-    const nextServer = app.listen(env.PORT, env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0', () => {
-      logger.info(
-        {
-          evt: 'server.started',
-          port: env.PORT,
-        },
-        `Server running at http://localhost:${env.PORT}`,
-      );
-      resolve(nextServer);
-    });
-
-    nextServer.once('error', reject);
+  const server = createApp().listen(env.PORT, env.HOST, () => {
+    logger.info(
+      { evt: 'server.started', host: env.HOST, port: env.PORT, ytDlpVersion, removedFolderCount },
+      `Server running at http://${env.HOST}:${env.PORT}`,
+    );
   });
 
-  const shutdown = createGracefulShutdownHandler({
-    server,
-    tempSweepInterval,
-  });
+  const shutdown = (signal: NodeJS.Signals) => {
+    logger.info({ evt: 'server.shutdown', signal }, 'Shutting down');
+    server.close(() => process.exit(0));
+    server.closeIdleConnections();
+    setTimeout(() => process.exit(1), SHUTDOWN_TIMEOUT_MS).unref();
+  };
 
   process.once('SIGTERM', shutdown);
   process.once('SIGINT', shutdown);
-
-  return {
-    app,
-    port: (server.address() as AddressInfo | null)?.port ?? env.PORT,
-    server,
-  };
-};
-
-const isEntrypoint = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false;
-
-if (isEntrypoint) {
-  void start().catch((error) => {
-    logger.fatal(
-      {
-        evt: 'server.start.failed',
-        ...(error instanceof Error ? { err: error } : { error: String(error) }),
-      },
-      'Failed to start server',
-    );
-    process.exit(1);
-  });
+} catch (error) {
+  logger.fatal({ evt: 'server.start.failed', err: error }, 'Failed to start server');
+  process.exit(1);
 }

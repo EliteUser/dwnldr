@@ -31,40 +31,15 @@ describe('app', () => {
     const response = await request(app).get('/health');
 
     expect(response.status).toBe(200);
-    expect(response.body.status).toBe('ok');
-    expect(typeof response.body.uptime).toBe('number');
+    expect(response.body).toEqual({ status: 'ok' });
   });
 
-  it('returns readiness details at /ready', async () => {
-    const readinessApp = createApp({
-      getReadiness: async () => ({
-        status: 'error',
-        checks: {
-          ffmpeg: {
-            ok: false,
-            details: 'missing',
-          },
-          server: {
-            ok: true,
-          },
-          tempDir: {
-            ok: true,
-          },
-          ytDlp: {
-            ok: true,
-          },
-          ytDlpCache: {
-            ok: true,
-          },
-        },
-      }),
-    });
-    const response = await request(readinessApp).get('/ready');
+  it('sends security headers and no CORS headers', async () => {
+    const response = await request(app).get('/health').set('Origin', 'https://attacker.example');
 
-    expect(response.status).toBe(503);
-    expect(response.body.status).toBe('error');
-    expect(response.body.checks.ffmpeg.ok).toBe(false);
-    expect(response.body.checks.ffmpeg.details).toBe('missing');
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(response.headers['content-security-policy']).toContain("frame-ancestors 'none'");
   });
 
   it('returns truthful not-found responses for probes and unknown API routes', async () => {

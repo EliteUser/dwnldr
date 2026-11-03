@@ -8,5 +8,4 @@ overrides:
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
-  - ffmpeg-static
   - sharp

@@ -1,100 +1,49 @@
-import fs from 'node:fs';
+import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { env } from '../config/env.js';
 import { getLogger } from '../lib/logger.js';
-import { getId } from './common.utils.js';
 
-const DOWNLOAD_FOLDER_PREFIX = 'track_';
+const FOLDER_PREFIX = 'track_';
 
-const resolveWithinTempRoot = (targetPath: string) => {
-  const tempRoot = path.resolve(env.TEMP_DIR);
-  const resolvedTargetPath = path.resolve(targetPath);
-  const relativePath = path.relative(tempRoot, resolvedTargetPath);
-  const isInsideTempRoot = relativePath !== '' && !relativePath.startsWith('..');
-
-  return {
-    isInsideTempRoot,
-    resolvedTargetPath,
-    tempRoot,
-  };
-};
-
-export const ensureTempRoot = async () => {
-  await fs.promises.mkdir(env.TEMP_DIR, { recursive: true });
-};
-
+/** Creates the private working folder for one request. */
 export const createDownloadFolder = async () => {
-  await ensureTempRoot();
+  const folderPath = path.join(env.TEMP_DIR, `${FOLDER_PREFIX}${crypto.randomBytes(4).toString('hex')}`);
 
-  const folderPath = path.join(env.TEMP_DIR, `${DOWNLOAD_FOLDER_PREFIX}${getId()}`);
-
-  await fs.promises.mkdir(folderPath, { recursive: true });
+  await fs.mkdir(folderPath, { recursive: true });
 
   return folderPath;
 };
 
+/** Removes a request folder. Refuses paths outside TEMP_DIR and never throws. */
 export const removeFolder = async (folderPath: string) => {
-  const { isInsideTempRoot, resolvedTargetPath, tempRoot } = resolveWithinTempRoot(folderPath);
+  const relativePath = path.relative(env.TEMP_DIR, path.resolve(folderPath));
 
-  if (!isInsideTempRoot) {
-    getLogger({
-      folderPath: resolvedTargetPath,
-      tempRoot,
-    }).warn(
-      {
-        evt: 'download.cleanup.skipped',
-      },
-      'Skipped cleanup for folder outside the temp root',
-    );
-
+  if (!relativePath || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    getLogger().warn({ evt: 'temp.cleanup.skipped', folderPath }, 'Refused to remove a folder outside the temp root');
     return false;
   }
 
   try {
-    await fs.promises.rm(resolvedTargetPath, { recursive: true, force: true });
+    await fs.rm(folderPath, { recursive: true, force: true });
     return true;
   } catch (error) {
-    getLogger({
-      folderPath: resolvedTargetPath,
-      tempRoot,
-    }).error(
-      {
-        evt: 'download.cleanup.failed',
-        ...(error instanceof Error ? { err: error } : { error: String(error) }),
-      },
-      'Failed to clean up download folder',
-    );
-
+    getLogger().error({ evt: 'temp.cleanup.failed', folderPath, err: error }, 'Failed to remove a temp folder');
     return false;
   }
 };
 
-export const sweepStaleDownloadFolders = async (maxAgeMs: number) => {
-  await ensureTempRoot();
+/** Removes request folders left behind by a crash or restart. */
+export const removeLeftoverFolders = async () => {
+  await fs.mkdir(env.TEMP_DIR, { recursive: true });
 
-  const entries = await fs.promises.readdir(env.TEMP_DIR, {
-    withFileTypes: true,
-  });
-  const cutoffTime = Date.now() - maxAgeMs;
-  let removedCount = 0;
+  const entries = await fs.readdir(env.TEMP_DIR, { withFileTypes: true });
+  const removed = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith(FOLDER_PREFIX))
+      .map((entry) => removeFolder(path.join(env.TEMP_DIR, entry.name))),
+  );
 
-  for (const entry of entries) {
-    if (!entry.isDirectory() || !entry.name.startsWith(DOWNLOAD_FOLDER_PREFIX)) {
-      continue;
-    }
-
-    const folderPath = path.join(env.TEMP_DIR, entry.name);
-    const stats = await fs.promises.stat(folderPath);
-
-    if (stats.mtimeMs > cutoffTime) {
-      continue;
-    }
-
-    if (await removeFolder(folderPath)) {
-      removedCount += 1;
-    }
-  }
-
-  return removedCount;
+  return removed.filter(Boolean).length;
 };

@@ -1,25 +1,15 @@
-import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { env } from '../config/env.js';
-import { removeFolder, sweepStaleDownloadFolders } from './temp.utils.js';
+import { createDownloadFolder, removeFolder, removeLeftoverFolders } from './temp.utils.js';
 
 const createdPaths: string[] = [];
 
-const createDirectory = async (folderName: string) => {
-  const directoryPath = path.join(env.TEMP_DIR, folderName);
-  await fs.mkdir(directoryPath, { recursive: true });
-  createdPaths.push(directoryPath);
-  return directoryPath;
-};
-
 afterEach(async () => {
   vi.restoreAllMocks();
-  await Promise.all(
-    createdPaths.splice(0).map((directoryPath) => fs.rm(directoryPath, { recursive: true, force: true })),
-  );
+  await Promise.all(createdPaths.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
 describe('removeFolder', () => {
@@ -29,32 +19,28 @@ describe('removeFolder', () => {
     createdPaths.push(outsideDirectory);
 
     expect(await removeFolder(outsideDirectory)).toBe(false);
+    expect(await removeFolder(env.TEMP_DIR)).toBe(false);
     await expect(fs.stat(outsideDirectory)).resolves.toBeDefined();
   });
 
-  it('logs and reports cleanup failures without throwing', async () => {
-    const directory = await createDirectory('track_cleanup-failure');
-
-    vi.spyOn(fsSync.promises, 'rm').mockRejectedValueOnce(new Error('file is locked'));
+  it('reports cleanup failures without throwing', async () => {
+    const directory = await createDownloadFolder();
+    createdPaths.push(directory);
+    vi.spyOn(fs, 'rm').mockRejectedValueOnce(new Error('file is locked'));
 
     expect(await removeFolder(directory)).toBe(false);
-    await expect(fs.stat(directory)).resolves.toBeDefined();
   });
 });
 
-describe('sweepStaleDownloadFolders', () => {
-  it('removes only stale download folders inside the temp root', async () => {
-    const staleDirectory = await createDirectory('track_stale-test');
-    const freshDirectory = await createDirectory('track_fresh-test');
-    const nonDownloadDirectory = await createDirectory('keep-me');
-    const staleDate = new Date(Date.now() - 31 * 60 * 1000);
+describe('removeLeftoverFolders', () => {
+  it('removes request folders and keeps everything else', async () => {
+    const leftover = await createDownloadFolder();
+    const other = path.join(env.TEMP_DIR, 'keep-me');
+    await fs.mkdir(other, { recursive: true });
+    createdPaths.push(leftover, other);
 
-    await fs.utimes(staleDirectory, staleDate, staleDate);
-
-    expect(await sweepStaleDownloadFolders(30 * 60 * 1000)).toBe(1);
-
-    await expect(fs.stat(staleDirectory)).rejects.toThrow();
-    await expect(fs.stat(freshDirectory)).resolves.toBeDefined();
-    await expect(fs.stat(nonDownloadDirectory)).resolves.toBeDefined();
+    expect(await removeLeftoverFolders()).toBeGreaterThanOrEqual(1);
+    await expect(fs.stat(leftover)).rejects.toThrow();
+    await expect(fs.stat(other)).resolves.toBeDefined();
   });
 });

@@ -3,9 +3,9 @@
   "private": true,
   "scripts": {
     "prepare": "husky",
-    "dev": "concurrently -n server,client -c green,blue --kill-others \"pnpm --filter ./packages/server dev\" \"wait-on http://localhost:3000/ready && pnpm --filter ./packages/client dev\"",
+    "dev": "concurrently -n server,client -c green,blue --kill-others \"pnpm --filter ./packages/server dev\" \"wait-on http://127.0.0.1:3000/health && pnpm --filter ./packages/client dev\"",
     "build": "pnpm -r build",
-    "preview": "pnpm build && concurrently -n server,client -c green,blue --kill-others \"pnpm --filter ./packages/server start\" \"wait-on http://localhost:3000/ready && pnpm --filter ./packages/client preview\"",
+    "preview": "pnpm build && concurrently -n server,client -c green,blue --kill-others \"pnpm --filter ./packages/server start\" \"wait-on http://127.0.0.1:3000/health && pnpm --filter ./packages/client preview\"",
     "typecheck": "pnpm -r typecheck",
     "lint": "oxlint . --deny-warnings",
     "lint:fix": "oxlint . --fix",

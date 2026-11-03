@@ -14,3 +14,11 @@ export class HttpError extends Error {
     this.details = options.details;
   }
 }
+
+export const getErrorStatus = (error: unknown): number | undefined => {
+  const status = (error as { status?: unknown } | null)?.status;
+
+  return typeof status === 'number' ? status : undefined;
+};
+
+export const isAbortError = (error: unknown) => (error as { name?: unknown } | null)?.name === 'AbortError';

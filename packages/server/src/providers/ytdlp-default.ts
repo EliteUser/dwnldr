@@ -2,8 +2,7 @@ import type { Track } from '@dwnldr/shared';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { isAbortError } from '../errors/error-utils.js';
-import { HttpError } from '../errors/http-error.js';
+import { HttpError, isAbortError } from '../errors.js';
 import { getLogger } from '../lib/logger.js';
 import { runYtDlp, YtDlpError } from '../lib/ytdlp.js';
 import type { DownloadedAudio } from './types.js';

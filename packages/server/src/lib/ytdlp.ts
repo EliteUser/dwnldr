@@ -1,9 +1,8 @@
-import ffmpegPath from 'ffmpeg-static';
 import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { env } from '../config/env.js';
-import { HttpError } from '../errors/http-error.js';
+import { HttpError } from '../errors.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -11,8 +10,6 @@ const FORCE_KILL_DELAY_MS = 1_000;
 const STDERR_TAIL_LENGTH = 2_000;
 // yt-dlp output may echo the requested URL, including SoundCloud secret_token parameters.
 const URL_PATTERN = /https?:\/\/\S+/g;
-
-export const ffmpegBinaryPath = (ffmpegPath as unknown as string | null) ?? undefined;
 
 export class YtDlpError extends Error {
   constructor(
@@ -118,7 +115,6 @@ export const runYtDlp = async (args: string[], url: string, signal: AbortSignal)
         'node',
         '--cache-dir',
         env.YT_DLP_CACHE_DIR,
-        ...(ffmpegBinaryPath ? ['--ffmpeg-location', ffmpegBinaryPath] : []),
         ...args,
         '--',
         url,

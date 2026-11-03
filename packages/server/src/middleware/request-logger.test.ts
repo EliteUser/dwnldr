@@ -5,11 +5,9 @@ import { logger } from '../lib/logger.js';
 import { requestLogger } from './request-logger.js';
 
 class MockResponse extends EventEmitter {
-  public readonly locals: Record<string, unknown> = {};
   public statusCode = 200;
   public writableFinished = false;
 
-  public readonly getHeader = vi.fn();
   public readonly setHeader = vi.fn();
 }
 
@@ -34,7 +32,6 @@ describe('requestLogger', () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(warnSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        aborted: true,
         evt: 'http.request.aborted',
         method: 'GET',
         path: '/api/download',
@@ -43,5 +40,19 @@ describe('requestLogger', () => {
       'Request aborted before the response finished',
     );
     expect(infoSpy).not.toHaveBeenCalled();
+  });
+
+  it('logs completed requests without their query string', () => {
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => logger);
+    const res = new MockResponse();
+
+    requestLogger({ method: 'GET', originalUrl: '/api/tracks?url=secret' } as never, res as never, vi.fn());
+    res.writableFinished = true;
+    res.emit('close');
+
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ evt: 'http.request.completed', path: '/api/tracks' }),
+      'Request completed',
+    );
   });
 });

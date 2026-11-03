@@ -1,8 +1,7 @@
 import type { Profile, Track } from '@dwnldr/shared';
 import { z } from 'zod';
 
-import { getErrorStatus, isAbortError } from '../errors/error-utils.js';
-import { HttpError } from '../errors/http-error.js';
+import { getErrorStatus, HttpError, isAbortError } from '../errors.js';
 import { getLogger } from '../lib/logger.js';
 import { fetchHttpJson, fetchHttpText } from './http/http.service.js';
 

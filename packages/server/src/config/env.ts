@@ -4,7 +4,7 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
-  CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  HOST: z.string().default('127.0.0.1'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).optional(),
   TEMP_DIR: z.string().default('./tmp/downloads'),
   DOWNLOAD_TIMEOUT_MS: z.coerce.number().int().positive().default(600000),

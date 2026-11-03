@@ -1,6 +1,6 @@
 import sharp, { type Metadata } from 'sharp';
 
-import { HttpError } from '../../errors/http-error.js';
+import { HttpError } from '../../errors.js';
 import { MAX_ARTWORK_DIMENSION, MAX_ARTWORK_SIZE, MIN_ARTWORK_DIMENSION } from './artwork.constants.js';
 
 const SUPPORTED_FORMATS = new Set(['jpeg', 'png', 'webp']);

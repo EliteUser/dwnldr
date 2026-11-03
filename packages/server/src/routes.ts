@@ -6,7 +6,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { env } from './config/env.js';
-import { HttpError } from './errors/http-error.js';
+import { HttpError } from './errors.js';
 import { getRequestSignal } from './lib/request-signal.js';
 import { downloadAudio, getTrack, providers, requireProvider } from './providers/index.js';
 import { MAX_ARTWORK_SIZE } from './services/artwork/artwork.constants.js';
