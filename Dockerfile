@@ -17,8 +17,8 @@ RUN pnpm --filter ./packages/server --legacy deploy --prod /prod/server
 
 FROM node:24-bookworm-slim
 
-ARG YT_DLP_VERSION=2026.10.10.233141
-ARG YT_DLP_SHA256=f40b6a9e4c5786360953911cab5d2f87507626b8fb7bfee3f8f1c2e5cf341fae
+ARG YT_DLP_VERSION=2026.10.26
+ARG YT_DLP_SHA256=e51e69e89489f199530f13d32a4342da3ddb2cf34842f364603a066db05afbf3
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg gettext-base nginx openssl python3 python3-venv util-linux \
@@ -29,7 +29,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN set -eu; \
-    release_url="https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/${YT_DLP_VERSION}"; \
+    release_url="https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}"; \
     curl --fail --location --silent --show-error "${release_url}/yt-dlp" --output /usr/local/bin/yt-dlp; \
     printf '%s  %s\n' "${YT_DLP_SHA256}" /usr/local/bin/yt-dlp | sha256sum --check --status; \
     chmod 755 /usr/local/bin/yt-dlp; \
