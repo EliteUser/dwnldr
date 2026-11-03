@@ -44,8 +44,14 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     void removeFolder(res.locals.folder);
   }
 
-  if (isAbortError(error) || res.headersSent) {
-    logger.info({ evt: 'request.aborted', err: error }, 'Request stopped before the response finished');
+  // The request logger already records client disconnects as http.request.aborted.
+  if (isAbortError(error)) {
+    res.end();
+    return;
+  }
+
+  if (res.headersSent) {
+    logger.warn({ evt: 'response.failed', err: error }, 'Response failed after headers were sent');
     res.end();
     return;
   }

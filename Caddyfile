@@ -17,7 +17,5 @@
 	}
 
 	# The app sets the security headers itself (helmet), including HSTS.
-	header -Server
-
 	reverse_proxy app:3000
 }
