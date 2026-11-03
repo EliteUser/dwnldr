@@ -2,16 +2,25 @@ import { Button, CloseButton, Drawer, Flex, Text } from '@mantine/core';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import ReactCrop, { convertToPixelCrop, type Crop } from 'react-image-crop';
 
-import type { ArtworkEditorProps, ImageSize } from './artwork-editor.types';
 import {
   getCenteredSquareCrop,
   getContainedImageSize,
   getCropAreaSize,
+  type ImageSize,
   renderCroppedArtwork,
 } from './artwork-editor.utils';
 
 import 'react-image-crop/dist/ReactCrop.css';
 import styles from './artwork-editor.module.scss';
+
+type ArtworkEditorProps = {
+  disabled?: boolean;
+  draftUrl?: string;
+  initialCrop?: Crop;
+  onApply: (file: File, crop: Crop) => void;
+  onClose: () => void;
+  visible: boolean;
+};
 
 export const ArtworkEditor = memo<ArtworkEditorProps>((props) => {
   const { disabled, draftUrl, initialCrop, onApply, onClose, visible } = props;

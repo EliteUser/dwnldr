@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { renderWithProviders } from '../../test/render';
 import { ArtworkEditor } from './artwork-editor';
 import type * as ArtworkEditorUtils from './artwork-editor.utils';
 import { renderCroppedArtwork } from './artwork-editor.utils';
@@ -21,7 +22,9 @@ describe('ArtworkEditor', () => {
       }),
     );
     const onApply = vi.fn();
-    const { unmount } = render(<ArtworkEditor draftUrl='blob:image' visible onApply={onApply} onClose={vi.fn()} />);
+    const { unmount } = renderWithProviders(
+      <ArtworkEditor draftUrl='blob:image' visible onApply={onApply} onClose={vi.fn()} />,
+    );
     const image = document.querySelector('img[src="blob:image"]');
     expect(image).toBeInstanceOf(HTMLImageElement);
     Object.defineProperties(image, {

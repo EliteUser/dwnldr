@@ -3,63 +3,32 @@ import crypto from 'node:crypto';
 
 import { logger, withRequestContext } from '../lib/logger.js';
 
+/** Logs one line per request. The query string is left out: it can carry private track URLs. */
 export const requestLogger: RequestHandler = (req, res, next) => {
   const requestId = crypto.randomUUID();
-  const startedAt = process.hrtime.bigint();
-  let logged = false;
+  const startedAt = performance.now();
+  const path = req.originalUrl.split('?')[0];
 
-  res.locals.requestId = requestId;
   res.setHeader('X-Request-Id', requestId);
-
-  const logRequest = (options: { aborted?: boolean; evt: string; level: 'info' | 'warn' }) => {
-    if (logged) {
+  res.once('close', () => {
+    if (path === '/health') {
       return;
     }
 
-    logged = true;
-    const durationMs = Number((process.hrtime.bigint() - startedAt) / 1000000n);
-    const userAgent = req.get?.('user-agent') ?? req.headers?.['user-agent'];
+    const aborted = !res.writableFinished;
 
-    logger[options.level](
+    logger[aborted ? 'warn' : 'info'](
       {
-        evt: options.evt,
+        evt: aborted ? 'http.request.aborted' : 'http.request.completed',
         requestId,
         clientIp: req.ip,
         method: req.method,
-        path: req.originalUrl?.split('?')[0] ?? req.path,
+        path,
         statusCode: res.statusCode,
-        durationMs,
-        responseContentLength: res.getHeader('content-length'),
-        responseContentType: res.getHeader('content-type'),
-        ...(userAgent ? { userAgent: userAgent.slice(0, 256) } : undefined),
-        ...(options.aborted ? { aborted: true } : undefined),
+        durationMs: Math.round(performance.now() - startedAt),
       },
-      options.aborted ? 'Request aborted before the response finished' : 'Request completed',
+      aborted ? 'Request aborted before the response finished' : 'Request completed',
     );
-  };
-
-  res.once('finish', () => {
-    if (req.path === '/health' && res.statusCode === 200) {
-      logged = true;
-      return;
-    }
-
-    logRequest({
-      evt: 'http.request.completed',
-      level: 'info',
-    });
-  });
-
-  res.once('close', () => {
-    if (res.writableFinished) {
-      return;
-    }
-
-    logRequest({
-      aborted: true,
-      evt: 'http.request.aborted',
-      level: 'warn',
-    });
   });
 
   withRequestContext(requestId, next);

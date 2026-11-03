@@ -3,21 +3,18 @@ import { IconFolderOpen, IconFolderUp } from '@tabler/icons-react';
 import { memo, useCallback, useMemo } from 'react';
 
 import { useAppStore } from '../../store';
-import { selectFolder, syncFolder } from '../../store/folder.actions';
-import {
-  canUseFileSystemAccess,
-  FILE_SYSTEM_ACCESS_HELP_TEXT,
-  FOLDER_NOTIFICATION_MESSAGE,
-  FOLDER_NOTIFICATION_NAME,
-  useNotify,
-} from '../../utils';
+import { canUseFileSystemAccess, type FolderSyncResult, selectFolder, syncFolder } from '../../utils/folder';
+import { notify } from '../../utils/notify';
 import { UserInput } from '../user-input/user-input';
 
 import styles from './settings.module.scss';
 
-export const Settings = memo(() => {
-  const notify = useNotify();
+const SYNC_NOTIFICATION_ID = 'folder-sync';
 
+const getResultMessage = (result: FolderSyncResult) =>
+  result.ok ? `${result.fileCount} files found in ${result.directoryName}` : result.message;
+
+export const Settings = memo(() => {
   const directoryName = useAppStore((state) => state.directoryName);
   const fileCount = useAppStore((state) => state.files.length);
   const isSyncInProgress = useAppStore((state) => state.isFolderSyncInProgress);
@@ -25,118 +22,33 @@ export const Settings = memo(() => {
 
   const supportsFileSystemAccess = canUseFileSystemAccess();
 
-  const formattedLastSyncAt = useMemo(() => {
-    if (!lastSyncAt) {
-      return null;
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      hourCycle: 'h24',
-      timeStyle: 'short',
-    }).format(new Date(lastSyncAt));
-  }, [lastSyncAt]);
-
-  const runSyncFolder = useCallback(
-    async (options: { notifyOnStart?: boolean; notifyOnSuccess?: boolean } = {}) => {
-      const shouldUpdateSyncNotification = Boolean(options.notifyOnStart && directoryName);
-      const getSyncNotificationOptions = (name: string) => {
-        if (!shouldUpdateSyncNotification) {
-          return { name };
-        }
-
-        return {
-          name: FOLDER_NOTIFICATION_NAME.syncStarted,
-          update: true,
-        };
-      };
-
-      if (options.notifyOnStart && directoryName) {
-        notify.info(FOLDER_NOTIFICATION_MESSAGE.syncStarted(directoryName), {
-          autoClose: false,
-          loading: true,
-          name: FOLDER_NOTIFICATION_NAME.syncStarted,
-          withCloseButton: false,
-        });
-      }
-
-      const result = await syncFolder();
-
-      if (result.status === 'success') {
-        if (options.notifyOnSuccess || shouldUpdateSyncNotification) {
-          notify.success(
-            FOLDER_NOTIFICATION_MESSAGE.syncSuccess(result.fileCount, result.directoryName),
-            getSyncNotificationOptions(FOLDER_NOTIFICATION_NAME.syncSuccess),
-          );
-        }
-
-        return;
-      }
-
-      if (result.status === 'error') {
-        notify.error(
-          FOLDER_NOTIFICATION_MESSAGE.syncError,
-          getSyncNotificationOptions(FOLDER_NOTIFICATION_NAME.syncError),
-        );
-        return;
-      }
-
-      if (result.status === 'permission-denied') {
-        notify.error(
-          FOLDER_NOTIFICATION_MESSAGE.permissionDenied,
-          getSyncNotificationOptions(FOLDER_NOTIFICATION_NAME.permissionDenied),
-        );
-        return;
-      }
-
-      if (result.status === 'missing-handle') {
-        notify.info(
-          FOLDER_NOTIFICATION_MESSAGE.missingHandle,
-          getSyncNotificationOptions(FOLDER_NOTIFICATION_NAME.missingHandle),
-        );
-        return;
-      }
-
-      if (result.status === 'unsupported') {
-        notify.error(
-          FOLDER_NOTIFICATION_MESSAGE.fileSystemAccessError,
-          getSyncNotificationOptions(FOLDER_NOTIFICATION_NAME.apiUnsupported),
-        );
-      }
-    },
-    [directoryName, notify],
+  const formattedLastSyncAt = useMemo(
+    () =>
+      lastSyncAt
+        ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', hourCycle: 'h24', timeStyle: 'short' }).format(
+            new Date(lastSyncAt),
+          )
+        : null,
+    [lastSyncAt],
   );
 
-  const runSelectFolder = useCallback(async () => {
+  const handleSync = useCallback(async () => {
+    notify.progress(SYNC_NOTIFICATION_ID, `Syncing ${directoryName}`);
+
+    const result = await syncFolder();
+
+    notify.finish(SYNC_NOTIFICATION_ID, result.ok ? 'green' : 'red', getResultMessage(result) ?? 'Sync canceled.');
+  }, [directoryName]);
+
+  const handleSelect = useCallback(async () => {
     const result = await selectFolder();
+    const message = getResultMessage(result);
 
-    if (result.status === 'unsupported') {
-      notify.error(FOLDER_NOTIFICATION_MESSAGE.fileSystemAccessError, {
-        name: FOLDER_NOTIFICATION_NAME.apiUnsupported,
-      });
-      return;
+    // A cancelled picker has no message and needs no notification.
+    if (message) {
+      (result.ok ? notify.success : notify.error)(message);
     }
-
-    if (result.status === 'success') {
-      notify.success(FOLDER_NOTIFICATION_MESSAGE.syncSuccess(result.fileCount, result.directoryName), {
-        name: FOLDER_NOTIFICATION_NAME.syncSuccess,
-      });
-      return;
-    }
-
-    if (result.status === 'error') {
-      notify.error(FOLDER_NOTIFICATION_MESSAGE.pickerError, {
-        name: FOLDER_NOTIFICATION_NAME.pickerError,
-      });
-      return;
-    }
-
-    if (result.status === 'permission-denied') {
-      notify.error(FOLDER_NOTIFICATION_MESSAGE.permissionDenied, {
-        name: FOLDER_NOTIFICATION_NAME.permissionDenied,
-      });
-    }
-  }, [notify]);
+  }, []);
 
   return (
     <div className={styles.settings}>
@@ -192,7 +104,7 @@ export const Settings = memo(() => {
                         variant='filled'
                         size='sm'
                         leftSection={<IconFolderOpen size={16} />}
-                        onClick={() => void runSelectFolder()}
+                        onClick={() => void handleSelect()}
                       >
                         Pick Folder
                       </Button>
@@ -203,7 +115,7 @@ export const Settings = memo(() => {
                         leftSection={<IconFolderUp size={16} />}
                         loading={isSyncInProgress}
                         disabled={!directoryName || isSyncInProgress}
-                        onClick={() => void runSyncFolder({ notifyOnStart: true, notifyOnSuccess: true })}
+                        onClick={() => void handleSync()}
                       >
                         Sync Folder
                       </Button>
@@ -212,7 +124,9 @@ export const Settings = memo(() => {
                 ) : (
                   <div className={styles.emptyState}>
                     <Text fw={600}>File System Access unavailable</Text>
-                    <Text>{FILE_SYSTEM_ACCESS_HELP_TEXT}</Text>
+                    <Text>
+                      Folder sync needs a browser with the File System Access API and a secure (HTTPS) connection.
+                    </Text>
                     <Text size='sm' c='dimmed'>
                       Use HTTPS on your deployed domain. On local desktop development, localhost also counts as a secure
                       context.

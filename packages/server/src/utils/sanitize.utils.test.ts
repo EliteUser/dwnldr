@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getContentDispositionHeader, sanitizeFilename } from './sanitize.utils.js';
+import { sanitizeFilename } from './sanitize.utils.js';
 
 describe('sanitizeFilename', () => {
   it('replaces filesystem-invalid characters', () => {
@@ -39,13 +39,5 @@ describe('sanitizeFilename', () => {
 
   it('falls back to a safe default for names that are only invalid characters', () => {
     expect(sanitizeFilename('///')).toBe('track');
-  });
-});
-
-describe('getContentDispositionHeader', () => {
-  it('includes an RFC 5987 encoded filename for non-ascii values', () => {
-    expect(getContentDispositionHeader('Björk "Live".mp3')).toBe(
-      `attachment; filename="Bj_rk -Live-.mp3"; filename*=UTF-8''Bj%C3%B6rk%20%22Live%22.mp3`,
-    );
   });
 });

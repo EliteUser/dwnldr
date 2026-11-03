@@ -1,14 +1,15 @@
 import type { Crop, PixelCrop } from 'react-image-crop';
 import { centerCrop, makeAspectCrop } from 'react-image-crop';
 
-import {
-  ARTWORK_OUTPUT_SIZE,
-  ARTWORK_PREVIEW_QUALITY,
-  CROP_VIEWPORT_HEIGHT_RATIO,
-  MAX_CROP_HEIGHT,
-  MAX_CROP_WIDTH,
-} from './artwork-editor.constants';
-import type { ImageSize } from './artwork-editor.types';
+const ARTWORK_OUTPUT_SIZE = 1024;
+const CROP_VIEWPORT_HEIGHT_RATIO = 0.75;
+const MAX_CROP_HEIGHT = 1600;
+const MAX_CROP_WIDTH = 1600;
+
+export type ImageSize = {
+  height: number;
+  width: number;
+};
 
 export const getCenteredSquareCrop = (width: number, height: number): Crop => {
   return centerCrop(
@@ -96,18 +97,14 @@ export const renderCroppedArtwork = async (image: HTMLImageElement, crop: PixelC
         ARTWORK_OUTPUT_SIZE,
       );
 
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error('Could not prepare artwork.'));
-            return;
-          }
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error('Could not prepare artwork.'));
+          return;
+        }
 
-          resolve(new File([blob], 'artwork.png', { type: 'image/png' }));
-        },
-        'image/png',
-        ARTWORK_PREVIEW_QUALITY,
-      );
+        resolve(new File([blob], 'artwork.png', { type: 'image/png' }));
+      }, 'image/png');
     } catch {
       reject(new Error('This artwork cannot be edited in the browser. Upload a local copy to continue.'));
     }

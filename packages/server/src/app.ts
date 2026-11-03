@@ -1,50 +1,44 @@
-import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { env } from './config/env.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { requestLogger } from './middleware/request-logger.js';
-import { apiRouter } from './routes/common/api.routes.js';
-import type { HealthRouterOptions } from './routes/common/health.routes.js';
-import { createHealthRouter } from './routes/common/health.routes.js';
+import { apiRouter } from './routes.js';
 
-const serverDirPath = path.dirname(fileURLToPath(import.meta.url));
-const clientDistPath = path.resolve(serverDirPath, '../../client/dist');
-type CreateAppOptions = {
-  getReadiness?: HealthRouterOptions['getReadiness'];
-};
+const clientDistPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
 
-export const createApp = (options: CreateAppOptions = {}) => {
+export const createApp = () => {
   const app = express();
 
-  app.set('trust proxy', 'loopback');
-
-  if (env.NODE_ENV !== 'production') {
-    app.use(
-      cors({
-        origin: env.CORS_ORIGIN,
-      }),
-    );
-  }
+  // Caddy reaches the app over the private compose network.
+  app.set('trust proxy', ['loopback', 'uniquelocal']);
   app.use(
     helmet({
-      contentSecurityPolicy: false,
-      frameguard: false,
-      referrerPolicy: false,
-      strictTransportSecurity: false,
-      xContentTypeOptions: false,
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'self'"],
+          // Track lists show provider artwork directly; previews and Meta use blob: and data: URLs.
+          imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+          mediaSrc: ["'self'", 'blob:'],
+          fontSrc: ["'self'", 'data:'],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          frameAncestors: ["'none'"],
+        },
+      },
     }),
   );
   app.use(requestLogger);
   app.use(express.json({ limit: '64kb' }));
-  app.use(createHealthRouter({ getReadiness: options.getReadiness }));
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok' });
+  });
   app.use(express.static(clientDistPath));
-
   app.use('/api', apiRouter);
-
   app.use(errorHandler);
 
   return app;

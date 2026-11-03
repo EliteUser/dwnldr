@@ -1,120 +1,37 @@
-import path from 'node:path';
-import sharp from 'sharp';
+import sharp, { type Metadata } from 'sharp';
 
-import { IMAGE_EXTENSIONS } from '../../constants.js';
-import { logTimedOperation } from '../../lib/logger.js';
-import {
-  ALLOWED_ARTWORK_MIME_TYPES,
-  ARTWORK_OUTPUT_SIZE,
-  MAX_ARTWORK_DIMENSION,
-  MAX_ARTWORK_SIZE,
-  MIN_ARTWORK_DIMENSION,
-} from './artwork.constants.js';
-import type { UploadedArtwork } from './artwork.types.js';
-import { getArtworkExtension, throwInvalidArtwork } from './artwork.utils.js';
+import { HttpError } from '../../errors.js';
+import { MAX_ARTWORK_DIMENSION, MAX_ARTWORK_SIZE, MIN_ARTWORK_DIMENSION } from './artwork.constants.js';
 
-export const assertUploadedArtwork = async (artwork: UploadedArtwork) => {
-  const extension = getArtworkExtension(artwork.originalName);
+const SUPPORTED_FORMATS = new Set(['jpeg', 'png', 'webp']);
 
-  if (!IMAGE_EXTENSIONS.includes(extension) && extension !== '.webp') {
-    throwInvalidArtwork('Artwork must be a JPEG, PNG, or WebP image.', {
-      extension,
-    });
+const invalidArtwork = (message: string) => new HttpError(400, message, { code: 'INVALID_INPUT' });
+
+/** Validates an uploaded artwork file by decoding it rather than trusting its name or MIME type. */
+export const assertArtworkFile = async (file: { path: string; size: number }) => {
+  if (file.size > MAX_ARTWORK_SIZE) {
+    throw invalidArtwork('Artwork must be 8 MB or smaller.');
   }
 
-  if (!ALLOWED_ARTWORK_MIME_TYPES.has(artwork.mimeType)) {
-    throwInvalidArtwork('Artwork must be a JPEG, PNG, or WebP image.', {
-      mimeType: artwork.mimeType,
-    });
-  }
-
-  if (artwork.size > MAX_ARTWORK_SIZE) {
-    throwInvalidArtwork('Artwork must be 8 MB or smaller.', {
-      maxSize: MAX_ARTWORK_SIZE,
-    });
-  }
-
-  let width: number | undefined;
-  let height: number | undefined;
+  let metadata: Metadata;
 
   try {
-    const metadata = await sharp(artwork.buffer, {
-      failOn: 'error',
-    }).metadata();
-    width = metadata.width;
-    height = metadata.height;
+    metadata = await sharp(file.path, { failOn: 'error' }).metadata();
   } catch {
-    throwInvalidArtwork('Artwork image could not be decoded.');
+    throw invalidArtwork('Artwork image could not be decoded.');
   }
 
-  if (typeof width !== 'number' || typeof height !== 'number') {
-    throwInvalidArtwork('Artwork image dimensions could not be read.');
-    return;
+  const { format, height = 0, width = 0 } = metadata;
+
+  if (!SUPPORTED_FORMATS.has(format)) {
+    throw invalidArtwork('Artwork must be a JPEG, PNG, or WebP image.');
   }
 
-  const imageWidth = width;
-  const imageHeight = height;
-
-  if (imageWidth < MIN_ARTWORK_DIMENSION || imageHeight < MIN_ARTWORK_DIMENSION) {
-    throwInvalidArtwork('Artwork must be at least 128 x 128 pixels.', {
-      width: imageWidth,
-      height: imageHeight,
-    });
+  if (width < MIN_ARTWORK_DIMENSION || height < MIN_ARTWORK_DIMENSION) {
+    throw invalidArtwork('Artwork must be at least 128 x 128 pixels.');
   }
 
-  if (imageWidth > MAX_ARTWORK_DIMENSION || imageHeight > MAX_ARTWORK_DIMENSION) {
-    throwInvalidArtwork('Artwork must be 8000 x 8000 pixels or smaller.', {
-      width: imageWidth,
-      height: imageHeight,
-    });
+  if (width > MAX_ARTWORK_DIMENSION || height > MAX_ARTWORK_DIMENSION) {
+    throw invalidArtwork('Artwork must be 8000 x 8000 pixels or smaller.');
   }
-};
-
-export const saveNormalizedArtwork = async (artwork: UploadedArtwork, folder: string) => {
-  return await logTimedOperation(
-    {
-      startEvt: 'artwork.normalize.started',
-      successEvt: 'artwork.normalize.completed',
-      failureEvt: 'artwork.normalize.failed',
-      startMessage: 'Normalizing custom artwork',
-      successMessage: 'Normalized custom artwork',
-      failureMessage: 'Failed to normalize custom artwork',
-      failureLevel: 'warn',
-      bindings: {
-        folder,
-        mimeType: artwork.mimeType,
-        originalName: artwork.originalName,
-        size: artwork.size,
-      },
-      getSuccessBindings: (outputPath) => ({
-        outputPath,
-      }),
-    },
-    async () => {
-      await assertUploadedArtwork(artwork);
-
-      const outputPath = path.join(folder, 'custom-artwork.png');
-
-      await sharp(artwork.buffer)
-        .resize(ARTWORK_OUTPUT_SIZE, ARTWORK_OUTPUT_SIZE, {
-          fit: 'cover',
-        })
-        .png()
-        .toFile(outputPath);
-
-      return outputPath;
-    },
-  );
-};
-
-export const resolveArtworkPath = async (
-  artwork: UploadedArtwork | undefined,
-  folder: string,
-  providerArtworkPath?: string,
-) => {
-  if (!artwork) {
-    return providerArtworkPath;
-  }
-
-  return saveNormalizedArtwork(artwork, folder);
 };

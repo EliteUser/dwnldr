@@ -1,12 +1,15 @@
-import { getProviderByUrl } from '../../providers';
-import { ACTIVE_TAB_STORAGE_KEY, DEFAULT_TAB, ENABLED_TABS, SHARE_QUERY_KEYS } from './app.constants';
-import type { ActiveTab, AppTabs } from './app.types';
+export const TABS = ['likes', 'download', 'metadata', 'settings'] as const;
 
-export type IncomingShare = { status: 'none' } | { status: 'unsupported' } | { status: 'supported'; url: string };
+export type Tab = (typeof TABS)[number];
 
-const SHARED_URL_PATTERN = /https?:\/\/[^\s<>"']+/gi;
-const TRAILING_URL_PUNCTUATION = /[.,!?;:)\]}]+$/u;
+const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
+const SHARE_QUERY_KEYS = ['share_url', 'share_text', 'share_title'] as const;
+const URL_PATTERN = /https?:\/\/[^\s<>"']+/gi;
+const TRAILING_PUNCTUATION = /[.,!?;:)\]}]+$/u;
 
+export type IncomingShare = { status: 'none' } | { status: 'no-link' } | { status: 'link'; url: string };
+
+/** Reads a Web Share Target launch (see manifest.webmanifest) and picks the first link it carries. */
 export const readIncomingShare = (search: string): IncomingShare => {
   const params = new URLSearchParams(search);
 
@@ -15,25 +18,16 @@ export const readIncomingShare = (search: string): IncomingShare => {
   }
 
   for (const key of SHARE_QUERY_KEYS) {
-    const value = params.get(key) ?? '';
+    for (const [match] of (params.get(key) ?? '').matchAll(URL_PATTERN)) {
+      const url = match.replace(TRAILING_PUNCTUATION, '');
 
-    for (const match of value.matchAll(SHARED_URL_PATTERN)) {
-      const url = match[0].replace(TRAILING_URL_PUNCTUATION, '');
-
-      try {
-        const parsedUrl = new URL(url);
-        const provider = getProviderByUrl(url);
-
-        if ((parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') && provider?.capabilities.downloads) {
-          return { status: 'supported', url };
-        }
-      } catch {
-        // Continue looking for another shared URL.
+      if (URL.canParse(url)) {
+        return { status: 'link', url };
       }
     }
   }
 
-  return { status: 'unsupported' };
+  return { status: 'no-link' };
 };
 
 export const removeIncomingShareParams = (location: Location) => {
@@ -44,16 +38,12 @@ export const removeIncomingShareParams = (location: Location) => {
   return `${url.pathname}${url.search}${url.hash}`;
 };
 
-export const isActiveTab = (value: string | null): value is ActiveTab => {
-  return value !== null && ENABLED_TABS.includes(value as AppTabs);
+export const isTab = (value: string | null): value is Tab => TABS.includes(value as Tab);
+
+export const readActiveTab = (): Tab => {
+  const value = window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+
+  return isTab(value) ? value : 'likes';
 };
 
-export const readActiveTab = () => {
-  if (typeof window === 'undefined') {
-    return DEFAULT_TAB;
-  }
-
-  const activeTab = window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
-
-  return isActiveTab(activeTab) ? activeTab : DEFAULT_TAB;
-};
+export const saveActiveTab = (tab: Tab) => window.localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tab);

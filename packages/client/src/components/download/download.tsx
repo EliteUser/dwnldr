@@ -1,14 +1,13 @@
 import { Accordion, Button, Loader, Text, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconBrandSoundcloud, IconBrandYoutube, IconDownload } from '@tabler/icons-react';
-import { memo, useCallback, useEffect, useState } from 'react';
+import { IconBrandSoundcloud, IconBrandYoutube, IconDownload, IconLink } from '@tabler/icons-react';
+import { memo, useEffect, useState } from 'react';
 
-import { useGetProviderTrackQuery } from '../../api/api';
-import { Artwork } from '../../components/artwork';
-import { MetadataFields } from '../../components/metadata-fields';
-import type { ArtworkDownloadPayload } from '../../types';
-import { getApiErrorFromQueryError, useNotify, DOWNLOAD_NOTIFICATION_NAME } from '../../utils';
-import { useDownload } from './use-download';
+import { useProviders, useTrack } from '../../api';
+import { useFileDownload } from '../../hooks/use-file-download';
+import { notify } from '../../utils/notify';
+import { Artwork } from '../artwork/artwork';
+import { MetadataFields } from '../metadata-fields/metadata-fields';
 
 import styles from './download.module.scss';
 
@@ -16,64 +15,64 @@ type DownloadProps = {
   selectedUrl?: string;
 };
 
-type DownloadFormProps = DownloadProps & {
-  downloadState: ReturnType<typeof useDownload>;
-};
-
 const METADATA_DEBOUNCE_MS = 300;
 
-const DownloadForm = (props: DownloadFormProps) => {
-  const { downloadState, selectedUrl } = props;
+const PROVIDER_ICONS: Record<string, typeof IconLink> = {
+  soundcloud: IconBrandSoundcloud,
+  youtube: IconBrandYoutube,
+};
 
-  const [urlInput, setUrlInput] = useState(selectedUrl || '');
+type DownloadFormProps = DownloadProps & {
+  fileDownload: ReturnType<typeof useFileDownload>;
+};
+
+const DownloadForm = ({ fileDownload, selectedUrl }: DownloadFormProps) => {
+  const [urlInput, setUrlInput] = useState(selectedUrl ?? '');
   const [nameOverride, setNameOverride] = useState<string>();
   const [album, setAlbum] = useState('');
   const [lyrics, setLyrics] = useState('');
-  const [artwork, setArtwork] = useState<ArtworkDownloadPayload>();
+  const [artwork, setArtwork] = useState<File>();
 
-  const notify = useNotify();
-  const { cancel, download, inProgress } = downloadState;
+  const { cancel, download, inProgress } = fileDownload;
+  const { data: providers } = useProviders();
   const trimmedUrl = urlInput.trim();
   const [pacedUrl] = useDebouncedValue(trimmedUrl, METADATA_DEBOUNCE_MS);
+  // A link opened from Likes or a share is ready immediately; typed links wait for the debounce.
   const debouncedUrl = selectedUrl && urlInput === selectedUrl ? selectedUrl : pacedUrl;
-
-  const {
-    currentData: track,
-    error: metadataError,
-    isFetching,
-    provider,
-  } = useGetProviderTrackQuery(debouncedUrl, {
-    skip: !debouncedUrl,
-  });
+  const { data: track, error: metadataError, isFetching } = useTrack(debouncedUrl);
 
   const hasUrl = Boolean(trimmedUrl);
-  const providerArtworkUrl = track?.artwork?.url ?? track?.artwork_url;
-  const name =
-    nameOverride ?? (track && !isFetching ? (provider?.toDownloadName(track) ?? `${track.user} - ${track.title}`) : '');
-
-  const isMetadataLoading =
-    hasUrl && (trimmedUrl !== debouncedUrl || isFetching || (Boolean(provider) && !track && !metadataError));
-
+  const isMetadataLoading = hasUrl && (trimmedUrl !== debouncedUrl || isFetching);
   const isEditorReady = hasUrl && !isMetadataLoading && Boolean(track);
+  const name = nameOverride ?? (track ? `${track.artist} - ${track.title}` : '');
   const canDownload = !inProgress && isEditorReady && Boolean(name);
 
   useEffect(() => {
     if (metadataError) {
-      notify.apiError(getApiErrorFromQueryError(metadataError), {
-        name: DOWNLOAD_NOTIFICATION_NAME.metadataError,
-      });
+      notify.apiError(metadataError);
     }
-  }, [metadataError, notify]);
+  }, [metadataError]);
 
-  const handleDownload = useCallback(() => {
-    void download({
-      album,
-      artwork,
-      lyrics,
-      name,
-      url: trimmedUrl,
-    });
-  }, [album, download, name, artwork, lyrics, trimmedUrl]);
+  const handleDownload = () => {
+    const body = new FormData();
+
+    body.set('url', trimmedUrl);
+    body.set('name', name);
+
+    if (album) {
+      body.set('album', album);
+    }
+
+    if (lyrics) {
+      body.set('lyrics', lyrics);
+    }
+
+    if (artwork) {
+      body.set('artwork', artwork);
+    }
+
+    void download(body, name);
+  };
 
   const handleUrlChange = (nextUrl: string) => {
     setUrlInput(nextUrl);
@@ -138,10 +137,9 @@ const DownloadForm = (props: DownloadFormProps) => {
               </Accordion.Control>
               <Accordion.Panel>
                 <Artwork
-                  key={debouncedUrl}
                   disabled={inProgress}
                   onArtworkChange={setArtwork}
-                  providerArtworkUrl={providerArtworkUrl}
+                  providerArtworkUrl={track?.artworkUrl}
                   resetKey={debouncedUrl}
                 />
               </Accordion.Panel>
@@ -170,15 +168,16 @@ const DownloadForm = (props: DownloadFormProps) => {
           </Text>
 
           <div className={styles.supportedProviders} aria-label='Supported providers'>
-            <span className={styles.provider}>
-              <IconBrandYoutube size={18} />
-              <Text size='sm'>YouTube</Text>
-            </span>
+            {providers?.map(({ key, label }) => {
+              const Icon = PROVIDER_ICONS[key] ?? IconLink;
 
-            <span className={styles.provider}>
-              <IconBrandSoundcloud size={18} />
-              <Text size='sm'>SoundCloud</Text>
-            </span>
+              return (
+                <span key={key} className={styles.provider}>
+                  <Icon size={18} />
+                  <Text size='sm'>{label}</Text>
+                </span>
+              );
+            })}
           </div>
         </section>
       ) : (
@@ -200,8 +199,11 @@ const DownloadForm = (props: DownloadFormProps) => {
   );
 };
 
-export const Download = memo<DownloadProps>(function Download({ selectedUrl }) {
-  const downloadState = useDownload();
+export const Download = memo<DownloadProps>(({ selectedUrl }) => {
+  // Lives outside the keyed form so a running download survives picking another track.
+  const fileDownload = useFileDownload('/api/download');
 
-  return <DownloadForm key={selectedUrl ?? ''} selectedUrl={selectedUrl} downloadState={downloadState} />;
+  return <DownloadForm key={selectedUrl ?? ''} fileDownload={fileDownload} selectedUrl={selectedUrl} />;
 });
+
+Download.displayName = 'Download';

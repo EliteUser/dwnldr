@@ -1,12 +1,9 @@
 /.git
-/auth.htpasswd
 /.github
 /.idea
-/node_modules
-/packages/client/node_modules
-/packages/server/node_modules
+**/node_modules
 /packages/client/dist
 /packages/server/dist
+/packages/server/tmp
 /coverage
 *.log
-track_*

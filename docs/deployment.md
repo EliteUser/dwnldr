@@ -1,52 +1,36 @@
 # Deployment
 
-Deployments run automatically when changes are pushed to `master`, or manually from GitHub Actions.
+Pushing to `master` (or running the workflow manually) checks the project, builds the image, pushes it to the
+GitHub Container Registry, and deploys it to the VPS with Docker Compose.
 
-## Requirements
+## How it runs
 
-The VPS needs Docker, the Docker Compose plugin, and root SSH access.
+`compose.yaml` starts two containers:
 
-Configure these GitHub Actions secrets:
+- **caddy** listens on ports 80 and 443. It gets a Let's Encrypt certificate for the server's IP address
+  (IP certificates use the short-lived profile, about six days, and Caddy renews them on its own), asks for the
+  password (basic auth), and forwards requests to the app.
+- **app** is the Node server. It publishes no port, so it is reachable only through Caddy.
 
-- `DWNLDR_DEPLOY_HOST`
-- `DWNLDR_DEPLOY_KEY`
-- `DWNLDR_AUTH_HTPASSWD`
+Data lives in two named volumes: `dwnldr-state` (temp downloads, yt-dlp cache) and `dwnldr-caddy-data`
+(certificates). The `Caddyfile` is the whole proxy configuration.
 
-If the SSH host is not the public IPv4 address used for HTTPS, also configure `DWNLDR_PUBLIC_IP`.
+## GitHub Actions secrets
 
-`DWNLDR_AUTH_HTPASSWD` is one bcrypt htpasswd record for the username `owner`. If `htpasswd` is installed, run:
+| Secret                 | Value                                                                    |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `DWNLDR_DEPLOY_HOST`   | SSH host of the VPS                                                      |
+| `DWNLDR_DEPLOY_KEY`    | Private SSH key for `root` on the VPS                                    |
+| `DWNLDR_KNOWN_HOSTS`   | The VPS host key line(s), from `ssh-keyscan <host>` run once and checked |
+| `DWNLDR_AUTH_HTPASSWD` | `owner:<bcrypt hash>`, the password for the site                         |
+| `DWNLDR_PUBLIC_IP`     | Public IPv4 for HTTPS, if it differs from `DWNLDR_DEPLOY_HOST`           |
 
-```bash
-htpasswd -nB owner
-```
+`DWNLDR_KNOWN_HOSTS` pins the server's identity. Get it once from a trusted network and compare the fingerprint
+with the one shown by your hosting provider or on the server (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`).
 
-If `htpasswd` is unavailable but Docker is installed, run this in an interactive terminal (including PowerShell):
-
-```powershell
-docker run --rm -it httpd:2.4-alpine htpasswd -nB -C 12 owner
-```
-
-The interactive password prompt shows no characters or asterisks while you type. Enter the password, press Enter,
-then enter it again to confirm.
-
-Use a long, unique password. Enter and confirm it at the prompt, then paste the entire resulting `owner:$2y$...` line into the
-repository's **Settings → Secrets and variables → Actions → New repository secret**. Do not add the record or the
-plain password to the repository. On each deployment, the workflow installs the hash at
-`/opt/dwnldr/auth.htpasswd` and mounts it read-only for nginx. Deployment fails if this secret is missing or
-malformed. To rotate the password, replace the secret and rerun the deployment workflow.
-
-The browser asks for `owner` and the password when opening the HTTPS app. Authentication covers the app and API;
-the HTTP redirect and certificate challenge remain public. The container uses Linux host networking so nginx sees
-client IPs directly, while Express binds only to `127.0.0.1:3000`.
-
-The container image remains private in GitHub Container Registry. GitHub Actions logs the VPS into the registry with its
-temporary token and logs out after deployment.
-
-## Deploy
-
-```bash
-git push origin master
-```
+To create the password hash, run `htpasswd -nB owner`, or with Docker:
+`docker run --rm -it httpd:2.4-alpine htpasswd -nB -C 12 owner`. Paste the whole `owner:$2y$...` line as the secret.
+Use a long random password: there is no rate limiting, so its strength is what stops guessing.
 
 ## VPS commands
 
@@ -54,61 +38,17 @@ git push origin master
 cd /opt/dwnldr
 docker compose ps
 docker compose logs --tail 100 app
+docker compose logs --tail 100 caddy
+docker compose exec app yt-dlp --version
 ```
 
-To inspect the actual yt-dlp binary and its version:
+## Rolling back
 
-```bash
-docker exec dwnldr /usr/local/bin/yt-dlp --version
-docker exec dwnldr node -e 'console.log(process.env.YT_DLP_BINARY_PATH, process.env.YT_DLP_VERSION)'
-```
+Put the previous image tag into `IMAGE_REF` in `/opt/dwnldr/.env` and run `docker compose up -d`.
 
-The image pins yt-dlp nightly `2026.10.10.233141` in `Dockerfile` and checks the published Linux binary SHA-256
-checksum while building. To update it, choose a release from the official
-[nightly builds](https://github.com/yt-dlp/yt-dlp-nightly-builds/releases), then change both `YT_DLP_VERSION` and
-`YT_DLP_SHA256` in `Dockerfile`. Rebuild and verify real SoundCloud and YouTube downloads before deployment.
+## If the IP certificate cannot be issued
 
-## SoundCloud integration
-
-SoundCloud profiles, Likes, and track metadata use a TypeScript adapter over SoundCloud's internal web API.
-All of those HTTP requests go through the separate reusable HTTP service in `services/http/`. The adapter owns
-client-ID discovery/refresh, response validation, and pagination. The transport service owns HTTP execution,
-response parsing, timeouts, and cancellation. Audio downloads use yt-dlp, followed by the shared MP3, ID3, and
-artwork processing pipeline. No SoundCloud credentials are required for public profiles.
-
-Settings accepts a public profile URL, such as `https://soundcloud.com/andrey-shcherbakov-931299985`, or its
-`/likes` link. Existing installations must enter a profile URL once after upgrading from numeric account IDs;
-the migration preserves folder settings, indexed files, and the last sync time.
-
-The user and favorites endpoints require `profileUrl` instead of `userId`:
-
-```text
-GET /api/soundcloud/users?profileUrl=<encoded-profile-url>
-GET /api/soundcloud/favorites?profileUrl=<encoded-profile-url>&limit=20
-```
-
-Omit `limit` to retrieve all available liked tracks. A supplied positive integer limits valid tracks after
-filtering and deduplication. A failed later page fails the whole request instead of returning a partial list.
-The internal SoundCloud API and its client-ID discovery may change independently of this app; repeated upstream
-authorization failures are logged after one automatic client-ID refresh attempt.
-
-`YT_DLP_CACHE_DIR` controls the writable engine cache. It defaults locally to `yt-dlp-cache` beside `TEMP_DIR`,
-and to `/var/lib/dwnldr/yt-dlp-cache` in Docker. The entrypoint assigns ownership to `node`; readiness checks that
-both the download directory and engine cache are writable. Keep the cache outside `node_modules` and separate
-from temporary download folders so cleanup cannot remove it during a download.
-
-For local parity, download the Windows executable for the exact nightly release pinned in `Dockerfile`, verify
-its entry in that release's `SHA2-256SUMS`, and set `YT_DLP_BINARY_PATH` to that executable and `YT_DLP_VERSION` to
-the pinned version before starting the server. The wrapper's bundled executable can be a different version.
-
-Before deployment, run `pnpm check`, then smoke-test the built image with its normal non-root Node process:
-
-- Confirm `/health` and `/ready` return 200, including the `ytDlpCache` readiness check.
-- Starting with an empty engine cache, download `https://soundcloud.com/euanellis/might-be-alright` once and
-  verify the MP3 completes on the first request. This exercises the HLS path behind the original failure.
-- Verify a second available SoundCloud track, a YouTube track, and JSON and custom-artwork multipart downloads.
-- Inspect MP3 duration/tags/artwork and confirm temporary folders are removed after success, failure, and timeout.
-- Compare cold and warm Likes latency, ordered track IDs, and metadata against the recorded baseline. Do not
-  make external-service timing a CI assertion.
-
-Keep the previous image reference available until these checks pass so the deployment can be rolled back.
+Let's Encrypt only issues IP certificates through the short-lived profile, and Caddy's support for it is recent.
+If `docker compose logs caddy` shows issuance errors, use a hostname instead: either your own domain, or
+`<ip-with-dashes>.sslip.io` (for example `203-0-113-10.sslip.io`), set it as `DWNLDR_PUBLIC_IP`, and remove the
+`tls { ... }` block from the `Caddyfile`.

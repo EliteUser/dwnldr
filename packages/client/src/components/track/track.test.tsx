@@ -1,71 +1,39 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
+import { renderWithProviders } from '../../test/render';
 import { Track } from './track';
 
 import styles from './track.module.scss';
 
+const props = {
+  coverUrl: 'https://i1.sndcdn.com/artworks-example-large.jpg',
+  downloadUrl: 'https://soundcloud.com/artist/track-title',
+  duration: 210000,
+  isDirectorySelected: true,
+  isDownloaded: false,
+  title: 'Artist - Track Title',
+};
+
 describe('Track', () => {
-  it('lazily retries a failed artwork request once', () => {
-    render(
-      <Track
-        title='Artist - Track Title'
-        coverUrl='https://i1.sndcdn.com/artworks-example-large.jpg'
-        duration={210000}
-        isDirectorySelected
-        isDownloaded={false}
-        downloadUrl='https://soundcloud.com/artist/track-title'
-        onDownloadClick={() => undefined}
-      />,
-    );
+  it('shows the title and duration and opens the track for download', () => {
+    const onDownloadClick = vi.fn();
 
-    const image = screen.getByRole('img');
+    renderWithProviders(<Track {...props} onDownloadClick={onDownloadClick} />);
 
-    expect(image).toHaveAttribute('loading', 'lazy');
-    expect(image).toHaveAttribute('src', 'https://i1.sndcdn.com/artworks-example-large.jpg');
-
-    fireEvent.error(image);
-
-    expect(screen.getByRole('img')).toHaveAttribute('src', 'https://i1.sndcdn.com/artworks-example-large.jpg?retry=1');
-
-    fireEvent.error(screen.getByRole('img'));
-
-    expect(screen.getByRole('img')).toHaveAttribute('src', 'https://i1.sndcdn.com/artworks-example-large.jpg?retry=1');
+    expect(screen.getByText('3:30')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Download Artist - Track Title' }));
+    expect(onDownloadClick).toHaveBeenCalledWith(props.downloadUrl);
   });
 
-  it('clears the downloaded state when the synced file list becomes empty', async () => {
-    const { container, rerender } = render(
-      <Track
-        title='Artist - Track Title'
-        coverUrl=''
-        duration={210000}
-        isDirectorySelected
-        isDownloaded
-        downloadUrl='https://soundcloud.com/artist/track-title'
-        onDownloadClick={() => undefined}
-      />,
-    );
+  it('marks downloaded tracks', () => {
+    const { rerender } = renderWithProviders(<Track {...props} isDownloaded onDownloadClick={vi.fn()} />);
+    const row = () => screen.getByText(props.title).closest(`.${styles.track}`);
 
-    const root = container.firstElementChild as HTMLElement;
+    expect(row()).toHaveClass(styles.downloaded);
 
-    await waitFor(() => {
-      expect(root).toHaveClass(styles.downloaded);
-    });
+    rerender(<Track {...props} onDownloadClick={vi.fn()} />);
 
-    rerender(
-      <Track
-        title='Artist - Track Title'
-        coverUrl=''
-        duration={210000}
-        isDirectorySelected
-        isDownloaded={false}
-        downloadUrl='https://soundcloud.com/artist/track-title'
-        onDownloadClick={() => undefined}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(root).not.toHaveClass(styles.downloaded);
-    });
+    expect(row()).not.toHaveClass(styles.downloaded);
   });
 });

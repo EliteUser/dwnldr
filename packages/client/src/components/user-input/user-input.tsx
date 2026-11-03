@@ -2,18 +2,15 @@ import { ActionIcon, Avatar, Button, Loader, Text, TextInput } from '@mantine/co
 import { IconUserEdit } from '@tabler/icons-react';
 import { memo, useEffect, useRef, useState, type FormEvent } from 'react';
 
-import { useGetUserQuery } from '../../api/api';
-import { normalizeSoundCloudProfileUrl } from '../../providers/soundcloud/profile-url.utils';
+import { isHttpUrl, useProfile } from '../../api';
 import { useAppStore } from '../../store';
-import { getApiErrorFromQueryError, getProxiedImageUrl, useNotify } from '../../utils';
+import { getProxiedImageUrl } from '../../utils/common';
+import { notify } from '../../utils/notify';
 
 import styles from './user-input.module.scss';
 
 export const UserInput = memo(() => {
-  const notify = useNotify();
-
   const profileUrl = useAppStore((state) => state.profileUrl);
-  const setProfileUrl = useAppStore((state) => state.setProfileUrl);
 
   const [draftUrl, setDraftUrl] = useState(profileUrl || '');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -24,32 +21,25 @@ export const UserInput = memo(() => {
 
   const showEditForm = !profileUrl || isEditing;
 
-  const {
-    data: user,
-    error,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useGetUserQuery(profileUrl || '', {
-    skip: !profileUrl,
-  });
+  const { data: user, error, isLoading, isFetching, refetch } = useProfile(profileUrl);
 
-  const { avatar_url, full_name } = user || {};
-  const proxiedAvatarUrl = getProxiedImageUrl(avatar_url);
+  const { avatarUrl, name } = user || {};
+  const proxiedAvatarUrl = getProxiedImageUrl(avatarUrl);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const normalizedProfileUrl = normalizeSoundCloudProfileUrl(draftUrl);
+    const nextProfileUrl = draftUrl.trim();
 
-    if (!normalizedProfileUrl) {
-      setValidationError('Enter a SoundCloud profile link. Track and playlist links are not supported.');
+    // The server validates the profile itself; this only catches text that is not a link at all.
+    if (!isHttpUrl(nextProfileUrl)) {
+      setValidationError('Enter a profile link, for example https://soundcloud.com/your-name.');
       profileInputRef.current?.focus();
       return;
     }
 
     setValidationError(null);
-    setProfileUrl(normalizedProfileUrl);
+    useAppStore.setState({ profileUrl: nextProfileUrl });
     shouldFocusConnectedControl.current = true;
     setIsEditing(false);
   };
@@ -75,11 +65,9 @@ export const UserInput = memo(() => {
 
   useEffect(() => {
     if (error) {
-      notify.apiError(getApiErrorFromQueryError(error), {
-        name: 'settings-user-fetch-error',
-      });
+      notify.apiError(error);
     }
-  }, [error, notify]);
+  }, [error]);
 
   useEffect(() => {
     if (!showEditForm && !isLoading && shouldFocusConnectedControl.current && connectedControlRef.current) {
@@ -127,9 +115,9 @@ export const UserInput = memo(() => {
 
       {user ? (
         <div className={styles.profileSummary}>
-          <Avatar name={full_name || 'SoundCloud user'} size='md' src={proxiedAvatarUrl} />
+          <Avatar name={name || 'SoundCloud user'} size='md' src={proxiedAvatarUrl} />
           <Text className={styles.profileName} fw={600}>
-            {full_name || 'SoundCloud user'}
+            {name || 'SoundCloud user'}
           </Text>
           <ActionIcon
             ref={connectedControlRef}

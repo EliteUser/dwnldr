@@ -1,0 +1,21 @@
+# Caddy obtains and renews the Let's Encrypt certificate on its own. IP-address certificates
+# require the short-lived (about six days) profile; Caddy renews them automatically.
+{
+	# Browsers send no SNI when connecting to an IP address, so point those connections at our site.
+	default_sni {$SERVER_IP}
+}
+
+{$SERVER_IP} {
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+
+	basic_auth {
+		owner {$AUTH_HASH}
+	}
+
+	# The app sets the security headers itself (helmet), including HSTS.
+	reverse_proxy app:3000
+}

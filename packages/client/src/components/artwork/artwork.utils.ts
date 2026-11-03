@@ -1,10 +1,9 @@
-import {
-  ACCEPTED_ARTWORK_EXTENSIONS,
-  ACCEPTED_ARTWORK_MIME_TYPES,
-  MAX_ARTWORK_FILE_SIZE,
-  MAX_ARTWORK_IMAGE_SIZE,
-  MIN_ARTWORK_IMAGE_SIZE,
-} from './artwork.constants';
+// Mirrors the server-side checks so problems show up before upload.
+const ACCEPTED_ARTWORK_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
+const ACCEPTED_ARTWORK_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const MAX_ARTWORK_FILE_SIZE = 8 * 1024 * 1024;
+const MAX_ARTWORK_IMAGE_SIZE = 8000;
+const MIN_ARTWORK_IMAGE_SIZE = 128;
 
 const ARTWORK_EXTENSION_BY_MIME_TYPE = new Map([
   ['image/jpeg', 'jpg'],
