@@ -1,6 +1,6 @@
 {
   "id": "/",
-  "name": "SoundCloud Downloader",
+  "name": "dwnldr",
   "short_name": "dwnldr",
   "description": "Personal SoundCloud and YouTube MP3 downloader.",
   "start_url": "/",

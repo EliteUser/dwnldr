@@ -1,9 +1,9 @@
 import { ActionIcon, Avatar, Text } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
 import clsx from 'clsx';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback } from 'react';
 
-import { getDuration } from '../../utils';
+import { getDuration } from '../../utils/common';
 
 import styles from './track.module.scss';
 
@@ -19,8 +19,6 @@ type TrackProps = {
 
 export const Track = memo<TrackProps>(function Track(props) {
   const { title, coverUrl, downloadUrl, duration, isDirectorySelected, isDownloaded, onDownloadClick } = props;
-  const [shouldRetryCover, setShouldRetryCover] = useState(false);
-  const coverSrc = coverUrl && shouldRetryCover ? `${coverUrl}${coverUrl.includes('?') ? '&' : '?'}retry=1` : coverUrl;
 
   const handleDownloadClick = useCallback(() => {
     onDownloadClick(downloadUrl);
@@ -34,16 +32,7 @@ export const Track = memo<TrackProps>(function Track(props) {
   return (
     <div className={trackClassNames}>
       <div className={styles.cover}>
-        <Avatar
-          className={styles.image}
-          imageProps={{
-            loading: 'lazy',
-            onError: () => setShouldRetryCover(true),
-          }}
-          radius='md'
-          size={48}
-          src={coverSrc ?? ''}
-        />
+        <Avatar className={styles.image} imageProps={{ loading: 'lazy' }} radius='md' size={48} src={coverUrl ?? ''} />
       </div>
 
       <div className={styles.wrapper}>

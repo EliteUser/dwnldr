@@ -1,9 +1,16 @@
 import { Textarea, TextInput } from '@mantine/core';
 import { memo } from 'react';
 
-import type { MetadataFieldsProps } from './metadata-fields.types';
-
 import styles from './metadata-fields.module.scss';
+
+type MetadataFieldsProps = {
+  album: string;
+  lyrics: string;
+  name: string;
+  onAlbumChange: (value: string) => void;
+  onLyricsChange: (value: string) => void;
+  onNameChange: (value: string) => void;
+};
 
 export const MetadataFields = memo<MetadataFieldsProps>((props) => {
   const { album, lyrics, name, onAlbumChange, onLyricsChange, onNameChange } = props;

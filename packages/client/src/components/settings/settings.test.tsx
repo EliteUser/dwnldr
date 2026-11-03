@@ -1,125 +1,72 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { notifications } from '@mantine/notifications';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { useAppStore } from '../../store';
-import type { FolderSyncResult } from '../../store/folder.actions';
+import { jsonResponse, mockApi, renderWithProviders } from '../../test/render';
+import type { FolderSyncResult } from '../../utils/folder';
 import { Settings } from './settings';
 
-const notifyErrorMock = vi.fn();
-const notifyInfoMock = vi.fn();
-const notifySuccessMock = vi.fn();
-const selectFolderMock = vi.fn<() => Promise<FolderSyncResult>>(async () => ({
-  status: 'success',
-  directoryName: 'Music',
-  fileCount: 2,
-}));
-const syncFolderMock = vi.fn<() => Promise<FolderSyncResult>>(async () => ({
-  status: 'success',
-  directoryName: 'Music',
-  fileCount: 2,
+const { canUseFileSystemAccessMock, selectFolderMock, syncFolderMock } = vi.hoisted(() => ({
+  canUseFileSystemAccessMock: vi.fn(() => true),
+  selectFolderMock: vi.fn<() => Promise<FolderSyncResult>>(),
+  syncFolderMock: vi.fn<() => Promise<FolderSyncResult>>(),
 }));
 
-vi.mock('../../store/folder.actions', () => ({
-  selectFolder: () => selectFolderMock(),
-  syncFolder: () => syncFolderMock(),
+vi.mock('../../utils/folder', () => ({
+  canUseFileSystemAccess: canUseFileSystemAccessMock,
+  selectFolder: selectFolderMock,
+  syncFolder: syncFolderMock,
 }));
 
-vi.mock('../../utils/folder/folder.utils', () => ({
-  FILE_SYSTEM_ACCESS_HELP_TEXT: 'Folder sync help',
-  canUseFileSystemAccess: () => true,
-}));
-
-vi.mock('../../utils/notify/notify.utils', () => ({
-  useNotify: () => ({
-    error: notifyErrorMock,
-    info: notifyInfoMock,
-    success: notifySuccessMock,
-  }),
-}));
-
-vi.mock('../user-input/user-input', () => ({
-  UserInput: () => <div>SoundCloud Account Linkage</div>,
-}));
+const success: FolderSyncResult = { ok: true, directoryName: 'Music', fileCount: 2 };
 
 describe('Settings', () => {
-  beforeEach(() => {
-    notifyErrorMock.mockReset();
-    notifyInfoMock.mockReset();
-    notifySuccessMock.mockReset();
-    selectFolderMock.mockClear();
-    syncFolderMock.mockClear();
-    useAppStore.setState({
-      directoryName: 'Music',
-      files: [
-        { extension: 'mp3', name: 'Artist - Track' },
-        { extension: 'mp3', name: 'Artist - Track 2' },
-      ],
-      isFolderSyncInProgress: false,
-      lastSyncAt: '2026-04-22T09:15:00.000Z',
-      profileUrl: 'https://soundcloud.com/my-profile',
-    });
+  it('shows the synced folder and syncs it with a progress notification', async () => {
+    mockApi({});
+    syncFolderMock.mockResolvedValue(success);
+    useAppStore.setState({ directoryName: 'Music', files: [{ name: 'a', extension: 'mp3' }], lastSyncAt: null });
+
+    renderWithProviders(<Settings />);
+
+    expect(screen.getByText('1 files indexed')).toBeInTheDocument();
+    // The accordion header is also named Sync Folder; the action button comes last.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sync Folder' }).at(-1)!);
+
+    expect(notifications.show).toHaveBeenCalledWith(expect.objectContaining({ id: 'folder-sync', loading: true }));
+    await waitFor(() =>
+      expect(notifications.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'folder-sync', color: 'green', message: '2 files found in Music' }),
+      ),
+    );
   });
 
-  it('renders service account linkage and sync folder settings', () => {
-    render(<Settings />);
+  it('reports a failed folder pick and stays quiet when the picker is cancelled', async () => {
+    mockApi({});
+    selectFolderMock.mockResolvedValueOnce({ ok: false, message: 'Folder permission was not granted.' });
+    selectFolderMock.mockResolvedValueOnce({ ok: false, message: null });
 
-    expect(screen.getByText('Services')).toBeInTheDocument();
-    expect(screen.getByText('SoundCloud')).toBeInTheDocument();
-    expect(screen.getByText('SoundCloud Account Linkage')).toBeInTheDocument();
-    expect(screen.queryByText('Download Folder')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Sync Folder')).toHaveLength(2);
-    expect(screen.getByText('Music')).toBeInTheDocument();
-    expect(screen.getByText(/2 files indexed/i)).toBeInTheDocument();
+    renderWithProviders(<Settings />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pick Folder' }));
+    await waitFor(() =>
+      expect(notifications.show).toHaveBeenCalledWith(
+        expect.objectContaining({ color: 'red', message: 'Folder permission was not granted.' }),
+      ),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pick Folder' }));
+    await waitFor(() => expect(selectFolderMock).toHaveBeenCalledTimes(2));
+    expect(notifications.show).toHaveBeenCalledTimes(1);
   });
 
-  it('runs folder selection and sync actions', async () => {
-    render(<Settings />);
+  it('explains when the browser cannot sync folders', () => {
+    mockApi({ '/api/profile': () => jsonResponse({}) });
+    canUseFileSystemAccessMock.mockReturnValueOnce(false);
 
-    fireEvent.click(screen.getByText('Pick Folder'));
-    fireEvent.click(screen.getByRole('button', { name: 'Sync Folder' }));
+    renderWithProviders(<Settings />);
 
-    expect(selectFolderMock).toHaveBeenCalledTimes(1);
-    expect(syncFolderMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('updates the in-progress folder sync notification when syncing finishes', async () => {
-    render(<Settings />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sync Folder' }));
-
-    expect(notifyInfoMock).toHaveBeenCalledWith('Syncing Music', {
-      autoClose: false,
-      loading: true,
-      name: 'folder-sync-started',
-      withCloseButton: false,
-    });
-
-    await waitFor(() => {
-      expect(notifySuccessMock).toHaveBeenCalledWith('2 files found in Music', {
-        name: 'folder-sync-started',
-        update: true,
-      });
-    });
-  });
-
-  it('notifies when folder permission is denied', async () => {
-    selectFolderMock.mockResolvedValueOnce({ status: 'permission-denied' });
-    syncFolderMock.mockResolvedValueOnce({ status: 'permission-denied' });
-
-    render(<Settings />);
-
-    fireEvent.click(screen.getByText('Pick Folder'));
-    fireEvent.click(screen.getByRole('button', { name: 'Sync Folder' }));
-
-    await waitFor(() => {
-      expect(notifyErrorMock).toHaveBeenCalledWith(
-        'Folder permission was not granted. Pick the folder again in Settings.',
-        {
-          name: 'folder-permission-denied',
-        },
-      );
-    });
-    expect(selectFolderMock).toHaveBeenCalledTimes(1);
-    expect(syncFolderMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('File System Access unavailable')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pick Folder' })).not.toBeInTheDocument();
   });
 });

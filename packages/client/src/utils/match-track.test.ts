@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createDownloadedTrackMatcher, isTrackDownloaded, isTrackMatch, normalizeTrackName } from './match-track';
+import { createDownloadedTrackMatcher, isTrackMatch, normalizeTrackName } from './match-track';
 
 describe('normalizeTrackName', () => {
   it('normalizes unicode, punctuation, and separators while preserving words', () => {
@@ -80,31 +80,8 @@ describe('isTrackMatch', () => {
   }
 });
 
-describe('isTrackDownloaded', () => {
-  it('returns true when any synced file matches the cloud track title', () => {
-    expect(
-      isTrackDownloaded(
-        [
-          { name: 'Unrelated Artist - Another Song', extension: 'mp3' },
-          { name: 'Alok - To The Moon', extension: 'mp3' },
-        ],
-        'Alok & Illenium - To The Moon',
-      ),
-    ).toBe(true);
-  });
-
-  it('returns false when no synced file matches the cloud track title', () => {
-    expect(
-      isTrackDownloaded(
-        [{ name: 'Unrelated Artist - Another Song', extension: 'mp3' }],
-        'Alok & Illenium - To The Moon',
-      ),
-    ).toBe(false);
-  });
-});
-
 describe('createDownloadedTrackMatcher', () => {
-  it('reuses a precomputed file index for repeated track checks', () => {
+  it('matches cloud titles against the synced file names', () => {
     const isDownloaded = createDownloadedTrackMatcher([
       { name: 'Unrelated Artist - Another Song', extension: 'mp3' },
       { name: 'Alok - To The Moon', extension: 'mp3' },
@@ -112,5 +89,6 @@ describe('createDownloadedTrackMatcher', () => {
 
     expect(isDownloaded('Alok & Illenium - To The Moon')).toBe(true);
     expect(isDownloaded('Different Artist - To The Sun')).toBe(false);
+    expect(createDownloadedTrackMatcher([])('Alok - To The Moon')).toBe(false);
   });
 });

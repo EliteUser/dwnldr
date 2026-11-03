@@ -1,12 +1,13 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { dropFiles, renderWithProviders } from '../../test/render';
 import { Artwork } from './artwork';
 import type * as ArtworkUtils from './artwork.utils';
 
 const validateArtworkFileMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../artwork-editor', () => ({
+vi.mock('../artwork-editor/artwork-editor', () => ({
   ArtworkEditor: ({
     draftUrl,
     initialCrop,
@@ -65,7 +66,7 @@ describe('Artwork', () => {
       .mockReturnValueOnce('blob:original')
       .mockReturnValueOnce('blob:preview');
 
-    render(
+    const { container } = renderWithProviders(
       <Artwork
         providerArtworkUrl='https://img.example.test/provider.jpg'
         resetKey='track-1'
@@ -73,11 +74,7 @@ describe('Artwork', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('Upload image'), {
-      target: {
-        files: [new File(['original'], 'cover.jpg', { type: 'image/jpeg' })],
-      },
-    });
+    dropFiles(container, [new File(['original'], 'cover.jpg', { type: 'image/jpeg' })]);
 
     await waitFor(() => {
       expect(screen.getByTestId('draft-url')).toHaveTextContent('blob:original');
@@ -86,13 +83,9 @@ describe('Artwork', () => {
     fireEvent.click(screen.getByText('Apply crop'));
 
     await waitFor(() => {
-      expect(onArtworkChange).toHaveBeenLastCalledWith({
-        file: expect.objectContaining({
-          name: 'cropped.png',
-          type: 'image/png',
-        }),
-        source: 'custom',
-      });
+      expect(onArtworkChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ name: 'cropped.png', type: 'image/png' }),
+      );
     });
 
     expect(createObjectURLMock).toHaveBeenCalledTimes(2);
@@ -123,11 +116,12 @@ describe('Artwork', () => {
     );
     const createObjectURLMock = vi.spyOn(URL, 'createObjectURL');
     const onArtworkChange = vi.fn();
-    const { rerender } = render(<Artwork resetKey='track-one' onArtworkChange={onArtworkChange} />);
+    const { container, rerender } = renderWithProviders(
+      <Artwork resetKey='track-one' onArtworkChange={onArtworkChange} />,
+    );
 
-    fireEvent.change(screen.getByLabelText('Upload image'), {
-      target: { files: [new File(['image'], 'cover.jpg', { type: 'image/jpeg' })] },
-    });
+    dropFiles(container, [new File(['image'], 'cover.jpg', { type: 'image/jpeg' })]);
+    await waitFor(() => expect(validateArtworkFileMock).toHaveBeenCalled());
     rerender(<Artwork resetKey='track-two' onArtworkChange={onArtworkChange} />);
 
     await act(async () => finishValidation?.());

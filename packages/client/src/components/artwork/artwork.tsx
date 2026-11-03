@@ -4,12 +4,19 @@ import { IconCancel, IconCrop, IconLink, IconPhoto, IconPhotoOff, IconRotate, Ic
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { Crop } from 'react-image-crop';
 
-import { getProxiedImageUrl } from '../../utils';
-import { ArtworkEditor } from '../artwork-editor';
-import type { ArtworkProps } from './artwork.types';
+import { getProxiedImageUrl } from '../../utils/common';
+import { ArtworkEditor } from '../artwork-editor/artwork-editor';
 import { loadRemoteArtworkFile, validateArtworkFile } from './artwork.utils';
 
 import styles from './artwork.module.scss';
+
+type ArtworkProps = {
+  disabled?: boolean;
+  /** Called with the edited custom artwork, or undefined when it is reset to the provider artwork. */
+  onArtworkChange: (file?: File) => void;
+  providerArtworkUrl?: string | null;
+  resetKey: string;
+};
 
 const ArtworkContent = (props: Omit<ArtworkProps, 'resetKey'>) => {
   const { disabled, providerArtworkUrl, onArtworkChange } = props;
@@ -178,10 +185,7 @@ const ArtworkContent = (props: Omit<ArtworkProps, 'resetKey'>) => {
 
       setInitialCrop(crop);
       setPreviewUrl(objectUrl);
-      onArtworkChange({
-        file,
-        source: 'custom',
-      });
+      onArtworkChange(file);
       setError('');
       setIsEditorOpen(false);
     },

@@ -1,8 +1,9 @@
 import type { Track } from '@dwnldr/shared';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAppStore } from '../../store';
+import { renderWithProviders } from '../../test/render';
 import { TrackList } from './track-list';
 
 vi.mock('@tanstack/react-virtual', () => ({
@@ -44,7 +45,7 @@ describe('TrackList', () => {
   });
 
   it('cycles through all, downloaded, and not-downloaded filters', () => {
-    render(<TrackList tracks={tracks} onDownloadClick={() => undefined} />);
+    renderWithProviders(<TrackList tracks={tracks} onDownloadClick={() => undefined} />);
 
     expect(screen.getByText('Artist - Downloaded')).toBeInTheDocument();
     expect(screen.getByText('Artist - New')).toBeInTheDocument();

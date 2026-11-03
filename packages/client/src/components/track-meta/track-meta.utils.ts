@@ -1,12 +1,16 @@
-import { ApiRequestError } from '../../api/api.errors';
-import { MAX_AUDIO_FILE_SIZE, SUPPORTED_AUDIO_EXTENSIONS, SUPPORTED_AUDIO_MIME_TYPES } from './track-meta.constants';
-import type { TrackMetaMetadata } from './track-meta.types.ts';
+import type { TrackTags } from '@dwnldr/shared';
+
+import { readApiError } from '../../api';
+
+const MAX_AUDIO_FILE_SIZE = 150 * 1024 * 1024;
+const AUDIO_MIME_TYPES = new Set(['audio/mpeg', 'audio/mp3', 'application/octet-stream']);
+// ID3v2 tags sit at the start of the file, so inspecting does not need the whole upload.
+const INSPECT_BYTES = 16 * 1024 * 1024;
 
 export const getAudioValidationMessage = (file: File) => {
-  const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
-  const hasUnsupportedMimeType = Boolean(file.type) && !SUPPORTED_AUDIO_MIME_TYPES.has(file.type);
+  const extension = file.name.split('.').pop()?.toLowerCase();
 
-  if (!SUPPORTED_AUDIO_EXTENSIONS.has(extension) || hasUnsupportedMimeType) {
+  if (extension !== 'mp3' || (file.type && !AUDIO_MIME_TYPES.has(file.type))) {
     return 'Use an MP3 audio file.';
   }
 
@@ -20,17 +24,13 @@ export const getAudioValidationMessage = (file: File) => {
 export const inspectAudioFile = async (audio: File, signal: AbortSignal) => {
   const body = new FormData();
 
-  body.set('audio', audio);
+  body.set('audio', audio.slice(0, INSPECT_BYTES, audio.type), audio.name);
 
-  const response = await fetch('/api/meta/inspect', {
-    method: 'POST',
-    body,
-    signal,
-  });
+  const response = await fetch('/api/meta/inspect', { method: 'POST', body, signal });
 
   if (!response.ok) {
-    throw new ApiRequestError(await response.json(), response.status);
+    throw await readApiError(response);
   }
 
-  return (await response.json()) as TrackMetaMetadata;
+  return (await response.json()) as TrackTags;
 };

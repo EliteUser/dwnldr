@@ -1,3 +1,4 @@
+import type { Track as TrackData } from '@dwnldr/shared';
 import { ActionIcon, Text, TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -5,13 +6,46 @@ import clsx from 'clsx';
 import { memo, useMemo, useRef, useState } from 'react';
 
 import { useAppStore } from '../../store';
-import { createDownloadedTrackMatcher } from '../../utils';
+import { createDownloadedTrackMatcher } from '../../utils/match-track';
 import { Track } from '../track/track';
-import { DOWNLOAD_FILTER_LABELS, TRACK_LIST_OVERSCAN, TRACK_ROW_HEIGHT } from './track-list.constants';
-import type { DownloadFilter, TrackListProps } from './track-list.types';
-import { filterTracks, getNextDownloadFilter } from './track-list.utils';
 
 import styles from './track-list.module.scss';
+
+type DownloadFilter = 'all' | 'downloaded' | 'not-downloaded';
+
+type TrackListProps = {
+  tracks?: TrackData[];
+  onDownloadClick: (url: string) => void;
+};
+
+const TRACK_ROW_HEIGHT = 64;
+const TRACK_LIST_OVERSCAN = 2;
+const DOWNLOAD_FILTER_ORDER: DownloadFilter[] = ['all', 'not-downloaded', 'downloaded'];
+const DOWNLOAD_FILTER_LABELS: Record<DownloadFilter, string> = {
+  all: 'all tracks',
+  downloaded: 'downloaded tracks',
+  'not-downloaded': 'tracks not downloaded',
+};
+
+const getNextDownloadFilter = (filter: DownloadFilter) =>
+  DOWNLOAD_FILTER_ORDER[(DOWNLOAD_FILTER_ORDER.indexOf(filter) + 1) % DOWNLOAD_FILTER_ORDER.length];
+
+const filterTracks = (
+  tracks: TrackData[] | undefined,
+  search: string,
+  downloadFilter: DownloadFilter,
+  isDownloadedTrack: (title: string) => boolean,
+) => {
+  const query = search.toLowerCase();
+
+  return (tracks ?? []).filter(({ artist, title }) => {
+    if (!artist.toLowerCase().includes(query) && !title.toLowerCase().includes(query)) {
+      return false;
+    }
+
+    return downloadFilter === 'all' || isDownloadedTrack(`${artist} - ${title}`) === (downloadFilter === 'downloaded');
+  });
+};
 
 export const TrackList = memo<TrackListProps>((props) => {
   const { tracks, onDownloadClick } = props;

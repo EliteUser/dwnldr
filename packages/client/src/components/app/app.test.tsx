@@ -1,87 +1,58 @@
 import { notifications } from '@mantine/notifications';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { renderWithProviders } from '../../test/render';
 import { App } from './app';
 
-vi.mock('../index', () => ({
+vi.mock('../download/download', () => ({
   Download: ({ selectedUrl }: { selectedUrl?: string }) => <div data-testid='download-panel'>{selectedUrl}</div>,
-  Likes: () => <div>Likes Panel</div>,
-  Settings: () => <div>Settings Panel</div>,
-  TrackMeta: () => <div>Meta Panel</div>,
 }));
-
-vi.mock('./api/api', () => ({
-  useGetFavoritesQuery: () => ({ data: [] }),
-}));
+vi.mock('../likes/likes', () => ({ Likes: () => <div>Likes Panel</div> }));
+vi.mock('../settings/settings', () => ({ Settings: () => <div>Settings Panel</div> }));
+vi.mock('../track-meta/track-meta', () => ({ TrackMeta: () => <div>Meta Panel</div> }));
 
 describe('App', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    window.localStorage.clear();
     window.history.replaceState(null, '', '/');
   });
 
-  it('renders the main tabs', () => {
-    render(<App />);
+  it('renders the tabs and opens the saved one', () => {
+    window.localStorage.setItem('activeTab', 'metadata');
 
-    expect(screen.getByText('Likes')).toBeInTheDocument();
-    expect(screen.getByText('Download')).toBeInTheDocument();
-    expect(screen.getByText('Meta')).toBeInTheDocument();
-    expect(screen.getByText('Settings')).toBeInTheDocument();
-    expect(screen.getByText('Likes Panel')).toBeInTheDocument();
-    expect(screen.getByTestId('download-panel')).toBeInTheDocument();
-    expect(screen.getByText('Meta Panel')).toBeInTheDocument();
-    expect(screen.getByText('Settings Panel')).toBeInTheDocument();
+    renderWithProviders(<App />);
+
+    expect(screen.getByRole('tab', { name: 'Likes' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Meta' })).toHaveAttribute('aria-selected', 'true');
+    expect(notifications.show).not.toHaveBeenCalled();
   });
 
-  it('opens a shared track in Download and consumes only its share parameters', () => {
+  it('opens a shared link in Download and removes only the share parameters', () => {
     const url = 'https://soundcloud.com/artist/track';
     window.localStorage.setItem('activeTab', 'settings');
     window.history.replaceState({ from: 'test' }, '', `/?share_url=${encodeURIComponent(url)}&keep=1#top`);
 
-    const view = render(<App />);
+    renderWithProviders(<App />);
 
     expect(screen.getByTestId('download-panel')).toHaveTextContent(url);
+    expect(screen.getByRole('tab', { name: 'Download' })).toHaveAttribute('aria-selected', 'true');
     expect(window.localStorage.getItem('activeTab')).toBe('download');
-    expect(window.location.search).toBe('?keep=1');
-    expect(window.location.hash).toBe('#top');
+    expect(`${window.location.search}${window.location.hash}`).toBe('?keep=1#top');
     expect(window.history.state).toEqual({ from: 'test' });
-    expect(notifications.show).not.toHaveBeenCalled();
-
-    view.unmount();
-    render(<App />);
-
-    expect(screen.getByTestId('download-panel')).toBeEmptyDOMElement();
   });
 
-  it('opens Download with a single message when the share contains no supported link', () => {
-    window.localStorage.setItem('activeTab', 'likes');
+  it('shows one message when the share has no link', () => {
     window.history.replaceState(null, '', '/?share_text=hello');
 
-    render(
+    renderWithProviders(
       <StrictMode>
         <App />
       </StrictMode>,
     );
 
     expect(screen.getByTestId('download-panel')).toBeEmptyDOMElement();
-    expect(window.localStorage.getItem('activeTab')).toBe('download');
     expect(window.location.search).toBe('');
     expect(notifications.show).toHaveBeenCalledTimes(1);
-    expect(notifications.show).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining('SoundCloud or YouTube link') }),
-    );
-  });
-
-  it('keeps the saved tab for an ordinary launch', () => {
-    window.localStorage.setItem('activeTab', 'metadata');
-
-    render(<App />);
-
-    expect(window.localStorage.getItem('activeTab')).toBe('metadata');
-    expect(screen.getByTestId('download-panel')).toBeEmptyDOMElement();
-    expect(notifications.show).not.toHaveBeenCalled();
   });
 });

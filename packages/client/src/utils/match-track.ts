@@ -1,4 +1,4 @@
-import type { FileData } from '../../types';
+import type { FileData } from '../store';
 
 const SHORT_TITLE_TOKEN_THRESHOLD = 3;
 const SHORT_TITLE_MATCH_THRESHOLD = 0.6;
@@ -223,6 +223,3 @@ export const createDownloadedTrackMatcher = (files: FileData[]) => {
     return fileIndex.some((file) => isTokenizedTrackMatch(tokenizedTitle, file));
   };
 };
-
-export const isTrackDownloaded = (files: FileData[], title: string): boolean =>
-  createDownloadedTrackMatcher(files)(title);

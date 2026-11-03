@@ -3,23 +3,22 @@ import { Dropzone } from '@mantine/dropzone';
 import { IconCancel, IconDownload, IconMusic, IconUpload } from '@tabler/icons-react';
 import { memo, useCallback, useRef, useState } from 'react';
 
-import { Artwork } from '../../components/artwork';
-import { MetadataFields } from '../../components/metadata-fields';
-import type { ArtworkDownloadPayload } from '../../types';
-import { getApiErrorFromQueryError, isAbortError, TRACK_META_NOTIFICATION_NAME, useNotify } from '../../utils';
+import { useFileDownload } from '../../hooks/use-file-download';
+import { isAbortError } from '../../utils/common';
+import { notify } from '../../utils/notify';
+import { Artwork } from '../artwork/artwork';
+import { MetadataFields } from '../metadata-fields/metadata-fields';
 import { getAudioValidationMessage, inspectAudioFile } from './track-meta.utils';
-import { useTrackMetaDownload } from './use-track-meta-download';
 
 import styles from './track-meta.module.scss';
 
 export const TrackMeta = memo(() => {
   const inspectAbortControllerRef = useRef<AbortController | null>(null);
   const inspectRequestIdRef = useRef(0);
-  const notify = useNotify();
-  const { cancel, download, inProgress } = useTrackMetaDownload();
+  const { cancel, download, inProgress } = useFileDownload('/api/meta/download');
 
   const [album, setAlbum] = useState('');
-  const [artwork, setArtwork] = useState<ArtworkDownloadPayload>();
+  const [artwork, setArtwork] = useState<File>();
   const [audio, setAudio] = useState<File>();
   const [isInspecting, setIsInspecting] = useState(false);
   const [lyrics, setLyrics] = useState('');
@@ -28,64 +27,57 @@ export const TrackMeta = memo(() => {
   const [resetKey, setResetKey] = useState('');
   const [uploadError, setUploadError] = useState('');
 
-  const handleAudioFile = useCallback(
-    async (file: File) => {
-      const validationMessage = getAudioValidationMessage(file);
+  const handleAudioFile = useCallback(async (file: File) => {
+    const validationMessage = getAudioValidationMessage(file);
 
-      if (validationMessage) {
-        setUploadError(validationMessage);
-        notify.error(validationMessage, {
-          name: TRACK_META_NOTIFICATION_NAME.invalidAudio,
-        });
+    if (validationMessage) {
+      setUploadError(validationMessage);
+      notify.error(validationMessage);
+      return;
+    }
+
+    inspectAbortControllerRef.current?.abort();
+
+    const abortController = new AbortController();
+    const requestId = inspectRequestIdRef.current + 1;
+    const nextResetKey = `${file.name}:${file.lastModified}:${file.size}`;
+
+    inspectAbortControllerRef.current = abortController;
+    inspectRequestIdRef.current = requestId;
+    setAudio(file);
+    setAlbum('');
+    setArtwork(undefined);
+    setLyrics('');
+    setName('');
+    setProviderArtworkUrl(undefined);
+    setResetKey(nextResetKey);
+    setUploadError('');
+    setIsInspecting(true);
+
+    try {
+      const metadata = await inspectAudioFile(file, abortController.signal);
+
+      if (inspectRequestIdRef.current !== requestId) {
         return;
       }
 
-      inspectAbortControllerRef.current?.abort();
-
-      const abortController = new AbortController();
-      const requestId = inspectRequestIdRef.current + 1;
-      const nextResetKey = `${file.name}:${file.lastModified}:${file.size}`;
-
-      inspectAbortControllerRef.current = abortController;
-      inspectRequestIdRef.current = requestId;
-      setAudio(file);
-      setAlbum('');
-      setArtwork(undefined);
-      setLyrics('');
-      setName('');
-      setProviderArtworkUrl(undefined);
-      setResetKey(nextResetKey);
-      setUploadError('');
-      setIsInspecting(true);
-
-      try {
-        const metadata = await inspectAudioFile(file, abortController.signal);
-
-        if (inspectRequestIdRef.current !== requestId) {
-          return;
-        }
-
-        setAlbum(metadata.album);
-        setLyrics(metadata.lyrics);
-        setName(metadata.name);
-        setProviderArtworkUrl(metadata.artwork?.dataUrl);
-      } catch (error) {
-        if (inspectRequestIdRef.current !== requestId || isAbortError(error)) {
-          return;
-        }
-
-        notify.apiError(getApiErrorFromQueryError(error), {
-          name: TRACK_META_NOTIFICATION_NAME.inspectError,
-        });
-      } finally {
-        if (inspectRequestIdRef.current === requestId) {
-          inspectAbortControllerRef.current = null;
-          setIsInspecting(false);
-        }
+      setAlbum(metadata.album);
+      setLyrics(metadata.lyrics);
+      setName(metadata.name);
+      setProviderArtworkUrl(metadata.artwork?.dataUrl);
+    } catch (error) {
+      if (inspectRequestIdRef.current !== requestId || isAbortError(error)) {
+        return;
       }
-    },
-    [notify],
-  );
+
+      notify.apiError(error);
+    } finally {
+      if (inspectRequestIdRef.current === requestId) {
+        inspectAbortControllerRef.current = null;
+        setIsInspecting(false);
+      }
+    }
+  }, []);
 
   const handleAudioDrop = useCallback(
     (files: File[]) => {
@@ -102,10 +94,8 @@ export const TrackMeta = memo(() => {
     const validationMessage = 'Use an MP3 audio file.';
 
     setUploadError(validationMessage);
-    notify.error(validationMessage, {
-      name: TRACK_META_NOTIFICATION_NAME.invalidAudio,
-    });
-  }, [notify]);
+    notify.error(validationMessage);
+  }, []);
 
   const handleRemoveAudio = useCallback(() => {
     inspectAbortControllerRef.current?.abort();
@@ -123,6 +113,28 @@ export const TrackMeta = memo(() => {
   }, []);
 
   const canDownload = Boolean(audio) && Boolean(name) && !inProgress && !isInspecting;
+
+  const handleDownload = () => {
+    if (!audio) {
+      return;
+    }
+
+    const body = new FormData();
+
+    body.set('audio', audio);
+    body.set('name', name);
+    body.set('album', album);
+
+    if (lyrics) {
+      body.set('lyrics', lyrics);
+    }
+
+    if (artwork) {
+      body.set('artwork', artwork);
+    }
+
+    void download(body, name);
+  };
 
   return (
     <div className={styles['track-meta']}>
@@ -251,16 +263,7 @@ export const TrackMeta = memo(() => {
               gradient={{ from: 'violet', to: 'cyan', deg: 220 }}
               loading={inProgress}
               disabled={!canDownload}
-              onClick={() =>
-                audio &&
-                void download({
-                  album,
-                  artwork,
-                  audio,
-                  lyrics,
-                  name,
-                })
-              }
+              onClick={handleDownload}
             >
               Download
             </Button>

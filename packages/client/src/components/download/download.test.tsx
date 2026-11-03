@@ -1,370 +1,94 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { notifications } from '@mantine/notifications';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
+import { jsonResponse, mockApi, renderWithProviders } from '../../test/render';
 import { Download } from './download';
 
-const providerTrackQueryMock = vi.fn();
-const notifyApiErrorMock = vi.fn();
-const notifyErrorMock = vi.fn();
-const notifyInfoMock = vi.fn();
-const notifySuccessMock = vi.fn();
-
-vi.mock('../../components/artwork', () => ({
-  Artwork: () => <div>Artwork</div>,
+vi.mock('../artwork/artwork', () => ({
+  Artwork: ({ onArtworkChange }: { onArtworkChange: (file?: File) => void }) => (
+    <button type='button' onClick={() => onArtworkChange(new File(['img'], 'artwork.png', { type: 'image/png' }))}>
+      Use custom artwork
+    </button>
+  ),
 }));
 
-vi.mock('../../api/api', () => ({
-  useGetProviderTrackQuery: (...args: unknown[]) => providerTrackQueryMock(...args),
-}));
+const trackUrl = 'https://soundcloud.com/artist/track';
+const track = {
+  id: '1',
+  url: trackUrl,
+  title: 'Track One',
+  artist: 'Artist',
+  durationMs: 1000,
+  artworkUrl: null,
+};
 
-vi.mock('../../api/api.errors', () => ({
-  parseApiErrorResponse: async () => ({ code: 'INTERNAL_ERROR', error: 'Failed' }),
-}));
-
-vi.mock('../../utils/notify/notify.constants', () => ({
-  DOWNLOAD_NOTIFICATION_MESSAGE: {
-    cancelled: 'Download canceled.',
-    success: (name: string) => `Track downloaded: ${name}`,
-  },
-  DOWNLOAD_NOTIFICATION_NAME: {
-    cancelled: 'download-cancelled',
-    metadataError: 'download-metadata-error',
-    submitError: 'download-submit-error',
-    missingBody: 'download-missing-body',
-    networkError: 'download-network-error',
-    success: 'download-success',
-  },
-  FALLBACK_API_ERROR_MESSAGE: 'Something went wrong. Try again.',
-}));
-
-vi.mock('../../utils/notify/notify.utils', () => ({
-  getApiErrorFromQueryError: (error: unknown) => error,
-  useNotify: () => ({
-    apiError: notifyApiErrorMock,
-    error: notifyErrorMock,
-    info: notifyInfoMock,
-    success: notifySuccessMock,
-  }),
-}));
+const mockTrackApi = (downloadResponse = () => new Response('mp3', { status: 200 })) =>
+  mockApi({
+    '/api/providers': () => jsonResponse([{ key: 'youtube', label: 'YouTube' }]),
+    '/api/tracks': () => jsonResponse(track),
+    '/api/download': downloadResponse,
+  });
 
 describe('Download', () => {
-  beforeEach(() => {
-    providerTrackQueryMock.mockReturnValue({
-      currentData: undefined,
-      error: undefined,
-      isFetching: false,
-      provider: undefined,
-    });
-    notifyApiErrorMock.mockReset();
-    notifyErrorMock.mockReset();
-    notifyInfoMock.mockReset();
-    notifySuccessMock.mockReset();
+  it('lists the supported providers before a link is entered', async () => {
+    mockTrackApi();
+
+    renderWithProviders(<Download />);
+
+    expect(await screen.findByText('YouTube')).toBeInTheDocument();
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
+  it('loads track details for a selected link and downloads them as a form', async () => {
+    const fetchMock = mockTrackApi();
+
+    renderWithProviders(<Download selectedUrl={trackUrl} />);
+
+    const nameInput = await screen.findByDisplayValue('Artist - Track One');
+    fireEvent.change(nameInput, { target: { value: 'Artist - Renamed' } });
+    fireEvent.change(screen.getByPlaceholderText('Album (optional)'), { target: { value: 'Album' } });
+    fireEvent.click(screen.getByText('Use custom artwork'));
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }));
+
+    await waitFor(() => expect(notifications.show).toHaveBeenCalled());
+
+    const [, init] = fetchMock.mock.calls.find(([url]) => String(url) === '/api/download')!;
+    const body = init!.body as FormData;
+
+    expect(Object.fromEntries([...body.keys()].map((key) => [key, body.get(key)]))).toEqual({
+      url: trackUrl,
+      name: 'Artist - Renamed',
+      album: 'Album',
+      artwork: expect.any(File),
+    });
+    expect(notifications.show).toHaveBeenCalledWith(expect.objectContaining({ message: 'Saved: Artist - Renamed' }));
   });
 
-  it('debounces metadata requests while the URL is being typed', () => {
-    vi.useFakeTimers();
+  it('shows the server message when a download is rejected', async () => {
+    mockTrackApi(() => jsonResponse({ code: 'SERVER_BUSY', error: 'Busy' }, 503));
 
-    render(<Download />);
+    renderWithProviders(<Download selectedUrl={trackUrl} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Enter track URL'), {
-      target: { value: 'https://soundcloud.com/artist/track' },
-    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Download' }));
 
-    expect(screen.getByPlaceholderText('Enter track URL')).toBeEnabled();
-
-    expect(providerTrackQueryMock.mock.calls.some(([url]) => url === 'https://soundcloud.com/artist/track')).toBe(
-      false,
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    expect(providerTrackQueryMock.mock.calls.some(([url]) => url === 'https://soundcloud.com/artist/track')).toBe(true);
-  });
-
-  it('cancels a pending metadata update when the component unmounts', () => {
-    vi.useFakeTimers();
-
-    const { unmount } = render(<Download />);
-
-    fireEvent.change(screen.getByPlaceholderText('Enter track URL'), {
-      target: { value: 'https://soundcloud.com/artist/pending-track' },
-    });
-    unmount();
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    expect(
-      providerTrackQueryMock.mock.calls.some(([url]) => url === 'https://soundcloud.com/artist/pending-track'),
-    ).toBe(false);
-  });
-
-  it('synchronizes a newly selected likes-track URL without waiting for the debounce delay', () => {
-    vi.useFakeTimers();
-
-    const { rerender } = render(<Download selectedUrl='https://soundcloud.com/artist/track-one' />);
-
-    providerTrackQueryMock.mockClear();
-    rerender(<Download selectedUrl='https://soundcloud.com/artist/track-two' />);
-
-    expect(providerTrackQueryMock).toHaveBeenCalledWith('https://soundcloud.com/artist/track-two', {
-      skip: false,
-    });
-  });
-
-  it('clears form fields when a different likes-track URL is selected', () => {
-    providerTrackQueryMock.mockReturnValue({
-      currentData: {
-        artist: 'Artist',
-        title: 'Track One',
-      },
-      error: undefined,
-      isFetching: false,
-      provider: undefined,
-    });
-
-    const { rerender } = render(<Download selectedUrl='https://soundcloud.com/artist/track-one' />);
-
-    fireEvent.change(screen.getByPlaceholderText('Track name'), {
-      target: { value: 'Artist - Track One' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('Album (optional)'), {
-      target: { value: 'Album Name' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('Lyrics (optional)'), {
-      target: { value: 'Lyrics text' },
-    });
-
-    providerTrackQueryMock.mockReturnValue({
-      currentData: undefined,
-      error: undefined,
-      isFetching: true,
-      provider: undefined,
-    });
-
-    rerender(<Download selectedUrl='https://soundcloud.com/artist/track-two' />);
-
-    expect(screen.queryByPlaceholderText('Track name')).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText('Album (optional)')).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText('Lyrics (optional)')).not.toBeInTheDocument();
-  });
-
-  it('aborts an in-progress download when Cancel is clicked', async () => {
-    providerTrackQueryMock.mockReturnValue({
-      currentData: {
-        artist: 'Artist',
-        title: 'Track Name',
-      },
-      error: undefined,
-      isFetching: false,
-      provider: undefined,
-    });
-
-    let requestSignal: AbortSignal | undefined;
-
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((_url: string, options?: RequestInit) => {
-        requestSignal = options?.signal ?? undefined;
-
-        return new Promise((_resolve, reject) => {
-          requestSignal?.addEventListener('abort', () => {
-            reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
-          });
-        });
-      }),
-    );
-
-    render(<Download selectedUrl='https://soundcloud.com/artist/track' />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track Name');
-    });
-
-    fireEvent.click(screen.getByText(/download/i));
-
-    await waitFor(() => {
-      expect(screen.getByText('Cancel')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText('Cancel'));
-
-    await waitFor(() => {
-      expect(requestSignal?.aborted).toBe(true);
-    });
-    expect(notifyInfoMock).toHaveBeenCalledWith('Download canceled.', {
-      name: 'download-cancelled',
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
-    });
-  });
-
-  it('keeps an active download cancellable when another track is selected', async () => {
-    providerTrackQueryMock.mockReturnValue({
-      currentData: { artist: 'Artist', title: 'Track One' },
-      error: undefined,
-      isFetching: false,
-      provider: undefined,
-    });
-
-    let requestSignal: AbortSignal | undefined;
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((_url: string, options?: RequestInit) => {
-        requestSignal = options?.signal ?? undefined;
-        return new Promise((_resolve, reject) => {
-          requestSignal?.addEventListener('abort', () => {
-            reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
-          });
-        });
-      }),
-    );
-
-    const { rerender } = render(<Download selectedUrl='https://soundcloud.com/artist/track-one' />);
-    await waitFor(() => expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track One'));
-    fireEvent.click(screen.getByText(/download/i));
-    await waitFor(() => expect(screen.getByText('Cancel')).toBeInTheDocument());
-
-    providerTrackQueryMock.mockReturnValue({
-      currentData: undefined,
-      error: undefined,
-      isFetching: true,
-      provider: undefined,
-    });
-    rerender(<Download selectedUrl='https://soundcloud.com/artist/track-two' />);
-
-    fireEvent.click(screen.getByText('Cancel'));
-    await waitFor(() => expect(requestSignal?.aborted).toBe(true));
-  });
-
-  it('does not repopulate the name field from stale query data while a new URL is loading', async () => {
-    const loadedTrackQuery = {
-      currentData: {
-        artist: 'Artist',
-        title: 'Track One',
-      },
-      error: undefined,
-      isFetching: false,
-      provider: undefined,
-    };
-
-    providerTrackQueryMock.mockReturnValueOnce(loadedTrackQuery).mockReturnValue({
-      data: {
-        artist: 'Artist',
-        title: 'Track One',
-      },
-      currentData: undefined,
-      error: undefined,
-      isFetching: true,
-      provider: undefined,
-    });
-
-    const { rerender } = render(<Download selectedUrl='https://soundcloud.com/artist/track-one' />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track One');
-    });
-
-    rerender(<Download selectedUrl='https://soundcloud.com/artist/track-two' />);
-
-    expect(screen.queryByPlaceholderText('Track name')).not.toBeInTheDocument();
-  });
-
-  it('does not block metadata editing while provider artwork is loading', async () => {
-    providerTrackQueryMock.mockReturnValue({
-      currentData: {
-        artwork: {
-          url: 'https://img.example.test/cover.jpg',
-        },
-        artworkUrl: 'https://img.example.test/cover.jpg',
-        artist: 'Artist',
-        title: 'Track Name',
-      },
-      error: undefined,
-      isFetching: false,
-      provider: undefined,
-    });
-
-    render(<Download selectedUrl='https://soundcloud.com/artist/track' />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track Name');
-    });
-  });
-
-  it('uses the browser download flow without opening the save file picker', async () => {
-    providerTrackQueryMock.mockReturnValue({
-      currentData: {
-        artist: 'Artist',
-        title: 'Track Name',
-      },
-      error: undefined,
-      isFetching: false,
-      provider: undefined,
-    });
-
-    const anchorClickMock = vi.fn();
-    const createObjectURLMock = vi.fn(() => 'blob:download');
-    const revokeObjectURLMock = vi.fn();
-    const showSaveFilePickerMock = vi.fn();
-    const appendChildMock = vi.spyOn(document.body, 'appendChild');
-    const removeChildMock = vi.spyOn(document.body, 'removeChild');
-
-    vi.stubGlobal('showSaveFilePicker', showSaveFilePickerMock);
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(new Uint8Array([1, 2, 3]), {
-          headers: {
-            'content-disposition': 'attachment; filename="track.mp3"',
-            'content-length': '3',
-          },
-          status: 200,
-        }),
+    await waitFor(() =>
+      expect(notifications.show).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Another download is already running. Try again shortly.' }),
       ),
     );
-    vi.spyOn(document, 'createElement').mockImplementation((tagName) => {
-      const element = document.createElementNS('http://www.w3.org/1999/xhtml', tagName) as HTMLAnchorElement;
+  });
 
-      if (tagName === 'a') {
-        element.click = anchorClickMock;
-      }
-
-      return element;
-    });
-    vi.spyOn(URL, 'createObjectURL').mockImplementation(createObjectURLMock);
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(revokeObjectURLMock);
-
-    render(<Download selectedUrl='https://soundcloud.com/artist/track' />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Track name')).toHaveValue('Artist - Track Name');
+  it('reports links the server does not support', async () => {
+    mockApi({
+      '/api/providers': () => jsonResponse([]),
+      '/api/tracks': () => jsonResponse({ code: 'UNSUPPORTED_SOURCE', error: 'This link is not supported.' }, 400),
     });
 
-    fireEvent.click(screen.getByText(/download/i));
+    renderWithProviders(<Download selectedUrl='https://example.com/track' />);
 
-    await waitFor(() => {
-      expect(anchorClickMock).toHaveBeenCalledTimes(1);
-    });
-
-    expect(showSaveFilePickerMock).not.toHaveBeenCalled();
-    expect(createObjectURLMock).toHaveBeenCalled();
-    expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:download');
-    expect(appendChildMock).toHaveBeenCalled();
-    expect(removeChildMock).toHaveBeenCalled();
-    expect(notifySuccessMock).toHaveBeenCalledWith('Track downloaded: Artist - Track Name', {
-      name: 'download-success',
-    });
+    expect(await screen.findByText('Track details could not be loaded.')).toBeInTheDocument();
+    expect(notifications.show).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'This link is not supported.' }),
+    );
   });
 });

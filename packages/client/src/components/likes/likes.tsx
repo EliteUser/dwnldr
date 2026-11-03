@@ -2,9 +2,10 @@ import { ActionIcon, Badge, Button, Loader, Text, Title } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { memo, useEffect } from 'react';
 
-import { useGetFavoritesQuery } from '../../api/api';
+import { useLikes } from '../../api';
 import { useAppStore } from '../../store';
-import { canUseFileSystemAccess, getApiErrorFromQueryError, useNotify } from '../../utils';
+import { canUseFileSystemAccess } from '../../utils/folder';
+import { notify } from '../../utils/notify';
 import { TrackList } from '../track-list/track-list';
 
 import styles from './likes.module.scss';
@@ -18,17 +19,8 @@ export const Likes = memo<LikesProps>((props) => {
 
   const profileUrl = useAppStore((state) => state.profileUrl);
   const folder = useAppStore((state) => state.directoryName);
-  const notify = useNotify();
 
-  const {
-    refetch,
-    data: favorites,
-    error: favoritesError,
-    isLoading,
-    isFetching,
-  } = useGetFavoritesQuery(profileUrl || '', {
-    skip: !profileUrl,
-  });
+  const { refetch, data: favorites, error: favoritesError, isLoading, isFetching } = useLikes(profileUrl);
 
   const hasFolder = !!folder;
   const hasCachedFavorites = favorites !== undefined;
@@ -38,11 +30,9 @@ export const Likes = memo<LikesProps>((props) => {
   const isRefreshingList = isFetching && !isInitialLoading && hasCachedFavorites;
   useEffect(() => {
     if (favoritesError) {
-      notify.apiError(getApiErrorFromQueryError(favoritesError), {
-        name: 'likes-fetch-error',
-      });
+      notify.apiError(favoritesError);
     }
-  }, [favoritesError, notify]);
+  }, [favoritesError]);
 
   return (
     <div className={styles.likes}>
