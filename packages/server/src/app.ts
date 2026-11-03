@@ -12,7 +12,8 @@ const clientDistPath = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 export const createApp = () => {
   const app = express();
 
-  app.set('trust proxy', 'loopback');
+  // Caddy reaches the app over the private compose network.
+  app.set('trust proxy', ['loopback', 'uniquelocal']);
   app.use(
     helmet({
       contentSecurityPolicy: {

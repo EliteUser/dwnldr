@@ -1,20 +1,28 @@
 services:
   app:
     image: ${IMAGE_REF}
-    container_name: dwnldr
-    restart: always
-    network_mode: host
-    environment:
-      LETSENCRYPT_ENABLED: 'true'
-      SERVER_IP: ${SERVER_IP}
-      ALLOW_SELF_SIGNED_SSL: 'false'
+    restart: unless-stopped
+    # No published ports: only Caddy reaches the app, over the compose network.
     volumes:
-      - ./auth.htpasswd:/etc/nginx/auth.htpasswd:ro
-      - letsencrypt:/etc/letsencrypt
       - state:/var/lib/dwnldr
 
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      SERVER_IP: ${SERVER_IP}
+      AUTH_HASH: ${AUTH_HASH}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+
 volumes:
-  letsencrypt:
-    name: dwnldr-letsencrypt
   state:
     name: dwnldr-state
+  caddy-data:
+    name: dwnldr-caddy-data
