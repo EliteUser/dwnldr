@@ -2,8 +2,7 @@ import type * as FsPromises from 'node:fs/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mkdirMock = vi.fn();
-const getInfoAsyncMock = vi.fn();
-const execAsyncMock = vi.fn();
+const runYtDlpMock = vi.fn();
 
 vi.mock('node:fs/promises', async () => {
   const actual = await vi.importActual<typeof FsPromises>('node:fs/promises');
@@ -19,10 +18,7 @@ vi.mock('node:fs/promises', async () => {
 });
 
 vi.mock('../../lib/ytdlp.js', () => ({
-  createYtDlp: () => ({
-    execAsync: execAsyncMock,
-    getInfoAsync: getInfoAsyncMock,
-  }),
+  runYtDlp: runYtDlpMock,
 }));
 
 const { downloadYoutubeTrack } = await import('./youtube-download.service.js');
@@ -34,14 +30,12 @@ describe('downloadYoutubeTrack', () => {
   });
 
   it('rejects playlists before starting the download subprocess', async () => {
-    getInfoAsyncMock.mockResolvedValue({
-      _type: 'playlist',
-      title: 'Playlist Title',
-    });
+    runYtDlpMock.mockResolvedValue(JSON.stringify({ _type: 'playlist', title: 'Playlist Title' }));
 
     await expect(
       downloadYoutubeTrack({
         folder: '/tmp/downloads/track',
+        signal: new AbortController().signal,
         track: {
           url: 'https://www.youtube.com/watch?v=playlist',
         },
@@ -51,6 +45,6 @@ describe('downloadYoutubeTrack', () => {
       statusCode: 400,
     });
 
-    expect(execAsyncMock).not.toHaveBeenCalled();
+    expect(runYtDlpMock).toHaveBeenCalledTimes(1);
   });
 });

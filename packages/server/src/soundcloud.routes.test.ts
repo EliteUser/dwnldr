@@ -52,7 +52,7 @@ describe('SoundCloud profile routes', () => {
       permalink_url: profileUrl,
     });
     expect(favoritesResponse.status).toBe(200);
-    expect(getUserMock).toHaveBeenCalledWith(profileUrl);
-    expect(getFavoritesMock).toHaveBeenCalledWith(profileUrl, 25);
+    expect(getUserMock).toHaveBeenCalledWith(profileUrl, expect.any(AbortSignal));
+    expect(getFavoritesMock).toHaveBeenCalledWith(profileUrl, 25, expect.any(AbortSignal));
   });
 });

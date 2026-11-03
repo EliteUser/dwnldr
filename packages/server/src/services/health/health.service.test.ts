@@ -5,7 +5,7 @@ const mkdirMock = vi.fn();
 const writeFileMock = vi.fn();
 const unlinkMock = vi.fn();
 const accessMock = vi.fn();
-const checkInstallationAsyncMock = vi.fn();
+const getYtDlpVersionMock = vi.fn();
 
 vi.mock('node:fs/promises', async () => {
   const actual = await vi.importActual<typeof FsPromises>('node:fs/promises');
@@ -27,10 +27,7 @@ vi.mock('node:fs/promises', async () => {
 });
 
 vi.mock('../../lib/ytdlp.js', () => ({
-  createYtDlp: () => ({
-    binaryPath: '/usr/bin/yt-dlp',
-    checkInstallationAsync: checkInstallationAsyncMock,
-  }),
+  getYtDlpVersion: getYtDlpVersionMock,
   ffmpegBinaryPath: '/usr/bin/ffmpeg',
 }));
 
@@ -44,7 +41,7 @@ describe('getReadinessStatus', () => {
     mkdirMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue(undefined);
     unlinkMock.mockResolvedValue(undefined);
-    checkInstallationAsyncMock.mockResolvedValue(true);
+    getYtDlpVersionMock.mockResolvedValue('2026.10.10');
   });
 
   it('returns ok when dependencies are available and the server is accepting traffic', async () => {
@@ -62,26 +59,22 @@ describe('getReadinessStatus', () => {
         },
         ytDlp: {
           ok: true,
-          details: '/usr/bin/yt-dlp',
+          details: '2026.10.10',
         },
         ytDlpCache: { ok: true },
       },
     });
-
-    expect(checkInstallationAsyncMock).toHaveBeenCalledWith({
-      ffmpeg: false,
-    });
   });
 
   it('returns an error when yt-dlp is not runnable', async () => {
-    checkInstallationAsyncMock.mockResolvedValue(false);
+    getYtDlpVersionMock.mockRejectedValue(new Error('Cannot run yt-dlp'));
 
     await expect(getReadinessStatus()).resolves.toMatchObject({
       status: 'error',
       checks: {
         ytDlp: {
           ok: false,
-          details: 'yt-dlp is not available in the current runtime.',
+          details: 'yt-dlp availability check failed: Cannot run yt-dlp',
         },
       },
     });

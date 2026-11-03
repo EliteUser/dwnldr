@@ -1,6 +1,5 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { PlaylistInfo, VideoInfo } from 'ytdlp-nodejs';
 
 import { getErrorMessage, isAbortError } from '../../errors/error-utils.js';
 import { HttpError } from '../../errors/http-error.js';
@@ -11,7 +10,7 @@ import {
   YOUTUBE_UPSTREAM_MESSAGE,
 } from '../../errors/youtube-errors.js';
 import { logTimedOperation } from '../../lib/logger.js';
-import { createYtDlp } from '../../lib/ytdlp.js';
+import { runYtDlp, type YtDlpInfo } from '../../lib/ytdlp.js';
 import type { ProviderDownloadOptions } from '../../providers/types.js';
 import { sanitizeFilename } from '../../utils/sanitize.utils.js';
 import { getSafeUrlLogFields } from '../../utils/url-log.utils.js';
@@ -20,7 +19,7 @@ import { postProcessTrack } from '../media/post-process.service.js';
 import { saveThumbnailFromUrl } from '../media/thumbnail.service.js';
 
 const getYoutubeThumbnail = async (
-  info: VideoInfo,
+  info: YtDlpInfo,
   folder: string,
   options: {
     signal?: AbortSignal;
@@ -54,14 +53,13 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
   const { folder, track } = options;
   const { url, name, album, lyrics } = track;
   const { signal } = options;
-  const ytdlp = createYtDlp();
 
   try {
     signal?.throwIfAborted();
 
     await fs.mkdir(folder, { recursive: true });
 
-    const info = (await logTimedOperation(
+    const info = await logTimedOperation(
       {
         startEvt: 'ytdlp.info.started',
         successEvt: 'ytdlp.info.completed',
@@ -87,8 +85,11 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
           ...getSafeUrlLogFields(url),
         },
       },
-      () => ytdlp.getInfoAsync(url),
-    )) as PlaylistInfo | VideoInfo;
+      async () =>
+        JSON.parse(
+          await runYtDlp(['--dump-single-json', '--flat-playlist', '--no-playlist'], url, signal),
+        ) as YtDlpInfo,
+    );
 
     signal?.throwIfAborted();
 
@@ -131,17 +132,24 @@ export const downloadYoutubeTrack = async (options: ProviderDownloadOptions) => 
           },
         },
         async () => {
-          await ytdlp.execAsync(url, {
-            jsRuntime: 'node',
-            format: 'bestaudio/best',
-            audioFormat: 'mp3',
-            audioQuality: '0',
-            extractAudio: true,
-            embedMetadata: true,
-            embedThumbnail: true,
-            noPlaylist: true,
-            output: downloadTargetPath,
-          });
+          await runYtDlp(
+            [
+              '--format',
+              'bestaudio/best',
+              '--extract-audio',
+              '--audio-format',
+              'mp3',
+              '--audio-quality',
+              '0',
+              '--embed-metadata',
+              '--embed-thumbnail',
+              '--no-playlist',
+              '--output',
+              downloadTargetPath,
+            ],
+            url,
+            signal,
+          );
 
           return downloadTargetPath;
         },

@@ -19,82 +19,7 @@ export type DownloadResult = {
   fileSize: number;
 };
 
-class DownloadTimeoutError extends HttpError {}
-
-const withDownloadTimeout = async <T>(
-  operation: (signal: AbortSignal) => Promise<T>,
-  options: {
-    downloadFolder: string;
-    provider: string;
-  },
-) =>
-  new Promise<T>((resolve, reject) => {
-    let settled = false;
-    let timedOut = false;
-    const abortController = new AbortController();
-    const logger = getLogger({
-      downloadFolder: options.downloadFolder,
-      provider: options.provider,
-    });
-    const timeout = setTimeout(() => {
-      if (settled) {
-        return;
-      }
-
-      settled = true;
-      timedOut = true;
-      abortController.abort();
-      logger.error(
-        {
-          evt: 'download.timeout',
-          timeoutMs: env.DOWNLOAD_TIMEOUT_MS,
-        },
-        'Download timed out before the file was ready',
-      );
-      reject(
-        new DownloadTimeoutError(504, 'Download timed out before the file was ready.', {
-          code: 'INTERNAL_ERROR',
-          details: {
-            timeoutMs: env.DOWNLOAD_TIMEOUT_MS,
-          },
-        }),
-      );
-    }, env.DOWNLOAD_TIMEOUT_MS);
-
-    timeout.unref();
-
-    void operation(abortController.signal)
-      .then((result) => {
-        if (settled) {
-          return;
-        }
-
-        settled = true;
-        resolve(result);
-      })
-      .catch((error: unknown) => {
-        if (settled) {
-          return;
-        }
-
-        settled = true;
-        reject(error);
-      })
-      .finally(() => {
-        clearTimeout(timeout);
-
-        if (timedOut && removeFolder(options.downloadFolder)) {
-          logger.info(
-            {
-              evt: 'download.timeout.cleanup.executed',
-            },
-            'Cleaned up timed out download after provider work stopped',
-          );
-        }
-      });
-  });
-
-export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult> => {
+export const downloadTrack = async (track: TrackOptions, requestSignal: AbortSignal): Promise<DownloadResult> => {
   const provider = requireProviderByUrl(track.url);
   const providerDownloadTrack = requireProviderFeature(provider, 'downloadTrack');
 
@@ -112,19 +37,14 @@ export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult
     'Selected download provider',
   );
 
+  const timeoutSignal = AbortSignal.timeout(env.DOWNLOAD_TIMEOUT_MS);
+
   try {
-    const filePath = await withDownloadTimeout(
-      (signal) =>
-        providerDownloadTrack({
-          track,
-          folder: downloadFolder,
-          signal,
-        }),
-      {
-        downloadFolder,
-        provider: provider.key,
-      },
-    );
+    const filePath = await providerDownloadTrack({
+      track,
+      folder: downloadFolder,
+      signal: AbortSignal.any([requestSignal, timeoutSignal]),
+    });
 
     let stat;
 
@@ -143,8 +63,14 @@ export const downloadTrack = async (track: TrackOptions): Promise<DownloadResult
       fileSize: stat.size,
     };
   } catch (error) {
-    if (!(error instanceof DownloadTimeoutError)) {
-      removeFolder(downloadFolder);
+    // Providers settle only after their subprocesses exit, so the folder is no longer in use here.
+    removeFolder(downloadFolder);
+
+    if (timeoutSignal.aborted) {
+      logger.error({ evt: 'download.timeout', timeoutMs: env.DOWNLOAD_TIMEOUT_MS }, 'Download timed out');
+      throw new HttpError(504, 'Download timed out before the file was ready.', {
+        code: 'INTERNAL_ERROR',
+      });
     }
 
     throw error;

@@ -1,16 +1,10 @@
-import { EventEmitter } from 'node:events';
 import request from 'supertest';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createApp } from './app.js';
-import { heavyOperationGuard, resetHeavyOperationGuardForTests } from './middleware/heavy-operation-guard.js';
 
 describe('API validation', () => {
   const app = createApp();
-
-  beforeEach(() => {
-    resetHeavyOperationGuardForTests();
-  });
 
   it('rejects requests without a userId', async () => {
     const response = await request(app).get('/api/soundcloud/users');
@@ -90,25 +84,6 @@ describe('API validation', () => {
     expect(downloadResponse.status).toBe(400);
     expect(downloadResponse.body.error).toBe('Unsupported URL source. Use a SoundCloud or YouTube link.');
     expect(downloadResponse.body.code).toBe('UNSUPPORTED_SOURCE');
-  });
-
-  it('applies the shared media-operation guard to media-processing routes', async () => {
-    const activeResponse = new EventEmitter();
-    heavyOperationGuard({} as never, activeResponse as never, vi.fn());
-
-    const responses = await Promise.all([
-      request(app).get('/api/tracks').query({ url: 'https://example.com/track' }),
-      request(app).get('/api/soundcloud/tracks').query({ url: 'https://example.com/track' }),
-      request(app).get('/api/youtube/tracks').query({ url: 'https://example.com/track' }),
-    ]);
-
-    responses.forEach((response) => {
-      expect(response.status).toBe(503);
-      expect(response.headers['retry-after']).toBe('30');
-      expect(response.body.code).toBe('SERVER_BUSY');
-    });
-
-    activeResponse.emit('finish');
   });
 
   it('returns health status at /health', async () => {

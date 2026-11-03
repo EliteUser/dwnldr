@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { heavyOperationGuard } from '../../middleware/heavy-operation-guard.js';
+import { getRequestSignal } from '../../lib/request-signal.js';
 import { requireProviderByUrl, requireProviderFeature } from '../../providers/index.js';
 
 const trackQuerySchema = z.object({
@@ -10,10 +10,10 @@ const trackQuerySchema = z.object({
 
 export const tracksRouter = Router();
 
-tracksRouter.get('/tracks', heavyOperationGuard, async (req, res) => {
+tracksRouter.get('/tracks', async (req, res) => {
   const { url } = trackQuerySchema.parse(req.query);
   const provider = requireProviderByUrl(url);
   const resolveTrack = requireProviderFeature(provider, 'resolveTrack');
 
-  res.json(await resolveTrack(url));
+  res.json(await resolveTrack(url, getRequestSignal(res)));
 });

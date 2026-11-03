@@ -2,6 +2,7 @@ import type { ErrorRequestHandler } from 'express';
 import multer from 'multer';
 import { ZodError } from 'zod';
 
+import { isAbortError } from '../errors/error-utils.js';
 import { HttpError } from '../errors/http-error.js';
 import { getLogger } from '../lib/logger.js';
 
@@ -77,6 +78,12 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
       error: isTooLarge ? 'Uploaded content is too large.' : 'Invalid upload.',
       code: 'INVALID_INPUT',
     });
+    return;
+  }
+
+  if (isAbortError(error)) {
+    logger.info({ evt: 'request.aborted' }, 'Request work stopped after the client disconnected');
+    res.end();
     return;
   }
 

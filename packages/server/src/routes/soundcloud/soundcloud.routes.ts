@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { HttpError } from '../../errors/http-error.js';
-import { heavyOperationGuard } from '../../middleware/heavy-operation-guard.js';
+import { getRequestSignal } from '../../lib/request-signal.js';
 import { getProvider, requireProviderFeature, classifySource } from '../../providers/index.js';
 
 const soundCloudTrackQuerySchema = z.object({
@@ -29,7 +29,7 @@ soundcloudRouter.get('/soundcloud/users', async (req, res) => {
   const provider = getProvider('soundcloud');
   const getUser = requireProviderFeature(provider, 'getUser');
 
-  res.json(await getUser(profileUrl));
+  res.json(await getUser(profileUrl, getRequestSignal(res)));
 });
 
 soundcloudRouter.get('/soundcloud/favorites', async (req, res) => {
@@ -37,10 +37,10 @@ soundcloudRouter.get('/soundcloud/favorites', async (req, res) => {
   const provider = getProvider('soundcloud');
   const fetchFavorites = requireProviderFeature(provider, 'fetchFavorites');
 
-  res.json(await fetchFavorites(profileUrl, limit));
+  res.json(await fetchFavorites(profileUrl, limit, getRequestSignal(res)));
 });
 
-soundcloudRouter.get('/soundcloud/tracks', heavyOperationGuard, async (req, res) => {
+soundcloudRouter.get('/soundcloud/tracks', async (req, res) => {
   const { url } = soundCloudTrackQuerySchema.parse(req.query);
 
   if (classifySource(url) !== 'soundcloud') {
@@ -51,7 +51,7 @@ soundcloudRouter.get('/soundcloud/tracks', heavyOperationGuard, async (req, res)
 
   const provider = getProvider('soundcloud');
   const resolveTrack = requireProviderFeature(provider, 'resolveTrack');
-  const track = await resolveTrack(url);
+  const track = await resolveTrack(url, getRequestSignal(res));
 
   res.json(track);
 });

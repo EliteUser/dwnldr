@@ -1,5 +1,4 @@
-import type { VideoInfo } from 'ytdlp-nodejs';
-
+import type { YtDlpInfo } from '../../lib/ytdlp.js';
 import type { TrackMetadata } from '../../types.js';
 import type { SoundCloudTrack } from '../soundcloud/soundcloud.schemas.js';
 
@@ -19,7 +18,7 @@ export const getSoundCloudTrackData = (track: SoundCloudTrack): TrackMetadata =>
   };
 };
 
-export const getYouTubeTrackData = (info: VideoInfo): TrackMetadata => {
+export const getYouTubeTrackData = (info: YtDlpInfo): TrackMetadata => {
   const { id, channel, title, thumbnail, original_url, duration } = info;
 
   return {

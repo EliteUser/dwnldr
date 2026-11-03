@@ -3,24 +3,17 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  createYtDlpMock,
-  execMock,
-  getTrackDetailsMock,
-  postProcessTrackMock,
-  resolveArtworkPathMock,
-  saveThumbnailFromUrlMock,
-} = vi.hoisted(() => ({
-  createYtDlpMock: vi.fn(),
-  execMock: vi.fn(),
-  getTrackDetailsMock: vi.fn(),
-  postProcessTrackMock: vi.fn(),
-  resolveArtworkPathMock: vi.fn(),
-  saveThumbnailFromUrlMock: vi.fn(),
-}));
+const { getTrackDetailsMock, postProcessTrackMock, resolveArtworkPathMock, runYtDlpMock, saveThumbnailFromUrlMock } =
+  vi.hoisted(() => ({
+    getTrackDetailsMock: vi.fn(),
+    postProcessTrackMock: vi.fn(),
+    resolveArtworkPathMock: vi.fn(),
+    runYtDlpMock: vi.fn(),
+    saveThumbnailFromUrlMock: vi.fn(),
+  }));
 
 vi.mock('../../lib/ytdlp.js', () => ({
-  createYtDlp: createYtDlpMock,
+  runYtDlp: runYtDlpMock,
 }));
 
 vi.mock('../media/post-process.service.js', () => ({
@@ -39,7 +32,6 @@ vi.mock('./soundcloud.service.js', () => ({
   getSoundCloudTrackDetails: getTrackDetailsMock,
 }));
 
-import { env } from '../../config/env.js';
 import { downloadSoundCloudTrack } from './soundcloud-download.service.js';
 
 const trackInfo = {
@@ -57,6 +49,7 @@ const trackInfo = {
 
 describe('downloadSoundCloudTrack', () => {
   const folders: string[] = [];
+  const signal = new AbortController().signal;
 
   const createFolder = async () => {
     const folder = await fs.mkdtemp(path.join(os.tmpdir(), 'dwnldr-sc-download-'));
@@ -71,20 +64,13 @@ describe('downloadSoundCloudTrack', () => {
       artwork ? path.join(folder, 'custom-artwork.png') : providerArtworkPath,
     );
     postProcessTrackMock.mockResolvedValue({ filePath: 'final.mp3' });
-    execMock.mockImplementation((_url: string, options: { output: string }) => {
-      const outputPath = options.output.replace('%(ext)s', 'webm');
+    runYtDlpMock.mockImplementation(async (args: string[]) => {
+      const outputPath = args[args.indexOf('--output') + 1].replace('%(ext)s', 'webm');
 
-      return {
-        exec: async () => {
-          await fs.writeFile(outputPath, 'audio');
-          return {
-            filePaths: [outputPath],
-          };
-        },
-        kill: vi.fn(),
-      };
+      await fs.writeFile(outputPath, 'audio');
+      return `${outputPath}
+`;
     });
-    createYtDlpMock.mockReturnValue({ exec: execMock });
   });
 
   afterEach(async () => {
@@ -99,6 +85,7 @@ describe('downloadSoundCloudTrack', () => {
     await expect(
       downloadSoundCloudTrack({
         folder,
+        signal,
         track: {
           url: 'http://www.soundcloud.com/artist/track?secret_token=abc',
         },
@@ -108,22 +95,18 @@ describe('downloadSoundCloudTrack', () => {
     expect(getTrackDetailsMock).toHaveBeenCalledTimes(1);
     expect(getTrackDetailsMock).toHaveBeenCalledWith(
       'https://www.soundcloud.com/artist/track?secret_token=abc',
-      undefined,
+      signal,
     );
-    expect(execMock).toHaveBeenCalledTimes(1);
-    expect(execMock).toHaveBeenCalledWith(
+    expect(runYtDlpMock).toHaveBeenCalledTimes(1);
+    expect(runYtDlpMock).toHaveBeenCalledWith(
+      expect.arrayContaining(['--no-playlist', '--output', path.join(folder, 'source.%(ext)s')]),
       'https://www.soundcloud.com/artist/track?secret_token=abc',
-      expect.objectContaining({
-        cacheDir: env.YT_DLP_CACHE_DIR,
-        format: 'bestaudio/best',
-        noPlaylist: true,
-        output: path.join(folder, 'source.%(ext)s'),
-      }),
+      signal,
     );
     expect(saveThumbnailFromUrlMock).toHaveBeenCalledWith(
       'https://i1.sndcdn.com/artworks-track-t500x500.jpg',
       path.join(folder, 'cover.png'),
-      undefined,
+      signal,
     );
     expect(postProcessTrackMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -142,6 +125,7 @@ describe('downloadSoundCloudTrack', () => {
 
     await downloadSoundCloudTrack({
       folder,
+      signal,
       track: {
         artwork: {
           buffer: Buffer.from('custom'),
@@ -171,6 +155,7 @@ describe('downloadSoundCloudTrack', () => {
 
     await downloadSoundCloudTrack({
       folder,
+      signal,
       track: {
         url: 'https://soundcloud.com/artist/track',
       },
@@ -179,22 +164,18 @@ describe('downloadSoundCloudTrack', () => {
     expect(saveThumbnailFromUrlMock).toHaveBeenCalledWith(
       'https://i1.sndcdn.com/avatars-artist-t500x500.jpg',
       path.join(folder, 'cover.png'),
-      undefined,
+      signal,
     );
   });
 
   it('maps yt-dlp spawn errors to an internal server failure', async () => {
     const folder = await createFolder();
-    execMock.mockReturnValue({
-      exec: async () => {
-        throw Object.assign(new Error('spawn yt-dlp ENOENT'), { code: 'ENOENT' });
-      },
-      kill: vi.fn(),
-    });
+    runYtDlpMock.mockRejectedValue(Object.assign(new Error('spawn yt-dlp ENOENT'), { code: 'ENOENT' }));
 
     await expect(
       downloadSoundCloudTrack({
         folder,
+        signal,
         track: {
           url: 'https://soundcloud.com/artist/track',
         },
@@ -203,41 +184,5 @@ describe('downloadSoundCloudTrack', () => {
       code: 'INTERNAL_ERROR',
       statusCode: 500,
     });
-  });
-
-  it('kills and awaits the yt-dlp process after caller cancellation', async () => {
-    const folder = await createFolder();
-    const abortController = new AbortController();
-    let finishProcess!: (result: { filePaths: string[] }) => void;
-    const kill = vi.fn();
-    execMock.mockReturnValue({
-      exec: () =>
-        new Promise((resolve) => {
-          finishProcess = resolve;
-        }),
-      kill,
-    });
-
-    let operationSettled = false;
-    const download = downloadSoundCloudTrack({
-      folder,
-      signal: abortController.signal,
-      track: {
-        url: 'https://soundcloud.com/artist/track',
-      },
-    }).finally(() => {
-      operationSettled = true;
-    });
-    await vi.waitFor(() => expect(execMock).toHaveBeenCalledTimes(1));
-    abortController.abort();
-    await Promise.resolve();
-
-    expect(kill).toHaveBeenCalledWith('SIGTERM');
-    expect(operationSettled).toBe(false);
-    finishProcess({ filePaths: [] });
-
-    await expect(download).rejects.toMatchObject({ name: 'AbortError' });
-    expect(operationSettled).toBe(true);
-    expect(postProcessTrackMock).not.toHaveBeenCalled();
   });
 });

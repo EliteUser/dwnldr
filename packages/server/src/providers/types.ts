@@ -2,7 +2,7 @@ import type { ProviderCapabilities, ProviderKey, TrackMetadata, TrackOptions } f
 
 export type ProviderDownloadOptions = {
   folder: string;
-  signal?: AbortSignal;
+  signal: AbortSignal;
   track: TrackOptions;
 };
 
@@ -16,12 +16,12 @@ export type ProviderUser = {
 export type MusicProvider = {
   capabilities: ProviderCapabilities;
   downloadTrack?: (options: ProviderDownloadOptions) => Promise<string>;
-  fetchFavorites?: (profileUrl: string, limit?: number) => Promise<TrackMetadata[]>;
-  getUser?: (profileUrl: string) => Promise<ProviderUser>;
+  fetchFavorites?: (profileUrl: string, limit: number | undefined, signal: AbortSignal) => Promise<TrackMetadata[]>;
+  getUser?: (profileUrl: string, signal: AbortSignal) => Promise<ProviderUser>;
   key: ProviderKey;
   label: string;
   matchesUrl: (url: URL) => boolean;
-  resolveTrack?: (url: string) => Promise<TrackMetadata>;
+  resolveTrack?: (url: string, signal: AbortSignal) => Promise<TrackMetadata>;
 };
 
 export type MusicProviderFeature = {

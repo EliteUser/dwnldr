@@ -15,6 +15,7 @@ import type { SoundCloudTrack, SoundCloudUser } from './soundcloud.schemas.js';
 
 const SOUNDCLOUD_METADATA_TIMEOUT_MS = 30_000;
 const LIKES_PAGE_SIZE = 200;
+const MAX_LIKES = 2000;
 
 const withSoundCloudDeadline = async <T>(
   operation: (signal: AbortSignal) => Promise<T>,
@@ -143,13 +144,14 @@ const getLikeTrack = (entry: unknown): SoundCloudTrack | null => {
   return z.never().parse(entry);
 };
 
-const getFavorites = async (userId: number | string, signal: AbortSignal, limit?: number) => {
+const getFavorites = async (userId: number | string, signal: AbortSignal, limit = MAX_LIKES) => {
+  const maxTracks = Math.min(limit, MAX_LIKES);
   const tracks: TrackMetadata[] = [];
   const seenTrackIds = new Set<string>();
   const seenPageUrls = new Set<string>();
   const firstPageUrl = new URL(`/users/${encodeURIComponent(String(userId))}/likes`, SOUNDCLOUD_API_ORIGIN);
   firstPageUrl.searchParams.set('linked_partitioning', '1');
-  firstPageUrl.searchParams.set('limit', String(Math.min(LIKES_PAGE_SIZE, limit ?? LIKES_PAGE_SIZE)));
+  firstPageUrl.searchParams.set('limit', String(Math.min(LIKES_PAGE_SIZE, maxTracks)));
 
   let pageUrl: URL | undefined = firstPageUrl;
 
@@ -181,7 +183,7 @@ const getFavorites = async (userId: number | string, signal: AbortSignal, limit?
       seenTrackIds.add(id);
       tracks.push(getSoundCloudTrackData(track));
 
-      if (limit !== undefined && tracks.length >= limit) {
+      if (tracks.length >= maxTracks) {
         return tracks;
       }
     }
@@ -192,8 +194,8 @@ const getFavorites = async (userId: number | string, signal: AbortSignal, limit?
       throw new Error('SoundCloud returned a repeated likes pagination URL.');
     }
 
-    if (pageUrl && limit !== undefined) {
-      pageUrl.searchParams.set('limit', String(Math.min(LIKES_PAGE_SIZE, limit - tracks.length)));
+    if (pageUrl) {
+      pageUrl.searchParams.set('limit', String(Math.min(LIKES_PAGE_SIZE, maxTracks - tracks.length)));
     }
   }
 

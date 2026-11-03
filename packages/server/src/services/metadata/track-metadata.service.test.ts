@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { VideoInfo } from 'ytdlp-nodejs';
 
+import type { YtDlpInfo } from '../../lib/ytdlp.js';
 import { getYouTubeTrackData } from './track-metadata.service.js';
 
 describe('getYouTubeTrackData', () => {
@@ -13,7 +13,7 @@ describe('getYouTubeTrackData', () => {
       thumbnail: 'https://img.youtube.com/vi/video-1/default.jpg',
       original_url: 'https://www.youtube.com/watch?v=video-1',
       duration: 210,
-    } as VideoInfo);
+    } as YtDlpInfo);
 
     expect(metadata.duration).toBe(210000);
   });

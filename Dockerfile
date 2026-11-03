@@ -51,9 +51,8 @@ RUN chmod +x /app/start.sh \
 
 ENV NODE_ENV=production \
     TEMP_DIR=/var/lib/dwnldr/downloads \
-    YT_DLP_BINARY_PATH=/usr/local/bin/yt-dlp \
-    YT_DLP_CACHE_DIR=/var/lib/dwnldr/yt-dlp-cache \
-    YT_DLP_VERSION=${YT_DLP_VERSION}
+    YT_DLP_PATH=/usr/local/bin/yt-dlp \
+    YT_DLP_CACHE_DIR=/var/lib/dwnldr/yt-dlp-cache
 
 EXPOSE 80 443
 

@@ -1,12 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { Exec, YtDlp } from 'ytdlp-nodejs';
 
-import { env } from '../../config/env.js';
 import { getErrorMessage, isAbortError } from '../../errors/error-utils.js';
 import { HttpError } from '../../errors/http-error.js';
 import { logTimedOperation } from '../../lib/logger.js';
-import { createYtDlp } from '../../lib/ytdlp.js';
+import { runYtDlp } from '../../lib/ytdlp.js';
 import type { ProviderDownloadOptions } from '../../providers/types.js';
 import { getSafeUrlLogFields } from '../../utils/url-log.utils.js';
 import { resolveArtworkPath } from '../artwork/artwork.service.js';
@@ -17,57 +15,6 @@ import { getSoundCloudTrackDetails } from './soundcloud.service.js';
 
 const YTDLP_UPSTREAM_MESSAGE = 'SoundCloud audio could not be downloaded. Try again later.';
 const YTDLP_SPAWN_MESSAGE = 'The audio downloader could not be started.';
-const FORCE_KILL_DELAY_MS = 1_000;
-
-type YtDlpExecution = Pick<YtDlp, 'exec'>;
-
-const runSignalAwareYtDlp = async (
-  ytdlp: YtDlpExecution,
-  url: string,
-  outputTemplate: string,
-  signal?: AbortSignal,
-) => {
-  signal?.throwIfAborted();
-  const command = ytdlp.exec(url, {
-    abortOnError: true,
-    cacheDir: env.YT_DLP_CACHE_DIR,
-    format: 'bestaudio/best',
-    jsRuntime: 'node',
-    noPlaylist: true,
-    output: outputTemplate,
-  }) as Exec;
-  let settled = false;
-  let forceKillTimeout: ReturnType<typeof setTimeout> | undefined;
-  const onAbort = () => {
-    command.kill('SIGTERM');
-    forceKillTimeout = setTimeout(() => {
-      if (!settled) {
-        command.kill('SIGKILL');
-      }
-    }, FORCE_KILL_DELAY_MS);
-    forceKillTimeout.unref();
-  };
-
-  signal?.addEventListener('abort', onAbort, { once: true });
-
-  try {
-    signal?.throwIfAborted();
-    const result = await command.exec();
-    signal?.throwIfAborted();
-    return result;
-  } catch (error) {
-    if (signal?.aborted) {
-      throw signal.reason ?? error;
-    }
-
-    throw error;
-  } finally {
-    settled = true;
-    clearTimeout(forceKillTimeout);
-    signal?.removeEventListener('abort', onAbort);
-  }
-};
-
 const getActualAudioPath = async (folder: string, filePaths: string[] | undefined) => {
   if (!filePaths || filePaths.length !== 1 || typeof filePaths[0] !== 'string') {
     throw new Error('yt-dlp did not report exactly one downloaded audio file.');
@@ -170,13 +117,12 @@ export const downloadSoundCloudTrack = async (options: ProviderDownloadOptions) 
 
   const trackInfo = await getSoundCloudTrackDetails(canonicalTrackUrl, signal);
   signal?.throwIfAborted();
-  const ytDlp = createYtDlp();
   const outputTemplate = path.join(folder, 'source.%(ext)s');
-  let result;
+  let filePaths: string[];
   let ytDlpError: unknown;
 
   try {
-    result = await logTimedOperation(
+    filePaths = await logTimedOperation(
       {
         startEvt: 'sc.download.started',
         successEvt: 'sc.download.completed',
@@ -192,7 +138,22 @@ export const downloadSoundCloudTrack = async (options: ProviderDownloadOptions) 
       },
       async () => {
         try {
-          return await runSignalAwareYtDlp(ytDlp, canonicalTrackUrl, outputTemplate, signal);
+          const stdout = await runYtDlp(
+            [
+              '--abort-on-error',
+              '--format',
+              'bestaudio/best',
+              '--no-playlist',
+              '--output',
+              outputTemplate,
+              '--print',
+              'after_move:filepath',
+            ],
+            canonicalTrackUrl,
+            signal,
+          );
+
+          return stdout.split(/\r?\n/).filter(Boolean);
         } catch (error) {
           if (signal?.aborted || isAbortError(error)) {
             throw error;
@@ -213,7 +174,7 @@ export const downloadSoundCloudTrack = async (options: ProviderDownloadOptions) 
   }
 
   signal?.throwIfAborted();
-  const trackPath = await getActualAudioPath(folder, result.filePaths);
+  const trackPath = await getActualAudioPath(folder, filePaths);
   signal?.throwIfAborted();
 
   const artworkUrl = trackInfo.artwork_url ?? trackInfo.user.avatar_url;

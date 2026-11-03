@@ -21,7 +21,6 @@
     "node-id3": "0.2.9",
     "pino": "10.4.0",
     "sharp": "0.35.5",
-    "ytdlp-nodejs": "3.4.5",
     "zod": "4.6.7"
   },
   "devDependencies": {

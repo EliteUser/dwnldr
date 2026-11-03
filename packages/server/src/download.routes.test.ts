@@ -64,6 +64,7 @@ describe('download route', () => {
           size: 3,
         }),
       }),
+      expect.any(AbortSignal),
     );
   });
 

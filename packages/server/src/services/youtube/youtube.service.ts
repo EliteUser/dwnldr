@@ -1,5 +1,3 @@
-import type { VideoInfo } from 'ytdlp-nodejs';
-
 import { getErrorMessage } from '../../errors/error-utils.js';
 import { HttpError } from '../../errors/http-error.js';
 import {
@@ -9,12 +7,13 @@ import {
   YOUTUBE_UPSTREAM_MESSAGE,
 } from '../../errors/youtube-errors.js';
 import { logTimedOperation } from '../../lib/logger.js';
-import { createYtDlp } from '../../lib/ytdlp.js';
+import { runYtDlp, type YtDlpInfo } from '../../lib/ytdlp.js';
 import { getSafeUrlLogFields } from '../../utils/url-log.utils.js';
 import { getYouTubeTrackData } from '../metadata/track-metadata.service.js';
 
-export const getYouTubeTrackByUrl = async (url: string) => {
-  const ytdlp = createYtDlp();
+const YOUTUBE_METADATA_TIMEOUT_MS = 60_000;
+
+export const getYouTubeTrackByUrl = async (url: string, signal: AbortSignal) => {
   const info = await logTimedOperation(
     {
       startEvt: 'ytdlp.info.started',
@@ -41,7 +40,14 @@ export const getYouTubeTrackByUrl = async (url: string) => {
         ...getSafeUrlLogFields(url),
       },
     },
-    () => ytdlp.getInfoAsync(url),
+    async () =>
+      JSON.parse(
+        await runYtDlp(
+          ['--dump-single-json', '--flat-playlist', '--no-playlist'],
+          url,
+          AbortSignal.any([signal, AbortSignal.timeout(YOUTUBE_METADATA_TIMEOUT_MS)]),
+        ),
+      ) as YtDlpInfo,
   ).catch((error: unknown) => {
     throw toYouTubeHttpError(error, YOUTUBE_UPSTREAM_MESSAGE);
   });
@@ -52,5 +58,5 @@ export const getYouTubeTrackByUrl = async (url: string) => {
     });
   }
 
-  return getYouTubeTrackData(info as VideoInfo);
+  return getYouTubeTrackData(info);
 };

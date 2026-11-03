@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { env } from '../../config/env.js';
-import { createYtDlp, ffmpegBinaryPath } from '../../lib/ytdlp.js';
+import { ffmpegBinaryPath, getYtDlpVersion } from '../../lib/ytdlp.js';
 
 type ReadinessCheck = {
   details?: string;
@@ -77,21 +77,9 @@ const checkDirectoryWritable = async (directory: string, label: string): Promise
 
 const checkYtDlpBinary = async (): Promise<ReadinessCheck> => {
   try {
-    const ytdlp = createYtDlp();
-    const installed = await ytdlp.checkInstallationAsync({
-      ffmpeg: false,
-    });
-
-    if (!installed) {
-      return {
-        ok: false,
-        details: 'yt-dlp is not available in the current runtime.',
-      };
-    }
-
     return {
       ok: true,
-      details: ytdlp.binaryPath,
+      details: await getYtDlpVersion(),
     };
   } catch (error) {
     return {

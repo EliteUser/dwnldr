@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
-import { assertYtDlpAvailable, createYtDlp, ffmpegBinaryPath, getYtDlpVersion } from './lib/ytdlp.js';
+import { ffmpegBinaryPath, getYtDlpVersion } from './lib/ytdlp.js';
 import { setServerShuttingDown } from './services/health/health.service.js';
 import { ensureTempRoot, sweepStaleDownloadFolders } from './utils/temp.utils.js';
 
@@ -86,9 +86,7 @@ export const createGracefulShutdownHandler = (options: ShutdownHandlerOptions) =
 };
 
 export const start = async () => {
-  const ytdlp = createYtDlp();
-  const ytDlpVersion = await getYtDlpVersion(ytdlp.binaryPath);
-  await assertYtDlpAvailable(ytdlp);
+  const ytDlpVersion = await getYtDlpVersion();
   await ensureTempRoot();
   await fs.mkdir(env.YT_DLP_CACHE_DIR, { recursive: true });
   const cleanedFolderCount = await sweepStaleDownloadFolders(STALE_DOWNLOAD_MAX_AGE_MS);
@@ -100,7 +98,7 @@ export const start = async () => {
       nodeEnv: env.NODE_ENV,
       tempDir: env.TEMP_DIR,
       ffmpegPath: ffmpegBinaryPath ?? 'missing',
-      ytDlpPath: ytdlp.binaryPath,
+      ytDlpPath: env.YT_DLP_PATH,
       ytDlpVersion,
       ytDlpCacheDir: env.YT_DLP_CACHE_DIR,
       cleanedFolderCount,

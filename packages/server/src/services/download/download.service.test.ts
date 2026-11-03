@@ -47,6 +47,8 @@ vi.mock('node:fs/promises', async () => {
 const { downloadTrack, streamFileToResponse } = await import('./download.service.js');
 
 describe('downloadTrack', () => {
+  const signal = new AbortController().signal;
+
   beforeEach(() => {
     vi.clearAllMocks();
     createDownloadFolderMock.mockResolvedValue('/tmp/download-folder');
@@ -57,11 +59,7 @@ describe('downloadTrack', () => {
   });
 
   it('does not create a temp folder for unsupported sources', async () => {
-    await expect(
-      downloadTrack({
-        url: 'https://example.com/audio',
-      }),
-    ).rejects.toMatchObject({
+    await expect(downloadTrack({ url: 'https://example.com/audio' }, signal)).rejects.toMatchObject({
       code: 'UNSUPPORTED_SOURCE',
       statusCode: 400,
     });
@@ -73,11 +71,9 @@ describe('downloadTrack', () => {
   it('removes the temp folder when the provider download fails', async () => {
     downloadYoutubeTrackMock.mockRejectedValue(new Error('download failed'));
 
-    await expect(
-      downloadTrack({
-        url: 'https://www.youtube.com/watch?v=test',
-      }),
-    ).rejects.toThrow('download failed');
+    await expect(downloadTrack({ url: 'https://www.youtube.com/watch?v=test' }, signal)).rejects.toThrow(
+      'download failed',
+    );
 
     expect(createDownloadFolderMock).toHaveBeenCalledTimes(1);
     expect(removeFolderMock).toHaveBeenCalledWith('/tmp/download-folder');
@@ -86,11 +82,7 @@ describe('downloadTrack', () => {
   it('returns file metadata after a successful download', async () => {
     downloadYoutubeTrackMock.mockResolvedValue('/tmp/download-folder/track.mp3');
 
-    await expect(
-      downloadTrack({
-        url: 'https://www.youtube.com/watch?v=test',
-      }),
-    ).resolves.toEqual({
+    await expect(downloadTrack({ url: 'https://www.youtube.com/watch?v=test' }, signal)).resolves.toEqual({
       downloadFolder: '/tmp/download-folder',
       filePath: '/tmp/download-folder/track.mp3',
       fileName: 'track.mp3',
@@ -98,6 +90,43 @@ describe('downloadTrack', () => {
     });
 
     expect(removeFolderMock).not.toHaveBeenCalled();
+  });
+
+  it('stops the provider and reports a timeout once the download deadline passes', async () => {
+    const timeoutController = new AbortController();
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeoutController.signal);
+    downloadYoutubeTrackMock.mockImplementation(
+      ({ signal: providerSignal }: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          providerSignal.addEventListener('abort', () => reject(providerSignal.reason));
+        }),
+    );
+
+    const download = downloadTrack({ url: 'https://www.youtube.com/watch?v=test' }, signal);
+    const assertion = expect(download).rejects.toMatchObject({ statusCode: 504 });
+
+    await vi.waitFor(() => expect(downloadYoutubeTrackMock).toHaveBeenCalled());
+    timeoutController.abort(new DOMException('Timed out', 'TimeoutError'));
+    await assertion;
+    expect(removeFolderMock).toHaveBeenCalledWith('/tmp/download-folder');
+    timeoutSpy.mockRestore();
+  });
+
+  it('passes client disconnects through to the provider', async () => {
+    const controller = new AbortController();
+    downloadYoutubeTrackMock.mockImplementation(
+      ({ signal: providerSignal }: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          providerSignal.addEventListener('abort', () => reject(providerSignal.reason));
+        }),
+    );
+
+    const download = downloadTrack({ url: 'https://www.youtube.com/watch?v=test' }, controller.signal);
+    await vi.waitFor(() => expect(downloadYoutubeTrackMock).toHaveBeenCalled());
+    controller.abort(new DOMException('Client disconnected', 'AbortError'));
+
+    await expect(download).rejects.toMatchObject({ name: 'AbortError' });
+    expect(removeFolderMock).toHaveBeenCalledWith('/tmp/download-folder');
   });
 });
 
