@@ -82,7 +82,9 @@ jobs:
           printf '%s' "$GHCR_TOKEN" | \
             ssh "root@$DEPLOY_HOST" "docker login ghcr.io --username '$GITHUB_ACTOR' --password-stdin"
 
-          ssh "root@$DEPLOY_HOST" bash -s -- "$IMAGE_REF" "$SERVER_IP" "$AUTH_HASH" <<'REMOTE'
+          # ssh joins its arguments into one remote command line, so quote them or the remote shell
+          # expands the $ signs in the bcrypt hash.
+          ssh "root@$DEPLOY_HOST" "bash -s -- $(printf '%q ' "$IMAGE_REF" "$SERVER_IP" "$AUTH_HASH")" <<'REMOTE'
           set -euo pipefail
           trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
 
