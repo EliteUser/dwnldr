@@ -22,12 +22,17 @@ const withHandleStore = async <T>(mode: IDBTransactionMode, run: (store: IDBObje
     request.onerror = () => reject(request.error);
   });
 
-  return new Promise<T>((resolve, reject) => {
-    const request = run(database.transaction(STORE_NAME, mode).objectStore(STORE_NAME));
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const request = run(database.transaction(STORE_NAME, mode).objectStore(STORE_NAME));
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    // Closing lets the pending transaction finish and frees the connection.
+    database.close();
+  }
 };
 
 export const collectFiles = async (handle: FileSystemDirectoryHandle): Promise<FileData[]> => {

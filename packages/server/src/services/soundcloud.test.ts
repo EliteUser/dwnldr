@@ -57,6 +57,19 @@ describe('SoundCloud service', () => {
     expect(requestedUrls()[0].searchParams.get('client_id')).toBe('abcdefghijklmnop1234');
   });
 
+  it('discovers the client ID once and reuses it', async () => {
+    fetchHttpJsonMock.mockResolvedValue(scTrack(3));
+
+    await getTrack('https://soundcloud.com/artist/track-3', signal);
+    await getTrack('https://soundcloud.com/artist/track-3', signal);
+
+    expect(fetchHttpTextMock).not.toHaveBeenCalled();
+    expect(requestedUrls().map((url) => url.searchParams.get('client_id'))).toEqual([
+      'abcdefghijklmnop1234',
+      'abcdefghijklmnop1234',
+    ]);
+  });
+
   it('rediscovers the client ID once when SoundCloud rejects it', async () => {
     fetchHttpJsonMock.mockRejectedValueOnce(new HttpStatusError(401)).mockResolvedValueOnce(scTrack(2));
 

@@ -52,15 +52,27 @@ describe('runProcess', () => {
 });
 
 describe('runYtDlp', () => {
-  it('rejects a second process while one is still running', async () => {
-    const first = runYtDlp([], 'https://example.com', new AbortController().signal);
-
-    await expect(runYtDlp([], 'https://example.com', new AbortController().signal)).rejects.toMatchObject({
-      code: 'SERVER_BUSY',
-      statusCode: 503,
-    });
+  it('queues calls instead of running them side by side', async () => {
     // The fake binary is node, which rejects yt-dlp flags and exits non-zero.
+    const results = await Promise.allSettled([
+      runYtDlp([], 'https://example.com/1', new AbortController().signal),
+      runYtDlp([], 'https://example.com/2', new AbortController().signal),
+    ]);
+
+    expect(results.map((result) => result.status === 'rejected' && result.reason)).toEqual([
+      expect.any(YtDlpError),
+      expect.any(YtDlpError),
+    ]);
+  });
+
+  it('skips a call that was cancelled while it waited', async () => {
+    const controller = new AbortController();
+    const first = runYtDlp([], 'https://example.com/1', new AbortController().signal);
+    const second = runYtDlp([], 'https://example.com/2', controller.signal);
+
+    controller.abort(new DOMException('Cancelled', 'AbortError'));
+
     await expect(first).rejects.toBeInstanceOf(YtDlpError);
-    await expect(runYtDlp([], 'https://example.com', new AbortController().signal)).rejects.toBeInstanceOf(YtDlpError);
+    await expect(second).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

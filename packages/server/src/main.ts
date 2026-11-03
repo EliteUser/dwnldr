@@ -3,13 +3,13 @@ import fs from 'node:fs/promises';
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
-import { getYtDlpVersion } from './lib/ytdlp.js';
+import { checkTools } from './lib/ytdlp.js';
 import { removeLeftoverFolders } from './utils/temp.utils.js';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 try {
-  const ytDlpVersion = await getYtDlpVersion();
+  const ytDlpVersion = await checkTools();
   await fs.mkdir(env.YT_DLP_CACHE_DIR, { recursive: true });
   const removedFolderCount = await removeLeftoverFolders();
 

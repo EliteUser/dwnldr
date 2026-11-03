@@ -80,10 +80,15 @@ let clientId: string | undefined;
 let clientIdDiscovery: Promise<string> | undefined;
 
 const getClientId = async () => {
+  if (clientId) {
+    return clientId;
+  }
+
+  // Concurrent callers share one discovery instead of each scraping the site.
   clientIdDiscovery ??= discoverClientId().finally(() => {
     clientIdDiscovery = undefined;
   });
-  clientId ??= await clientIdDiscovery;
+  clientId = await clientIdDiscovery;
 
   return clientId;
 };

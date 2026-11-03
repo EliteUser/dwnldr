@@ -2,7 +2,6 @@ import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { env } from '../config/env.js';
-import { HttpError } from '../errors.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -91,22 +90,15 @@ export const runProcess = (command: string, args: string[], signal: AbortSignal)
     );
   });
 
-let isRunning = false;
+let queue: Promise<unknown> = Promise.resolve();
 
 /**
- * Runs one yt-dlp process at a time; the slot is held until the process exits, even after cancellation.
+ * Runs one yt-dlp process at a time; later calls wait their turn. A call cancelled while waiting
+ * gives up as soon as its turn comes, and a running process keeps the turn until it has exited.
  */
-export const runYtDlp = async (args: string[], url: string, signal: AbortSignal) => {
-  if (isRunning) {
-    throw new HttpError(503, 'The server is busy processing another media operation. Try again shortly.', {
-      code: 'SERVER_BUSY',
-    });
-  }
-
-  isRunning = true;
-
-  try {
-    return await runProcess(
+export const runYtDlp = (args: string[], url: string, signal: AbortSignal) => {
+  const run = queue.then(() =>
+    runProcess(
       env.YT_DLP_PATH,
       [
         '--ignore-config',
@@ -120,18 +112,30 @@ export const runYtDlp = async (args: string[], url: string, signal: AbortSignal)
         url,
       ],
       signal,
-    );
-  } finally {
-    isRunning = false;
-  }
+    ),
+  );
+
+  queue = run.catch(() => undefined);
+
+  return run;
 };
 
-export const getYtDlpVersion = async () => {
+const runVersionCommand = async (command: string, args: string[], hint: string) => {
   try {
-    const { stdout } = await execFileAsync(env.YT_DLP_PATH, ['--version'], { timeout: 10_000 });
+    const { stdout } = await execFileAsync(command, args, { timeout: 10_000 });
 
     return stdout.trim();
   } catch (error) {
-    throw new Error(`Cannot run yt-dlp at "${env.YT_DLP_PATH}". Install it or set YT_DLP_PATH.`, { cause: error });
+    throw new Error(`Cannot run "${command}". ${hint}`, { cause: error });
   }
+};
+
+/** Fails fast when yt-dlp or ffmpeg (which yt-dlp needs for MP3 audio) cannot run. Returns the yt-dlp version. */
+export const checkTools = async () => {
+  const [ytDlpVersion] = await Promise.all([
+    runVersionCommand(env.YT_DLP_PATH, ['--version'], 'Install yt-dlp or set YT_DLP_PATH.'),
+    runVersionCommand('ffmpeg', ['-version'], 'Install ffmpeg and make sure it is on PATH.'),
+  ]);
+
+  return ytDlpVersion;
 };

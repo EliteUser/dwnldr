@@ -28,7 +28,8 @@ const toHttpError = (error: unknown) => {
   if (error instanceof YtDlpError) {
     getLogger().warn({ evt: 'ytdlp.failed', exitCode: error.exitCode, stderr: error.stderrTail }, 'yt-dlp failed');
   } else if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-    getLogger().error({ evt: 'ytdlp.spawn.failed', err: error }, 'yt-dlp could not be started');
+    // Only the message: the error's spawnargs hold the track URL, which may carry a private token.
+    getLogger().error({ evt: 'ytdlp.spawn.failed', error: (error as Error).message }, 'yt-dlp could not be started');
     return new HttpError(500, 'The audio downloader could not be started.', { code: 'INTERNAL_ERROR' });
   }
 

@@ -59,6 +59,9 @@ export const saveBlob = (fileName: string, blob: Blob) => {
 
   anchor.href = url;
   anchor.download = fileName;
+  // Some browsers only follow clicks on attached links and read the blob URL after the click returns.
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 };

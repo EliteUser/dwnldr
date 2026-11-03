@@ -10,7 +10,6 @@ const API_ERROR_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   PLAYLIST_NOT_SUPPORTED: 'Playlists are not supported - paste a link to a single track.',
   UPSTREAM_UNAUTHORIZED: 'Could not access this source right now. Try again later.',
   UPSTREAM_FAILURE: 'Could not reach this source right now. Try again later.',
-  SERVER_BUSY: 'Another download is already running. Try again shortly.',
 };
 
 /** User-facing text for a failed request. Server text is shown only for input errors, which are written for users. */

@@ -65,7 +65,7 @@ describe('Download', () => {
   });
 
   it('shows the server message when a download is rejected', async () => {
-    mockTrackApi(() => jsonResponse({ code: 'SERVER_BUSY', error: 'Busy' }, 503));
+    mockTrackApi(() => jsonResponse({ code: 'UPSTREAM_FAILURE', error: 'Down' }, 502));
 
     renderWithProviders(<Download selectedUrl={trackUrl} />);
 
@@ -73,7 +73,7 @@ describe('Download', () => {
 
     await waitFor(() =>
       expect(notifications.show).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'Another download is already running. Try again shortly.' }),
+        expect.objectContaining({ message: 'Could not reach this source right now. Try again later.' }),
       ),
     );
   });

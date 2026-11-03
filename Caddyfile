@@ -16,10 +16,8 @@
 		owner {$AUTH_HASH}
 	}
 
-	header {
-		Strict-Transport-Security "max-age=31536000"
-		-Server
-	}
+	# The app sets the security headers itself (helmet), including HSTS.
+	header -Server
 
 	reverse_proxy app:3000
 }
