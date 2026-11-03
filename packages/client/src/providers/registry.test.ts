@@ -22,7 +22,7 @@ describe('provider registry', () => {
     expect(
       getProvider('youtube')?.toDownloadName({
         title: 'Track',
-        user: 'Artist',
+        artist: 'Artist',
       }),
     ).toBe('Artist - Track');
   });

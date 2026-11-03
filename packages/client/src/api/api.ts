@@ -1,27 +1,9 @@
+import type { Profile, Track } from '@dwnldr/shared';
 import { QueryClient, useQuery } from '@tanstack/react-query';
 
 import { getProviderByUrl } from '../providers';
 import { normalizeSoundCloudProfileUrl } from '../providers/soundcloud/profile-url.utils';
 import { ApiRequestError, parseApiErrorResponse } from './api.errors';
-
-type UserResult = {
-  avatar_url: string | null;
-  full_name: string;
-  id: number | string;
-  permalink_url: string;
-};
-
-export type TracksResult = {
-  id: number | string;
-  artwork?: {
-    url: string | null;
-  };
-  artwork_url: string | null;
-  permalink_url: string;
-  duration: number;
-  title: string;
-  user: string;
-};
 
 type QueryOptions = {
   skip?: boolean;
@@ -67,7 +49,7 @@ export const useGetUserQuery = (profileUrl: string, options: QueryOptions = {}) 
 
   return useQuery({
     enabled: !options.skip && !!normalizedProfileUrl,
-    queryFn: ({ signal }) => fetchJson<UserResult>('soundcloud/users', { profileUrl: normalizedProfileUrl! }, signal),
+    queryFn: ({ signal }) => fetchJson<Profile>('profile', { url: normalizedProfileUrl! }, signal),
     queryKey: ['providers', 'soundcloud', 'user', normalizedProfileUrl ?? ''],
   });
 };
@@ -77,7 +59,7 @@ export const useGetProviderTrackQuery = (url: string, options: QueryOptions = {}
 
   const query = useQuery({
     enabled: !options.skip && !!url && !!provider,
-    queryFn: ({ signal }) => fetchJson<TracksResult>('tracks', { url }, signal),
+    queryFn: ({ signal }) => fetchJson<Track>('tracks', { url }, signal),
     queryKey: provider?.getTrackQueryKey(url) ?? ['providers', 'unknown', 'track', url],
   });
 
@@ -93,8 +75,7 @@ export const useGetFavoritesQuery = (profileUrl: string, options: QueryOptions =
 
   return useQuery({
     enabled: !options.skip && !!normalizedProfileUrl,
-    queryFn: ({ signal }) =>
-      fetchJson<TracksResult[]>('soundcloud/favorites', { profileUrl: normalizedProfileUrl! }, signal),
+    queryFn: ({ signal }) => fetchJson<Track[]>('likes', { url: normalizedProfileUrl! }, signal),
     queryKey: ['providers', 'soundcloud', 'favorites', normalizedProfileUrl ?? ''],
   });
 };

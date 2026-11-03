@@ -48,8 +48,8 @@ describe('UserInput', () => {
     userQueryMock.mockImplementation((profileUrl: string) => ({
       data: profileUrl
         ? {
-            avatar_url: 'https://img.example.test/avatar.png',
-            full_name: 'Artist Name',
+            avatarUrl: 'https://img.example.test/avatar.png',
+            name: 'Artist Name',
           }
         : undefined,
       error: undefined,
@@ -108,7 +108,7 @@ describe('UserInput', () => {
 
       return lookupResolved
         ? {
-            data: { avatar_url: 'https://img.example.test/avatar.png', full_name: 'Artist Name' },
+            data: { avatarUrl: 'https://img.example.test/avatar.png', name: 'Artist Name' },
             error: undefined,
             isFetching: false,
             isLoading: false,
@@ -191,7 +191,7 @@ describe('UserInput', () => {
   it('keeps a cached profile visible and offers a retry after refresh failure', () => {
     useAppStore.setState({ profileUrl: 'https://soundcloud.com/saved-artist' });
     userQueryMock.mockReturnValue({
-      data: { avatar_url: 'https://img.example.test/avatar.png', full_name: 'Artist Name' },
+      data: { avatarUrl: 'https://img.example.test/avatar.png', name: 'Artist Name' },
       error: { error: 'Refresh failed' },
       isFetching: false,
       isLoading: false,

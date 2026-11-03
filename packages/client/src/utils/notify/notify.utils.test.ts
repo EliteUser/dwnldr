@@ -14,7 +14,7 @@ beforeEach(() => {
 describe('getApiErrorMessage', () => {
   it('maps known API codes to user-facing messages', () => {
     expect(getApiErrorMessage({ code: 'UNSUPPORTED_SOURCE' })).toBe(API_ERROR_MESSAGE.UNSUPPORTED_SOURCE);
-    expect(getApiErrorMessage({ code: 'YOUTUBE_PLAYLIST' })).toBe(API_ERROR_MESSAGE.YOUTUBE_PLAYLIST);
+    expect(getApiErrorMessage({ code: 'PLAYLIST_NOT_SUPPORTED' })).toBe(API_ERROR_MESSAGE.PLAYLIST_NOT_SUPPORTED);
     expect(getApiErrorMessage({ code: 'UPSTREAM_UNAUTHORIZED' })).toBe(API_ERROR_MESSAGE.UPSTREAM_UNAUTHORIZED);
   });
 

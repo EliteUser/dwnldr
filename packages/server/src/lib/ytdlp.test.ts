@@ -34,6 +34,21 @@ describe('runProcess', () => {
 
     await expect(run).rejects.toMatchObject({ name: 'AbortError' });
   });
+
+  it('also stops helper processes that inherited the pipes', async () => {
+    const controller = new AbortController();
+    const run = runNode(
+      `require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'inherit' });
+       setInterval(() => {}, 1000);
+       process.stdout.write('started');`,
+      controller.signal,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    controller.abort(new DOMException('Cancelled', 'AbortError'));
+
+    await expect(run).rejects.toMatchObject({ name: 'AbortError' });
+  });
 });
 
 describe('runYtDlp', () => {

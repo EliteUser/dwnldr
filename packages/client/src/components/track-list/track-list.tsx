@@ -39,7 +39,7 @@ export const TrackList = memo<TrackListProps>((props) => {
   // oxlint-disable-next-line react/incompatible-library -- This virtualized list does not use React Compiler.
   const virtualizer = useVirtualizer({
     count,
-    getItemKey: (index) => filteredTracks[index]?.id ?? filteredTracks[index]?.permalink_url ?? index,
+    getItemKey: (index) => filteredTracks[index]?.id ?? index,
     getScrollElement: () => parentRef.current,
     estimateSize: () => TRACK_ROW_HEIGHT,
     overscan: TRACK_LIST_OVERSCAN,
@@ -92,17 +92,17 @@ export const TrackList = memo<TrackListProps>((props) => {
               }}
             >
               {items.map((virtualRow) => {
-                const { user, title, artwork_url, permalink_url, duration } = filteredTracks[virtualRow.index];
+                const { artist, title, artworkUrl, url, durationMs } = filteredTracks[virtualRow.index];
 
-                const trackTitle = `${user} - ${title}`;
+                const trackTitle = `${artist} - ${title}`;
 
                 return (
                   <Track
                     key={virtualRow.key}
                     title={trackTitle}
-                    duration={duration}
-                    coverUrl={artwork_url}
-                    downloadUrl={permalink_url}
+                    duration={durationMs}
+                    coverUrl={artworkUrl}
+                    downloadUrl={url}
                     isDirectorySelected={isDirectorySelected}
                     isDownloaded={files.length > 0 && isDownloadedTrack(trackTitle)}
                     onDownloadClick={onDownloadClick}

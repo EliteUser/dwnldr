@@ -28,18 +28,16 @@ describe('removeFolder', () => {
     await fs.mkdir(outsideDirectory, { recursive: true });
     createdPaths.push(outsideDirectory);
 
-    expect(removeFolder(outsideDirectory)).toBe(false);
+    expect(await removeFolder(outsideDirectory)).toBe(false);
     await expect(fs.stat(outsideDirectory)).resolves.toBeDefined();
   });
 
   it('logs and reports cleanup failures without throwing', async () => {
     const directory = await createDirectory('track_cleanup-failure');
 
-    vi.spyOn(fsSync, 'rmSync').mockImplementationOnce(() => {
-      throw new Error('file is locked');
-    });
+    vi.spyOn(fsSync.promises, 'rm').mockRejectedValueOnce(new Error('file is locked'));
 
-    expect(removeFolder(directory)).toBe(false);
+    expect(await removeFolder(directory)).toBe(false);
     await expect(fs.stat(directory)).resolves.toBeDefined();
   });
 });

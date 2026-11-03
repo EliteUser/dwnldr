@@ -1,7 +1,7 @@
+import type { Track } from '@dwnldr/shared';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { TracksResult } from '../../api/api';
 import { useAppStore } from '../../store';
 import { TrackList } from './track-list';
 
@@ -16,22 +16,22 @@ vi.mock('../track/track', () => ({
   Track: ({ title }: { title: string }) => <div>{title}</div>,
 }));
 
-const tracks: TracksResult[] = [
+const tracks: Track[] = [
   {
-    id: 1,
-    artwork_url: null,
-    duration: 1000,
-    permalink_url: 'https://soundcloud.com/artist/downloaded',
+    id: '1',
+    artworkUrl: null,
+    durationMs: 1000,
+    url: 'https://soundcloud.com/artist/downloaded',
     title: 'Downloaded',
-    user: 'Artist',
+    artist: 'Artist',
   },
   {
-    id: 2,
-    artwork_url: null,
-    duration: 1000,
-    permalink_url: 'https://soundcloud.com/artist/new',
+    id: '2',
+    artworkUrl: null,
+    durationMs: 1000,
+    url: 'https://soundcloud.com/artist/new',
     title: 'New',
-    user: 'Artist',
+    artist: 'Artist',
   },
 ];
 

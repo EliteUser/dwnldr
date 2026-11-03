@@ -53,10 +53,10 @@ export const TRACK_META_NOTIFICATION_MESSAGE = {
 export const API_ERROR_MESSAGE: Record<ApiErrorCode, string> = {
   INVALID_INPUT: 'Check the entered value and try again.',
   UNSUPPORTED_SOURCE: 'This URL is not supported. Use a SoundCloud or YouTube link.',
-  YOUTUBE_PLAYLIST: 'Playlists are not supported - paste a link to a single video.',
+  PLAYLIST_NOT_SUPPORTED: 'Playlists are not supported - paste a link to a single track.',
+  NOT_FOUND: 'Nothing was found at this link.',
   UPSTREAM_UNAUTHORIZED: 'Could not access this source right now. Try again later.',
   UPSTREAM_FAILURE: 'Could not reach this source right now. Try again later.',
-  CONVERSION_FAILURE: 'Could not prepare the audio file.',
   RATE_LIMITED: 'Too many requests. Wait a moment and try again.',
   SERVER_BUSY: 'Another media operation is already running. Try again shortly.',
   INTERNAL_ERROR: FALLBACK_API_ERROR_MESSAGE,

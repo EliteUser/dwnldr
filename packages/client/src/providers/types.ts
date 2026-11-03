@@ -6,8 +6,8 @@ export type SourceInfo = {
 };
 
 export type TrackInfo = {
+  artist: string;
   title: string;
-  user: string;
 };
 
 export type ProviderCapabilities = {

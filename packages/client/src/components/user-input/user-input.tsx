@@ -34,8 +34,8 @@ export const UserInput = memo(() => {
     skip: !profileUrl,
   });
 
-  const { avatar_url, full_name } = user || {};
-  const proxiedAvatarUrl = getProxiedImageUrl(avatar_url);
+  const { avatarUrl, name } = user || {};
+  const proxiedAvatarUrl = getProxiedImageUrl(avatarUrl);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -127,9 +127,9 @@ export const UserInput = memo(() => {
 
       {user ? (
         <div className={styles.profileSummary}>
-          <Avatar name={full_name || 'SoundCloud user'} size='md' src={proxiedAvatarUrl} />
+          <Avatar name={name || 'SoundCloud user'} size='md' src={proxiedAvatarUrl} />
           <Text className={styles.profileName} fw={600}>
-            {full_name || 'SoundCloud user'}
+            {name || 'SoundCloud user'}
           </Text>
           <ActionIcon
             ref={connectedControlRef}

@@ -1,11 +1,12 @@
-import type { TracksResult } from '../../api/api';
+import type { Track } from '@dwnldr/shared';
+
 import { DOWNLOAD_FILTER_ORDER } from './track-list.constants';
 import type { DownloadFilter, IsDownloadedTrack } from './track-list.types';
 
 const includesFilter = (value: string, filter: string) => value.toLowerCase().includes(filter.toLowerCase());
 
 export const filterTracks = (
-  tracks: TracksResult[] | undefined,
+  tracks: Track[] | undefined,
   searchFilter: string,
   downloadFilter: DownloadFilter,
   isDownloadedTrack: IsDownloadedTrack,
@@ -14,8 +15,8 @@ export const filterTracks = (
     return [];
   }
 
-  return tracks.filter(({ title, user }) => {
-    if (!includesFilter(user, searchFilter) && !includesFilter(title, searchFilter)) {
+  return tracks.filter(({ artist, title }) => {
+    if (!includesFilter(artist, searchFilter) && !includesFilter(title, searchFilter)) {
       return false;
     }
 
@@ -23,7 +24,7 @@ export const filterTracks = (
       return true;
     }
 
-    const isDownloaded = isDownloadedTrack(`${user} - ${title}`);
+    const isDownloaded = isDownloadedTrack(`${artist} - ${title}`);
 
     return downloadFilter === 'downloaded' ? isDownloaded : !isDownloaded;
   });

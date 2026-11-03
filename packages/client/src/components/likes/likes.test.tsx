@@ -130,7 +130,7 @@ describe('Likes', () => {
 
   it('announces a cached list refresh without hiding the list', () => {
     favoritesQueryMock.mockReturnValue({
-      data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
+      data: [{ url: 'https://soundcloud.com/test/track', title: 'Track', artist: 'Artist' }],
       error: undefined,
       isFetching: true,
       isLoading: false,
@@ -145,7 +145,7 @@ describe('Likes', () => {
 
   it('keeps cached likes visible after a background refresh fails and retries in place', () => {
     favoritesQueryMock.mockReturnValue({
-      data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
+      data: [{ url: 'https://soundcloud.com/test/track', title: 'Track', artist: 'Artist' }],
       error: { code: 'UPSTREAM_FAILURE', error: 'Failed' },
       isFetching: false,
       isLoading: false,
@@ -181,7 +181,7 @@ describe('Likes', () => {
 
   it('renders the track list when a profile and favorites are configured', () => {
     favoritesQueryMock.mockReturnValue({
-      data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
+      data: [{ url: 'https://soundcloud.com/test/track', title: 'Track', artist: 'Artist' }],
       error: undefined,
       isFetching: false,
       isLoading: false,
@@ -200,7 +200,7 @@ describe('Likes', () => {
 
   it('points folder setup to Settings when favorites exist without a folder', () => {
     favoritesQueryMock.mockReturnValue({
-      data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
+      data: [{ url: 'https://soundcloud.com/test/track', title: 'Track', artist: 'Artist' }],
       error: undefined,
       isFetching: false,
       isLoading: false,
@@ -214,7 +214,7 @@ describe('Likes', () => {
 
   it('does not request folder sync when Likes renders with a selected folder', () => {
     favoritesQueryMock.mockReturnValue({
-      data: [{ permalink_url: 'https://soundcloud.com/test/track', title: 'Track', user: 'Artist' }],
+      data: [{ url: 'https://soundcloud.com/test/track', title: 'Track', artist: 'Artist' }],
       error: undefined,
       isFetching: false,
       isLoading: false,

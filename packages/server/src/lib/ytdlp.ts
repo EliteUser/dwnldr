@@ -1,5 +1,5 @@
 import ffmpegPath from 'ffmpeg-static';
-import { execFile, spawn } from 'node:child_process';
+import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { env } from '../config/env.js';
@@ -14,16 +14,6 @@ const URL_PATTERN = /https?:\/\/\S+/g;
 
 export const ffmpegBinaryPath = (ffmpegPath as unknown as string | null) ?? undefined;
 
-export type YtDlpInfo = {
-  _type?: string;
-  channel: string;
-  duration?: number;
-  id: string;
-  original_url: string;
-  thumbnail?: string;
-  title: string;
-};
-
 export class YtDlpError extends Error {
   constructor(
     readonly exitCode: number | null,
@@ -34,11 +24,32 @@ export class YtDlpError extends Error {
   }
 }
 
+const isWindows = process.platform === 'win32';
+
+// yt-dlp starts helpers (ffmpeg, and on Windows its own PyInstaller child) that inherit our pipes.
+// Killing only the direct child would leave them running, so the whole process tree is stopped.
+const killTree = (child: ChildProcess, signal: NodeJS.Signals) => {
+  if (child.pid === undefined || child.exitCode !== null) {
+    return;
+  }
+
+  if (isWindows) {
+    spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' }).once('error', () => undefined);
+  } else {
+    try {
+      process.kill(-child.pid, signal);
+    } catch {
+      // The process group has already exited.
+    }
+  }
+};
+
 export const runProcess = (command: string, args: string[], signal: AbortSignal) =>
   new Promise<string>((resolve, reject) => {
     signal.throwIfAborted();
 
-    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    // On POSIX the child leads its own process group, so killTree can signal every helper at once.
+    const child = spawn(command, args, { detached: !isWindows, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     let settled = false;
@@ -56,8 +67,8 @@ export const runProcess = (command: string, args: string[], signal: AbortSignal)
     };
 
     const onAbort = () => {
-      child.kill('SIGTERM');
-      forceKillTimeout = setTimeout(() => child.kill('SIGKILL'), FORCE_KILL_DELAY_MS);
+      killTree(child, 'SIGTERM');
+      forceKillTimeout = setTimeout(() => killTree(child, 'SIGKILL'), FORCE_KILL_DELAY_MS);
       forceKillTimeout.unref();
     };
 

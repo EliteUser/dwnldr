@@ -29,10 +29,10 @@ describe('SoundCloud profile queries', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        avatar_url: null,
-        full_name: 'Artist Name',
+        avatarUrl: null,
+        name: 'Artist Name',
         id: 123,
-        permalink_url: 'https://soundcloud.com/artist-name',
+        url: 'https://soundcloud.com/artist-name',
       }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -44,7 +44,7 @@ describe('SoundCloud profile queries', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/soundcloud/users?profileUrl=https%3A%2F%2Fsoundcloud.com%2Fartist-name',
+      '/api/profile?url=https%3A%2F%2Fsoundcloud.com%2Fartist-name',
       expect.objectContaining({
         headers: { 'Content-Type': 'application/json' },
         signal: expect.any(AbortSignal),
@@ -73,7 +73,7 @@ describe('SoundCloud profile queries', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/soundcloud/favorites?profileUrl=https%3A%2F%2Fsoundcloud.com%2Fartist',
+      '/api/likes?url=https%3A%2F%2Fsoundcloud.com%2Fartist',
       expect.objectContaining({
         headers: { 'Content-Type': 'application/json' },
         signal: expect.any(AbortSignal),

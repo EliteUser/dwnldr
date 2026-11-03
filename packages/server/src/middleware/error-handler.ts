@@ -5,6 +5,7 @@ import { ZodError } from 'zod';
 import { isAbortError } from '../errors/error-utils.js';
 import { HttpError } from '../errors/http-error.js';
 import { getLogger } from '../lib/logger.js';
+import { removeFolder } from '../utils/temp.utils.js';
 
 const getHttpParserError = (error: unknown) => {
   if (typeof error !== 'object' || error === null || !('status' in error)) {
@@ -25,6 +26,11 @@ const getHttpParserError = (error: unknown) => {
 
 export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   const logger = getLogger();
+
+  // Requests can fail during upload, before their handler gets a chance to clean up.
+  if (res.locals.folder) {
+    void removeFolder(res.locals.folder);
+  }
 
   if (error instanceof ZodError) {
     logger.warn(

@@ -17,13 +17,3 @@ export const sanitizeFilename = (name: string): string => {
 
   return safeName;
 };
-
-export const getContentDispositionHeader = (fileName: string): string => {
-  const asciiFallback = sanitizeFilename(fileName).replace(/[^\x20-\x7E]/g, '_');
-  const escapedFallback = asciiFallback.replace(/(["\\])/g, '\\$1');
-  const encodedFileName = encodeURIComponent(fileName)
-    .replace(/['()]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
-    .replace(/\*/g, '%2A');
-
-  return `attachment; filename="${escapedFallback}"; filename*=UTF-8''${encodedFileName}`;
-};

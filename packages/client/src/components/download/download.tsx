@@ -47,9 +47,10 @@ const DownloadForm = (props: DownloadFormProps) => {
   });
 
   const hasUrl = Boolean(trimmedUrl);
-  const providerArtworkUrl = track?.artwork?.url ?? track?.artwork_url;
+  const providerArtworkUrl = track?.artworkUrl;
   const name =
-    nameOverride ?? (track && !isFetching ? (provider?.toDownloadName(track) ?? `${track.user} - ${track.title}`) : '');
+    nameOverride ??
+    (track && !isFetching ? (provider?.toDownloadName(track) ?? `${track.artist} - ${track.title}`) : '');
 
   const isMetadataLoading =
     hasUrl && (trimmedUrl !== debouncedUrl || isFetching || (Boolean(provider) && !track && !metadataError));

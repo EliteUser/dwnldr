@@ -34,7 +34,7 @@ export const createDownloadFolder = async () => {
   return folderPath;
 };
 
-export const removeFolder = (folderPath: string) => {
+export const removeFolder = async (folderPath: string) => {
   const { isInsideTempRoot, resolvedTargetPath, tempRoot } = resolveWithinTempRoot(folderPath);
 
   if (!isInsideTempRoot) {
@@ -51,12 +51,8 @@ export const removeFolder = (folderPath: string) => {
     return false;
   }
 
-  if (!fs.existsSync(resolvedTargetPath)) {
-    return false;
-  }
-
   try {
-    fs.rmSync(resolvedTargetPath, { recursive: true, force: true });
+    await fs.promises.rm(resolvedTargetPath, { recursive: true, force: true });
     return true;
   } catch (error) {
     getLogger({
@@ -95,7 +91,7 @@ export const sweepStaleDownloadFolders = async (maxAgeMs: number) => {
       continue;
     }
 
-    if (removeFolder(folderPath)) {
+    if (await removeFolder(folderPath)) {
       removedCount += 1;
     }
   }

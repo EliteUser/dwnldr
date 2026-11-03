@@ -1,102 +1,30 @@
 import { cancelResponseBody, readResponseBuffer } from './response-buffer.service.js';
 
+const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+
 export class HttpStatusError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly statusText: string,
-  ) {
-    super(`HTTP request failed with status ${status}${statusText ? ` ${statusText}` : ''}.`);
+  constructor(public readonly status: number) {
+    super(`HTTP request failed with status ${status}.`);
     this.name = 'HttpStatusError';
   }
 }
 
-export class HttpResponseParseError extends Error {
-  constructor(message = 'HTTP response was not valid JSON.', options?: ErrorOptions) {
-    super(message, options);
-    this.name = 'HttpResponseParseError';
-  }
-}
-
-export class HttpDeadlineExceededError extends Error {
-  constructor(public readonly timeoutMs: number) {
-    super(`HTTP operation exceeded its ${timeoutMs} ms deadline.`);
-    this.name = 'HttpDeadlineExceededError';
-  }
-}
-
-export type HttpRequestOptions = {
+type HttpRequestOptions = {
   headers?: Record<string, string>;
-  maxResponseBytes?: number;
-  signal?: AbortSignal;
-  timeoutMs?: number;
+  signal: AbortSignal;
 };
 
-export const createDeadlineSignal = (timeoutMs: number, parentSignal?: AbortSignal) => {
-  const controller = new AbortController();
-  let didTimeout = false;
-  const timeout = setTimeout(() => {
-    didTimeout = true;
-    controller.abort(new HttpDeadlineExceededError(timeoutMs));
-  }, timeoutMs);
+/** Fetches a trusted, fixed URL (no redirects) and reads at most 10 MB of its body. */
+export const fetchHttpText = async (input: string | URL, { headers, signal }: HttpRequestOptions) => {
+  const response = await fetch(input, { headers, redirect: 'error', signal });
 
-  timeout.unref();
-
-  const onAbort = () => controller.abort(parentSignal?.reason);
-
-  if (parentSignal?.aborted) {
-    onAbort();
-  } else {
-    parentSignal?.addEventListener('abort', onAbort, { once: true });
+  if (!response.ok) {
+    await cancelResponseBody(response);
+    throw new HttpStatusError(response.status);
   }
 
-  return {
-    dispose: () => {
-      clearTimeout(timeout);
-      parentSignal?.removeEventListener('abort', onAbort);
-    },
-    get didTimeout() {
-      return didTimeout;
-    },
-    signal: controller.signal,
-  };
+  return (await readResponseBuffer(response, MAX_RESPONSE_BYTES)).toString('utf8');
 };
 
-export const fetchHttpText = async (input: string | URL, options: HttpRequestOptions = {}): Promise<string> => {
-  const deadline = options.timeoutMs ? createDeadlineSignal(options.timeoutMs, options.signal) : undefined;
-  const signal = deadline?.signal ?? options.signal;
-
-  try {
-    signal?.throwIfAborted();
-    const response = await fetch(input, {
-      headers: options.headers,
-      redirect: 'error',
-      signal,
-    });
-
-    if (!response.ok) {
-      await cancelResponseBody(response);
-      throw new HttpStatusError(response.status, response.statusText);
-    }
-
-    const body = await readResponseBuffer(response, options.maxResponseBytes ?? 10 * 1024 * 1024);
-    return body.toString('utf8');
-  } catch (error) {
-    if (deadline?.didTimeout) {
-      throw new HttpDeadlineExceededError(options.timeoutMs ?? 0);
-    }
-
-    throw error;
-  } finally {
-    deadline?.dispose();
-  }
-};
-
-export const fetchHttpJson = async <T>(input: string | URL, options: HttpRequestOptions = {}): Promise<T> => {
-  const text = await fetchHttpText(input, options);
-
-  try {
-    return JSON.parse(text) as T;
-  } catch (error) {
-    throw new HttpResponseParseError(undefined, { cause: error });
-  }
-};
+export const fetchHttpJson = async (input: string | URL, options: HttpRequestOptions): Promise<unknown> =>
+  JSON.parse(await fetchHttpText(input, options));

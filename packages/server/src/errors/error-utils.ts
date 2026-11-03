@@ -1,11 +1,3 @@
-export const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
-};
-
 export const getErrorStatus = (error: unknown): number | undefined => {
   if (!error || typeof error !== 'object') {
     return undefined;
@@ -21,9 +13,6 @@ export const getErrorStatus = (error: unknown): number | undefined => {
 
   return typeof status === 'number' ? status : undefined;
 };
-
-export const isEnospcError = (error: unknown) =>
-  typeof error === 'object' && error !== null && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOSPC';
 
 export const isAbortError = (error: unknown) =>
   typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError';

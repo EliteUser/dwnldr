@@ -124,7 +124,7 @@ describe('Download', () => {
   it('clears form fields when a different likes-track URL is selected', () => {
     providerTrackQueryMock.mockReturnValue({
       currentData: {
-        user: 'Artist',
+        artist: 'Artist',
         title: 'Track One',
       },
       error: undefined,
@@ -161,7 +161,7 @@ describe('Download', () => {
   it('aborts an in-progress download when Cancel is clicked', async () => {
     providerTrackQueryMock.mockReturnValue({
       currentData: {
-        user: 'Artist',
+        artist: 'Artist',
         title: 'Track Name',
       },
       error: undefined,
@@ -212,7 +212,7 @@ describe('Download', () => {
 
   it('keeps an active download cancellable when another track is selected', async () => {
     providerTrackQueryMock.mockReturnValue({
-      currentData: { user: 'Artist', title: 'Track One' },
+      currentData: { artist: 'Artist', title: 'Track One' },
       error: undefined,
       isFetching: false,
       provider: undefined,
@@ -251,7 +251,7 @@ describe('Download', () => {
   it('does not repopulate the name field from stale query data while a new URL is loading', async () => {
     const loadedTrackQuery = {
       currentData: {
-        user: 'Artist',
+        artist: 'Artist',
         title: 'Track One',
       },
       error: undefined,
@@ -261,7 +261,7 @@ describe('Download', () => {
 
     providerTrackQueryMock.mockReturnValueOnce(loadedTrackQuery).mockReturnValue({
       data: {
-        user: 'Artist',
+        artist: 'Artist',
         title: 'Track One',
       },
       currentData: undefined,
@@ -287,8 +287,8 @@ describe('Download', () => {
         artwork: {
           url: 'https://img.example.test/cover.jpg',
         },
-        artwork_url: 'https://img.example.test/cover.jpg',
-        user: 'Artist',
+        artworkUrl: 'https://img.example.test/cover.jpg',
+        artist: 'Artist',
         title: 'Track Name',
       },
       error: undefined,
@@ -306,7 +306,7 @@ describe('Download', () => {
   it('uses the browser download flow without opening the save file picker', async () => {
     providerTrackQueryMock.mockReturnValue({
       currentData: {
-        user: 'Artist',
+        artist: 'Artist',
         title: 'Track Name',
       },
       error: undefined,

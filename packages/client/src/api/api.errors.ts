@@ -1,13 +1,6 @@
-export type ApiErrorCode =
-  | 'INVALID_INPUT'
-  | 'UNSUPPORTED_SOURCE'
-  | 'YOUTUBE_PLAYLIST'
-  | 'UPSTREAM_UNAUTHORIZED'
-  | 'UPSTREAM_FAILURE'
-  | 'CONVERSION_FAILURE'
-  | 'RATE_LIMITED'
-  | 'SERVER_BUSY'
-  | 'INTERNAL_ERROR';
+import type { ApiErrorCode } from '@dwnldr/shared';
+
+export type { ApiErrorCode };
 
 export type ApiErrorResponse = {
   code?: ApiErrorCode | string;

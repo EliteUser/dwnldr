@@ -7,6 +7,7 @@ RUN npm install -g pnpm@10.34.7
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/client/package.json ./packages/client/package.json
 COPY packages/server/package.json ./packages/server/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
 
 RUN pnpm install --frozen-lockfile
 

@@ -1,22 +1,11 @@
-export const HTTP_ERROR_CODES = [
-  'INVALID_INPUT',
-  'UNSUPPORTED_SOURCE',
-  'YOUTUBE_PLAYLIST',
-  'UPSTREAM_UNAUTHORIZED',
-  'UPSTREAM_FAILURE',
-  'CONVERSION_FAILURE',
-  'SERVER_BUSY',
-  'INTERNAL_ERROR',
-] as const;
-
-export type HttpErrorCode = (typeof HTTP_ERROR_CODES)[number];
+import type { ApiErrorCode } from '@dwnldr/shared';
 
 export class HttpError extends Error {
-  public readonly code: HttpErrorCode;
+  public readonly code: ApiErrorCode;
   public readonly statusCode: number;
   public readonly details?: unknown;
 
-  constructor(statusCode: number, message: string, options: { code: HttpErrorCode; details?: unknown }) {
+  constructor(statusCode: number, message: string, options: { code: ApiErrorCode; details?: unknown }) {
     super(message);
 
     this.name = 'HttpError';

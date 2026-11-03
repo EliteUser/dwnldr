@@ -7,14 +7,14 @@ import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { requestLogger } from './middleware/request-logger.js';
-import { apiRouter } from './routes/common/api.routes.js';
-import type { HealthRouterOptions } from './routes/common/health.routes.js';
-import { createHealthRouter } from './routes/common/health.routes.js';
+import { apiRouter } from './routes.js';
+import type { ReadinessStatus } from './services/health/health.service.js';
+import { getHealthStatus, getReadinessStatus } from './services/health/health.service.js';
 
 const serverDirPath = path.dirname(fileURLToPath(import.meta.url));
 const clientDistPath = path.resolve(serverDirPath, '../../client/dist');
 type CreateAppOptions = {
-  getReadiness?: HealthRouterOptions['getReadiness'];
+  getReadiness?: () => Promise<ReadinessStatus>;
 };
 
 export const createApp = (options: CreateAppOptions = {}) => {
@@ -40,7 +40,14 @@ export const createApp = (options: CreateAppOptions = {}) => {
   );
   app.use(requestLogger);
   app.use(express.json({ limit: '64kb' }));
-  app.use(createHealthRouter({ getReadiness: options.getReadiness }));
+  app.get('/health', (_req, res) => {
+    res.json(getHealthStatus());
+  });
+  app.get('/ready', async (_req, res) => {
+    const readiness = await (options.getReadiness ?? getReadinessStatus)();
+
+    res.status(readiness.status === 'ok' ? 200 : 503).json(readiness);
+  });
   app.use(express.static(clientDistPath));
 
   app.use('/api', apiRouter);

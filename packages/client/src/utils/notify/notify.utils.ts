@@ -29,14 +29,14 @@ export const getApiErrorMessage = (error?: ApiErrorResponse | null) => {
   switch (error?.code) {
     case 'UNSUPPORTED_SOURCE':
       return API_ERROR_MESSAGE.UNSUPPORTED_SOURCE;
-    case 'YOUTUBE_PLAYLIST':
-      return API_ERROR_MESSAGE.YOUTUBE_PLAYLIST;
+    case 'PLAYLIST_NOT_SUPPORTED':
+      return API_ERROR_MESSAGE.PLAYLIST_NOT_SUPPORTED;
+    case 'NOT_FOUND':
+      return API_ERROR_MESSAGE.NOT_FOUND;
     case 'UPSTREAM_UNAUTHORIZED':
       return API_ERROR_MESSAGE.UPSTREAM_UNAUTHORIZED;
     case 'UPSTREAM_FAILURE':
       return API_ERROR_MESSAGE.UPSTREAM_FAILURE;
-    case 'CONVERSION_FAILURE':
-      return API_ERROR_MESSAGE.CONVERSION_FAILURE;
     case 'RATE_LIMITED':
       return API_ERROR_MESSAGE.RATE_LIMITED;
     case 'SERVER_BUSY':
