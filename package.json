@@ -27,7 +27,7 @@
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs,json,jsonc}": [
       "oxfmt --check",
-      "oxlint ."
+      "oxlint --deny-warnings"
     ]
   },
   "engines": {

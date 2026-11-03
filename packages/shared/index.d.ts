@@ -35,7 +35,6 @@ export type ApiErrorCode =
   | 'NOT_FOUND'
   | 'UPSTREAM_UNAUTHORIZED'
   | 'UPSTREAM_FAILURE'
-  | 'RATE_LIMITED'
   | 'SERVER_BUSY'
   | 'INTERNAL_ERROR';
 
