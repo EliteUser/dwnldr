@@ -51,12 +51,15 @@ export const collectFiles = async (handle: FileSystemDirectoryHandle): Promise<F
   return files;
 };
 
-const hasReadPermission = async (handle: FileSystemDirectoryHandle) =>
-  (await handle.queryPermission({ mode: 'read' })) === 'granted' ||
-  (await handle.requestPermission({ mode: 'read' })) === 'granted';
+const hasPermission = async (handle: FileSystemDirectoryHandle, mode: FileSystemPermissionMode) =>
+  (await handle.queryPermission({ mode })) === 'granted' || (await handle.requestPermission({ mode })) === 'granted';
+
+const getSavedHandle = async () =>
+  sessionHandle ??
+  (await withHandleStore<FileSystemDirectoryHandle | undefined>('readonly', (store) => store.get(HANDLE_KEY)));
 
 const indexFolder = async (handle: FileSystemDirectoryHandle): Promise<FolderSyncResult> => {
-  if (!(await hasReadPermission(handle))) {
+  if (!(await hasPermission(handle, 'read'))) {
     return { ok: false, message: 'Folder permission was not granted. Pick the folder again in Settings.' };
   }
 
@@ -87,11 +90,12 @@ const runFolderTask = async (task: () => Promise<FolderSyncResult>, errorMessage
 
 export const selectFolder = () =>
   runFolderTask(async () => {
-    const handle = await window.showDirectoryPicker();
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
     const result = await indexFolder(handle);
 
     if (result.ok) {
       await withHandleStore('readwrite', (store) => store.put(handle, HANDLE_KEY));
+      useAppStore.setState({ saveDownloadsToFolder: true });
     }
 
     return result;
@@ -99,9 +103,57 @@ export const selectFolder = () =>
 
 export const syncFolder = () =>
   runFolderTask(async () => {
-    const handle =
-      sessionHandle ??
-      (await withHandleStore<FileSystemDirectoryHandle | undefined>('readonly', (store) => store.get(HANDLE_KEY)));
+    const handle = await getSavedHandle();
 
     return handle ? indexFolder(handle) : { ok: false, message: 'Pick a folder in Settings before syncing.' };
   }, 'Could not sync the selected folder.');
+
+/**
+ * The folder downloads are saved to, or null when they go through the browser. Throws when access is lost.
+ * Call it before the network request, while the click still counts as a user gesture for the permission prompt.
+ */
+export const getDownloadFolder = async () => {
+  if (!useAppStore.getState().saveDownloadsToFolder) {
+    return null;
+  }
+
+  const handle = canUseFileSystemAccess() ? await getSavedHandle() : undefined;
+
+  if (!handle || !(await hasPermission(handle, 'readwrite'))) {
+    throw new Error('Folder write permission was not granted.');
+  }
+
+  return handle;
+};
+
+const fileExists = async (directory: FileSystemDirectoryHandle, name: string) => {
+  try {
+    await directory.getFileHandle(name);
+    return true;
+  } catch (error) {
+    if ((error as DOMException).name === 'NotFoundError') {
+      return false;
+    }
+    throw error;
+  }
+};
+
+/** Writes the file without overwriting: a taken name gets a numbered copy, e.g. `Track (1).mp3`. */
+export const saveToFolder = async (directory: FileSystemDirectoryHandle, fileName: string, blob: Blob) => {
+  const dot = fileName.lastIndexOf('.');
+  const stem = dot > 0 ? fileName.slice(0, dot) : fileName;
+  const extension = dot > 0 ? fileName.slice(dot) : '';
+  let name = fileName;
+
+  for (let copy = 1; await fileExists(directory, name); copy += 1) {
+    name = `${stem} (${copy})${extension}`;
+  }
+
+  const writable = await (await directory.getFileHandle(name, { create: true })).createWritable();
+  await writable.write(blob);
+  await writable.close();
+
+  useAppStore.setState((state) => ({ files: [...state.files, getFileData(name)] }));
+
+  return name;
+};

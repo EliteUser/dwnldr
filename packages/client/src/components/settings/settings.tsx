@@ -1,4 +1,4 @@
-import { Accordion, Button, Text } from '@mantine/core';
+import { Accordion, Button, Switch, Text } from '@mantine/core';
 import { IconFolderOpen, IconFolderUp } from '@tabler/icons-react';
 import { memo, useCallback, useMemo } from 'react';
 
@@ -19,6 +19,7 @@ export const Settings = memo(() => {
   const fileCount = useAppStore((state) => state.files.length);
   const isSyncInProgress = useAppStore((state) => state.isFolderSyncInProgress);
   const lastSyncAt = useAppStore((state) => state.lastSyncAt);
+  const saveDownloadsToFolder = useAppStore((state) => state.saveDownloadsToFolder);
 
   const supportsFileSystemAccess = canUseFileSystemAccess();
 
@@ -84,7 +85,7 @@ export const Settings = memo(() => {
         >
           <Accordion.Item value='sync-folder'>
             <Accordion.Control>
-              <Text fw={600}>Sync Folder</Text>
+              <Text fw={600}>Music Folder</Text>
             </Accordion.Control>
             <Accordion.Panel>
               <div className={styles.sectionContent}>
@@ -95,7 +96,7 @@ export const Settings = memo(() => {
                       <Text size='sm' c='dimmed'>
                         {directoryName
                           ? `${fileCount} files indexed${formattedLastSyncAt ? ` - ${formattedLastSyncAt}` : ''}`
-                          : 'Pick the folder where your moved music files live.'}
+                          : 'Pick your music folder to save downloads and find existing tracks.'}
                       </Text>
                     </div>
 
@@ -104,6 +105,7 @@ export const Settings = memo(() => {
                         variant='filled'
                         size='sm'
                         leftSection={<IconFolderOpen size={16} />}
+                        disabled={isSyncInProgress}
                         onClick={() => void handleSelect()}
                       >
                         Pick Folder
@@ -120,13 +122,23 @@ export const Settings = memo(() => {
                         Sync Folder
                       </Button>
                     </div>
+
+                    <Switch
+                      label='Save downloads to this folder'
+                      description='Applies to Download and Meta. Existing files are kept; copies get a numbered name.'
+                      checked={saveDownloadsToFolder}
+                      disabled={!directoryName || isSyncInProgress}
+                      onChange={(event) => useAppStore.setState({ saveDownloadsToFolder: event.currentTarget.checked })}
+                    />
+                    <Text size='sm' c='dimmed'>
+                      Allow file access when asked. If access expires, pick the folder again. When writing is
+                      unavailable, files use your browser download location instead.
+                    </Text>
                   </>
                 ) : (
                   <div className={styles.emptyState}>
                     <Text fw={600}>File System Access unavailable</Text>
-                    <Text>
-                      Folder sync needs a browser with the File System Access API and a secure (HTTPS) connection.
-                    </Text>
+                    <Text>Saving and syncing folders needs a supported browser and a secure (HTTPS) connection.</Text>
                     <Text size='sm' c='dimmed'>
                       Use HTTPS on your deployed domain. On local desktop development, localhost also counts as a secure
                       context.

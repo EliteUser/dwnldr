@@ -13,6 +13,7 @@ type AppState = {
   isFolderSyncInProgress: boolean;
   lastSyncAt: string | null;
   profileUrl: string | null;
+  saveDownloadsToFolder: boolean;
 };
 
 const initialState: AppState = {
@@ -21,6 +22,7 @@ const initialState: AppState = {
   isFolderSyncInProgress: false,
   lastSyncAt: null,
   profileUrl: null,
+  saveDownloadsToFolder: false,
 };
 
 export const useAppStore = create<AppState>()(

@@ -1,6 +1,6 @@
 import { notifications } from '@mantine/notifications';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAppStore } from '../../store';
 import { jsonResponse, mockApi, renderWithProviders } from '../../test/render';
@@ -22,6 +22,28 @@ vi.mock('../../utils/folder', () => ({
 const success: FolderSyncResult = { ok: true, directoryName: 'Music', fileCount: 2 };
 
 describe('Settings', () => {
+  beforeEach(() => {
+    useAppStore.setState({ directoryName: null, saveDownloadsToFolder: false, isFolderSyncInProgress: false });
+  });
+
+  it('enables saving to the indexed folder and allows returning to browser downloads', () => {
+    mockApi({});
+    useAppStore.setState({ directoryName: 'Music' });
+    renderWithProviders(<Settings />);
+
+    const toggle = screen.getByRole('switch', { name: /Save downloads to this folder/ });
+    fireEvent.click(toggle);
+    expect(useAppStore.getState().saveDownloadsToFolder).toBe(true);
+    fireEvent.click(toggle);
+    expect(useAppStore.getState().saveDownloadsToFolder).toBe(false);
+  });
+
+  it('requires a folder before enabling folder downloads', () => {
+    mockApi({});
+    renderWithProviders(<Settings />);
+    expect(screen.getByRole('switch', { name: /Save downloads to this folder/ })).toBeDisabled();
+  });
+
   it('shows the synced folder and syncs it with a progress notification', async () => {
     mockApi({});
     syncFolderMock.mockResolvedValue(success);
@@ -30,8 +52,7 @@ describe('Settings', () => {
     renderWithProviders(<Settings />);
 
     expect(screen.getByText('1 files indexed')).toBeInTheDocument();
-    // The accordion header is also named Sync Folder; the action button comes last.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Sync Folder' }).at(-1)!);
+    fireEvent.click(screen.getByRole('button', { name: 'Sync Folder' }));
 
     expect(notifications.show).toHaveBeenCalledWith(expect.objectContaining({ id: 'folder-sync', loading: true }));
     await waitFor(() =>

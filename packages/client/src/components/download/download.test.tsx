@@ -31,6 +31,20 @@ const mockTrackApi = (downloadResponse = () => new Response('mp3', { status: 200
   });
 
 describe('Download', () => {
+  it('downloads with the source artwork when no custom image is selected', async () => {
+    const fetchMock = mockTrackApi();
+    renderWithProviders(<Download selectedUrl={trackUrl} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Download' }));
+    await waitFor(() =>
+      expect(notifications.show).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Saved: Artist - Track One' }),
+      ),
+    );
+    const body = fetchMock.mock.calls.find(([url]) => url === '/api/download')![1]!.body as FormData;
+    expect(body.get('url')).toBe(trackUrl);
+    expect(body.get('artwork')).toBeNull();
+  });
+
   it('lists the supported providers before a link is entered', async () => {
     mockTrackApi();
 
