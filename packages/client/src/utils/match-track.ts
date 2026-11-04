@@ -4,6 +4,7 @@ const SHORT_TITLE_TOKEN_THRESHOLD = 3;
 const SHORT_TITLE_MATCH_THRESHOLD = 0.6;
 const DEFAULT_MATCH_THRESHOLD = 0.7;
 const MIN_CONTAINMENT_LENGTH = 6;
+const MIN_AUTHOR_LENGTH = 3;
 
 /**
  * Tokens that are commonly sprinkled into cloud track titles but do not
@@ -15,6 +16,7 @@ const TRACK_NOISE_TOKENS = new Set([
   'and',
   'audio',
   'bootleg',
+  'bpm',
   'cut',
   'demo',
   'dl',
@@ -36,6 +38,7 @@ const TRACK_NOISE_TOKENS = new Set([
   'official',
   'original',
   'outro',
+  'premiere',
   'prod',
   'produced',
   'radio',
@@ -69,6 +72,11 @@ const NUMERIC_TOKEN = /^\d+$/;
 /** Leading track-number tokens in filenames like "01 Artist - Track". */
 const LEADING_TRACK_NUMBER = /^\d{1,2}$/;
 
+const BRACKETED_SEGMENT = /\(([^()]*)\)|\[([^[\]]*)\]/g;
+
+/** Separates the author from the track name, as in "Author - Track Name". */
+const AUTHOR_SEPARATOR = /\s+[-\u2013\u2014]\s+/;
+
 const collapseWhitespace = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
 export const normalizeTrackName = (input: string): string =>
@@ -80,11 +88,24 @@ export const normalizeTrackName = (input: string): string =>
       .replace(/&/g, ' and ')
       .replace(APOSTROPHES, '')
       .replace(FEATURING_MARKER, ' ')
-      .replace(/[^a-z0-9]+/g, ' '),
+      .replace(/[^\p{L}\p{N}]+/gu, ' '),
   );
 
+const isNoiseToken = (token: string): boolean => NUMERIC_TOKEN.test(token) || TRACK_NOISE_TOKENS.has(token);
+
+/**
+ * Drops bracketed segments made only of numbers and noise words, such as "(2019 Remaster)", "[128 BPM]"
+ * or the "(1)" a browser appends to a duplicate download. "(Part 2)" stays, so sequels still differ.
+ */
+const stripNoiseBrackets = (input: string): string =>
+  input.replace(BRACKETED_SEGMENT, (segment, round?: string, square?: string) => {
+    const inner = normalizeTrackName(round ?? square ?? '');
+
+    return !inner || inner.split(' ').every(isNoiseToken) ? ' ' : segment;
+  });
+
 const tokenize = (input: string): string[] => {
-  const normalized = normalizeTrackName(input);
+  const normalized = normalizeTrackName(stripNoiseBrackets(input));
 
   if (!normalized) {
     return [];
@@ -214,12 +235,106 @@ const isTokenizedTrackMatch = (track: TokenizedTrackName, file: TokenizedTrackNa
 export const isTrackMatch = (trackTitle: string, fileName: string): boolean =>
   isTokenizedTrackMatch(tokenizeTrackName(trackTitle), tokenizeTrackName(fileName));
 
+const splitAuthor = (name: string): { author: string; title: string } | null => {
+  const match = AUTHOR_SEPARATOR.exec(name);
+
+  return match ? { author: name.slice(0, match.index), title: name.slice(match.index + match[0].length) } : null;
+};
+
+/**
+ * Loose author comparison: a shared word ("Alok & Kiiara" vs "Alok") or one name written inside the other
+ * ("alokmusic" vs "Alok"), so an uploader handle still matches the author typed into a filename.
+ */
+const isSameAuthor = (left: string[], right: string[]): boolean => {
+  const rightSet = new Set(right);
+
+  if (left.some((token) => token.length >= MIN_AUTHOR_LENGTH && rightSet.has(token))) {
+    return true;
+  }
+
+  const [shorter, longer] = [left.join(''), right.join('')].sort((a, b) => a.length - b.length);
+
+  return shorter!.length >= MIN_AUTHOR_LENGTH && longer!.includes(shorter!);
+};
+
+const indexFilesByToken = <T>(files: T[], getTokens: (file: T) => string[]): Map<string, T[]> => {
+  const index = new Map<string, T[]>();
+
+  for (const file of files) {
+    for (const token of getTokens(file)) {
+      const bucket = index.get(token);
+
+      if (bucket) {
+        bucket.push(file);
+      } else {
+        index.set(token, [file]);
+      }
+    }
+  }
+
+  return index;
+};
+
+/** How many of the (unique) tokens each indexed file shares with `tokens`; files sharing none are absent. */
+const countSharedTokens = <T>(tokens: string[], index: Map<string, T[]>): Map<T, number> => {
+  const counts = new Map<T, number>();
+
+  for (const token of tokens) {
+    for (const file of index.get(token) ?? []) {
+      counts.set(file, (counts.get(file) ?? 0) + 1);
+    }
+  }
+
+  return counts;
+};
+
+/**
+ * Cheap necessary condition for `isTokenizedTrackMatch`: it needs either the shorter side fully contained
+ * or a Jaccard score above the lowest threshold, so most candidates are skipped without the full comparison.
+ */
+const canTokensMatch = (shared: number, left: number, right: number): boolean =>
+  shared === Math.min(left, right) || shared / (left + right - shared) >= SHORT_TITLE_MATCH_THRESHOLD;
+
 export const createDownloadedTrackMatcher = (files: FileData[]) => {
-  const fileIndex = files.map(({ name }) => tokenizeTrackName(name));
+  const fileIndex = files.map(({ name }) => {
+    const parts = splitAuthor(name);
 
-  return (title: string): boolean => {
-    const tokenizedTitle = tokenizeTrackName(title);
+    return {
+      full: tokenizeTrackName(name),
+      author: parts ? uniqueTokens(parts.author) : [],
+      title: parts ? tokenizeTrackName(parts.title) : null,
+    };
+  });
 
-    return fileIndex.some((file) => isTokenizedTrackMatch(tokenizedTitle, file));
+  const filesByFullToken = indexFilesByToken(fileIndex, (file) => file.full.tokens);
+  const filesByTitleToken = indexFilesByToken(fileIndex, (file) => file.title?.tokens ?? []);
+
+  return (artist: string, title: string): boolean => {
+    const full = tokenizeTrackName(`${artist} - ${title}`);
+    // Cloud titles often carry the real author themselves: "Author - Track" uploaded by a label or channel.
+    const titleParts = splitAuthor(title);
+    const authors = titleParts ? [uniqueTokens(artist), uniqueTokens(titleParts.author)] : [uniqueTokens(artist)];
+    const trackName = tokenizeTrackName(titleParts?.title ?? title);
+
+    for (const [file, shared] of countSharedTokens(full.tokens, filesByFullToken)) {
+      if (
+        canTokensMatch(shared, full.tokens.length, file.full.tokens.length) &&
+        isTokenizedTrackMatch(full, file.full)
+      ) {
+        return true;
+      }
+    }
+
+    for (const [file, shared] of countSharedTokens(trackName.tokens, filesByTitleToken)) {
+      if (
+        canTokensMatch(shared, trackName.tokens.length, file.title!.tokens.length) &&
+        isTokenizedTrackMatch(trackName, file.title!) &&
+        authors.some((author) => isSameAuthor(author, file.author))
+      ) {
+        return true;
+      }
+    }
+
+    return false;
   };
 };

@@ -9,6 +9,12 @@ export type FolderSyncResult =
 const HANDLE_KEY = 'folderHandle';
 const STORE_NAME = 'dwnldr';
 
+/**
+ * The handle granted in this session. A handle restored from IndexedDB starts out as "prompt" again,
+ * and Android Chrome does not carry the grant over to it, so reusing this one avoids re-asking on every sync.
+ */
+let sessionHandle: FileSystemDirectoryHandle | undefined;
+
 export const canUseFileSystemAccess = () =>
   typeof window !== 'undefined' && window.isSecureContext && 'showDirectoryPicker' in window;
 
@@ -54,6 +60,8 @@ const indexFolder = async (handle: FileSystemDirectoryHandle): Promise<FolderSyn
     return { ok: false, message: 'Folder permission was not granted. Pick the folder again in Settings.' };
   }
 
+  sessionHandle = handle;
+
   const files = await collectFiles(handle);
 
   useAppStore.setState({ directoryName: handle.name, files, lastSyncAt: new Date().toISOString() });
@@ -91,9 +99,9 @@ export const selectFolder = () =>
 
 export const syncFolder = () =>
   runFolderTask(async () => {
-    const handle = await withHandleStore<FileSystemDirectoryHandle | undefined>('readonly', (store) =>
-      store.get(HANDLE_KEY),
-    );
+    const handle =
+      sessionHandle ??
+      (await withHandleStore<FileSystemDirectoryHandle | undefined>('readonly', (store) => store.get(HANDLE_KEY)));
 
     return handle ? indexFolder(handle) : { ok: false, message: 'Pick a folder in Settings before syncing.' };
   }, 'Could not sync the selected folder.');

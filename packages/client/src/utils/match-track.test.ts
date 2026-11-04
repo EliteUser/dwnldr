@@ -53,6 +53,13 @@ describe('isTrackMatch', () => {
     ['Artist - Dont Stop', "Artist - Don't Stop"],
     // Multiple featured artists
     ['Alok feat. Illenium & Kiiara - To The Moon', 'Alok - To The Moon'],
+    // Non-Latin scripts
+    ['Кино - Группа крови', 'Кино - Группа крови'],
+    ['Ёлка - Прованс', 'Елка - Прованс'],
+    // Numbers that do not identify the song
+    ['Artist - Track Name (2019 Remaster)', 'Artist - Track Name'],
+    ['Artist - Track Name [128 BPM]', 'Artist - Track Name'],
+    ['Artist - Track Name', 'Artist - Track Name (1)'],
   ] as const;
 
   const nonMatchingCases = [
@@ -63,6 +70,9 @@ describe('isTrackMatch', () => {
     ['Artist - Track Name 2', 'Artist - Track Name'],
     ['Artist - Track 1', 'Artist - Track 3'],
     ['Hello', 'Hello World Goodbye'],
+    ['Artist - Track Name (Part 2)', 'Artist - Track Name'],
+    ['Кино - Группа крови', 'Кино - Звезда по имени Солнце'],
+    ['Artist - Трек', 'Artist - Песня'],
     ['', 'Artist - Track Name'],
     ['Artist - Track Name', ''],
   ] as const;
@@ -87,8 +97,26 @@ describe('createDownloadedTrackMatcher', () => {
       { name: 'Alok - To The Moon', extension: 'mp3' },
     ]);
 
-    expect(isDownloaded('Alok & Illenium - To The Moon')).toBe(true);
-    expect(isDownloaded('Different Artist - To The Sun')).toBe(false);
-    expect(createDownloadedTrackMatcher([])('Alok - To The Moon')).toBe(false);
+    expect(isDownloaded('Alok & Illenium', 'To The Moon')).toBe(true);
+    expect(isDownloaded('Different Artist', 'To The Sun')).toBe(false);
+    expect(createDownloadedTrackMatcher([])('Alok', 'To The Moon')).toBe(false);
+  });
+
+  it('matches a filename author against the uploader handle or the author inside the cloud title', () => {
+    const isDownloaded = createDownloadedTrackMatcher([
+      { name: 'Alok - To The Moon', extension: 'mp3' },
+      { name: 'Some Artist - Track', extension: 'mp3' },
+    ]);
+
+    expect(isDownloaded('alokmusic', 'To The Moon')).toBe(true);
+    expect(isDownloaded('user-123456789', 'Some Artist - Track')).toBe(true);
+    expect(isDownloaded('Label Channel', 'Some Artist - Track (Extended Mix)')).toBe(true);
+  });
+
+  it('still requires the author to match when only the track name does', () => {
+    const isDownloaded = createDownloadedTrackMatcher([{ name: 'Other Artist - To The Moon', extension: 'mp3' }]);
+
+    expect(isDownloaded('alokmusic', 'To The Moon')).toBe(false);
+    expect(isDownloaded('Other Artist', 'To The Sun')).toBe(false);
   });
 });

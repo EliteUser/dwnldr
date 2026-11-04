@@ -34,16 +34,16 @@ const filterTracks = (
   tracks: TrackData[] | undefined,
   search: string,
   downloadFilter: DownloadFilter,
-  isDownloadedTrack: (title: string) => boolean,
+  downloadedIds: Set<TrackData['id']>,
 ) => {
   const query = search.toLowerCase();
 
-  return (tracks ?? []).filter(({ artist, title }) => {
+  return (tracks ?? []).filter(({ id, artist, title }) => {
     if (!artist.toLowerCase().includes(query) && !title.toLowerCase().includes(query)) {
       return false;
     }
 
-    return downloadFilter === 'all' || isDownloadedTrack(`${artist} - ${title}`) === (downloadFilter === 'downloaded');
+    return downloadFilter === 'all' || downloadedIds.has(id) === (downloadFilter === 'downloaded');
   });
 };
 
@@ -53,14 +53,19 @@ export const TrackList = memo<TrackListProps>((props) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const files = useAppStore((state) => state.files);
   const isDirectorySelected = useAppStore((state) => !!state.directoryName);
-  const isDownloadedTrack = useMemo(() => createDownloadedTrackMatcher(files), [files]);
+  // Matched once per track and folder sync, so searching and scrolling only look the result up.
+  const downloadedIds = useMemo(() => {
+    const isDownloadedTrack = createDownloadedTrackMatcher(files);
+
+    return new Set((tracks ?? []).filter(({ artist, title }) => isDownloadedTrack(artist, title)).map(({ id }) => id));
+  }, [files, tracks]);
 
   const [filter, setFilter] = useState('');
   const [downloadFilter, setDownloadFilter] = useState<DownloadFilter>('all');
 
   const filteredTracks = useMemo(
-    () => filterTracks(tracks, filter, downloadFilter, isDownloadedTrack),
-    [downloadFilter, filter, isDownloadedTrack, tracks],
+    () => filterTracks(tracks, filter, downloadFilter, downloadedIds),
+    [downloadFilter, downloadedIds, filter, tracks],
   );
 
   const cycleDownloadFilter = () => {
@@ -126,7 +131,7 @@ export const TrackList = memo<TrackListProps>((props) => {
               }}
             >
               {items.map((virtualRow) => {
-                const { artist, title, artworkUrl, url, durationMs } = filteredTracks[virtualRow.index];
+                const { id, artist, title, artworkUrl, url, durationMs } = filteredTracks[virtualRow.index];
 
                 const trackTitle = `${artist} - ${title}`;
 
@@ -138,7 +143,7 @@ export const TrackList = memo<TrackListProps>((props) => {
                     coverUrl={artworkUrl}
                     downloadUrl={url}
                     isDirectorySelected={isDirectorySelected}
-                    isDownloaded={files.length > 0 && isDownloadedTrack(trackTitle)}
+                    isDownloaded={downloadedIds.has(id)}
                     onDownloadClick={onDownloadClick}
                   />
                 );
